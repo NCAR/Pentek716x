@@ -6,7 +6,7 @@ import datetime
 
 class Pentemp:
     def __init__(self):
-        self.device = '/dev/pentek/p7142/0/t1'
+        self.device = '/dev/pentek/p7140/0/t1'
         self.cmd = ['drvgetparm', self.device]
         
     def doCmd(self):
