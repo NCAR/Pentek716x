@@ -4,13 +4,11 @@
 #include <iostream>
 #include <stdio.h>
 
-
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7140::p7140(std::string devName):
-p71xx(devName)
-{
+p71xx(devName) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -26,55 +24,55 @@ _dnFd(-1)
 	// verify that the card was found
 	if (!ok())
 		return;
-		
+
 	_ok = false;
-	
+
 	// create the down convertor name
-	 _dnName = devName + "/dn/" + _dnName;
-	 
+	_dnName = devName + "/dn/" + _dnName;
+
 	 // open it
 	_dnFd = open(_dnName.c_str(), O_RDONLY);
-	if (_dnFd < 0) 
+	if (_dnFd < 0)
 		return;
 
-	  // set the clock source
-	  int clockSource;
-	
-	  //  clockSource = CLK_SRC_FRTPAN;
-	  clockSource = CLK_SRC_INTERN;
-	
-	  if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
-	    {
-	      std::cout << "unable to set the clock source for "
-			<< _dnName << std::endl;
-	      perror("");
-	      return;
-	    }
-	
-	  // set the clock sample rate
-	  double doublearg = 100.0e6;
-	  if (ioctl(_dnFd, FIOSAMPRATESET, &doublearg) == -1) {
-	    std::cout << "unable to set the clock rate for "
-		      << _dnName << std::endl;
-	    perror("");
-	    return;
-	  }
-	
-	  // flush the device read buffers
-	  if (ioctl(_dnFd, FIOFLUSH, 0) == -1)
-	    {
-	      std::cout << "unable to flush for "
-			<< _dnName << std::endl;
-	      perror("");
-	      return;
-	    }
-		
-		// clear the over/under run counters
-		if (overUnderCount() < 0)
-		   return;
-		   
-		_ok = true;
-	
+	// set the clock source
+	int clockSource;
+
+	//  clockSource = CLK_SRC_FRTPAN;
+	clockSource = CLK_SRC_INTERN;
+
+	if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
+	{
+		std::cerr << "unable to set the clock source for "
+		<< _dnName << std::endl;
+		perror("");
+		return;
+	}
+
+	// set the clock sample rate
+	double doublearg = 100.0e6;
+	if (ioctl(_dnFd, FIOSAMPRATESET, &doublearg) == -1) {
+		std::cerr << "unable to set the clock rate for "
+		<< _dnName << std::endl;
+		perror("");
+		return;
+	}
+
+	// flush the device read buffers
+	if (ioctl(_dnFd, FIOFLUSH, 0) == -1)
+	{
+		std::cerr << "unable to flush for "
+		<< _dnName << std::endl;
+		perror("");
+		return;
+	}
+
+	// clear the over/under run counters
+	if (overUnderCount() < 0)
+		return;
+
+	_ok = true;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -85,16 +83,16 @@ p7140dn::~p7140dn() {
 
 
 ///////////////////////////////////////////////////////////
-int 
+int
 p7140dn::overUnderCount() {
-	
+
 	if (!_ok)
-		return -1;	
+		return -1;
 
   int count = ioctl(_dnFd, FIOGETOVRCNT);
   if (count == -1)
   {
-    std::cout << "unable to get ovr/under for "
+    std::cerr << "unable to get ovr/under for "
   	<< _dnName << std::endl;
     perror("");
     _ok = false;
@@ -104,7 +102,7 @@ p7140dn::overUnderCount() {
   // clear the overrun counter
   if (ioctl(_dnFd, FIOCLROVRCNT) == -1)
   {
-    std::cout << "unable to clear ovr/under for "
+    std::cerr << "unable to clear ovr/under for "
   	<< _dnName << std::endl;
     perror("");
     _ok = false;
@@ -115,19 +113,19 @@ p7140dn::overUnderCount() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-int 
+int
 p7140dn::read(char* buf, int bufsize) {
 
     if (!_ok)
        return -1;
-       
+
 	int n = ::read(_dnFd, buf, bufsize);
-	
+
 	if (n < 0)
 		_ok = false;
-	
+
 	return n;
-		
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

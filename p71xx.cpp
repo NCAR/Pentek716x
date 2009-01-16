@@ -14,10 +14,20 @@ _devName(devName)
 {
 
 	_ok = false;
-	 _devCtrl = devName + "/ctrl";
+	if (_devName.size() < 1)
+		return;
+
+	// remove trailing slash
+	if (_devName[_devName.size()-1] == '/') {
+		_devName.erase(_devName.size()-1,1);
+	}
+
+	// create and access the ctrl device name
+	_devCtrl = _devName + "/ctrl";
 	int fd = open(_devCtrl.c_str(), O_RDWR);
 	if (fd < 0)
 		return;
+
 	close(fd);
 	_ok = true;
 }

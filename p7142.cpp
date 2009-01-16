@@ -24,57 +24,64 @@ _dnName(dnName),
 _dnFd(-1)
 {
 	// verify that the card was found
-	if (!ok())
+	if (!ok()) {
+		std::cerr << "p7142dn card not foundn";
 		return;
-		
-	_ok = false;
-	
+	}
+
+
 	// create the down convertor name
 	 _dnName = devName + "/dn/" + _dnName;
-	 
+
 	 // open it
 	_dnFd = open(_dnName.c_str(), O_RDONLY);
-	if (_dnFd < 0) 
+	if (_dnFd < 0) {
+		std::cerr << "unable to open " << _dnName << std::endl;
+		_ok = false;
 		return;
+	}
 
 	  // set the clock source
 	  int clockSource;
-	
+
 	  //  clockSource = CLK_SRC_FRTPAN;
 	  clockSource = CLK_SRC_INTERN;
-	
+
 	  if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
 	    {
-	      std::cout << "unable to set the clock source for "
+	      std::cerr << "unable to set the clock source for "
 			<< _dnName << std::endl;
 	      perror("");
+	  	_ok = false;
 	      return;
 	    }
-	
+
 	  // set the clock sample rate
 	  double doublearg = 100.0e6;
 	  if (ioctl(_dnFd, FIOSAMPRATESET, &doublearg) == -1) {
-	    std::cout << "unable to set the clock rate for "
+	    std::cerr << "unable to set the clock rate for "
 		      << _dnName << std::endl;
 	    perror("");
+		_ok = false;
 	    return;
 	  }
-	
+
 	  // flush the device read buffers
 	  if (ioctl(_dnFd, FIOFLUSH, 0) == -1)
 	    {
-	      std::cout << "unable to flush for "
+	      std::cerr << "unable to flush for "
 			<< _dnName << std::endl;
 	      perror("");
+	  	_ok = false;
 	      return;
 	    }
-		
+
 		// clear the over/under run counters
 		if (overUnderCount() < 0)
 		   return;
-		   
+
 		_ok = true;
-	
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -85,11 +92,11 @@ p7142dn::~p7142dn() {
 
 
 ///////////////////////////////////////////////////////////
-int 
+int
 p7142dn::overUnderCount() {
-	
+
 	if (!_ok)
-		return -1;	
+		return -1;
 
   int count = ioctl(_dnFd, FIOGETOVRCNT);
   if (count == -1)
@@ -115,19 +122,19 @@ p7142dn::overUnderCount() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-int 
+int
 p7142dn::read(char* buf, int bufsize) {
 
     if (!_ok)
        return -1;
-       
+
 	int n = ::read(_dnFd, buf, bufsize);
-	
+
 	if (n < 0)
 		_ok = false;
-	
+
 	return n;
-		
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
