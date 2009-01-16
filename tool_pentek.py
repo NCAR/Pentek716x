@@ -13,6 +13,7 @@ env.AppendUnique(CPPPATH   =[PENTEK_INCLUDE,])
 env.AppendUnique(CPPDEFINES=['PENTEK_LINUX',])
 
 libsources = Split("""
+p71xx.cpp
 p7142.cpp
 """)
 
