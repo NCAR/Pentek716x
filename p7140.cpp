@@ -16,9 +16,10 @@ p7140::~p7140() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7140dn::p7140dn(std::string devName, std::string dnName):
+p7140dn::p7140dn(std::string devName, std::string dnName, int decrate):
 p7140(devName),
 _dnName(dnName),
+_decrate(decrate),
 _dnFd(-1)
 {
 	// verify that the card was found
@@ -57,6 +58,16 @@ _dnFd(-1)
 		perror("");
 		return;
 	}
+
+	// set the decimation rate
+	if (ioctl(_dnFd, FIODECIMSET, _decrate) == -1) {
+		std::cerr << "unable to set the bypass decimation rate for "
+			  << _dnName << " to " << _decrate << std::endl;
+		perror("");
+		_ok = false;
+		return;
+	}
+	std::cout << "decimation set to " << _decrate << std::endl;
 
 	// flush the device read buffers
 	if (ioctl(_dnFd, FIOFLUSH, 0) == -1)
