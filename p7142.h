@@ -50,10 +50,10 @@ namespace Pentek {
 		protected:
 			/// The down convertor device name
 			std::string _dnName;
-			/// The down convertor file descriptor
-			int _dnFd;
 			/// The bypass divider decimation rate.
 			int _bypdiv;
+			/// The down convertor file descriptor
+			int _dnFd;
 
 	};
 }
