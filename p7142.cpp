@@ -18,14 +18,15 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142dn::p7142dn(std::string devName, std::string dnName):
+p7142dn::p7142dn(std::string devName, std::string dnName, int bypdiv):
 p7142(devName),
 _dnName(dnName),
+_bypdiv(bypdiv),
 _dnFd(-1)
 {
 	// verify that the card was found
 	if (!ok()) {
-		std::cerr << "p7142dn card not foundn";
+		std::cerr << "p7142 card not ready" << std::endl;
 		return;
 	}
 
@@ -65,6 +66,16 @@ _dnFd(-1)
 		_ok = false;
 	    return;
 	  }
+
+		// set the decimation rate
+		if (ioctl(_dnFd, FIOBYPDIVSET, _bypdiv) == -1) {
+			std::cerr << "unable to set the bypass decimation rate for "
+				  << _dnName << " to " << _bypdiv << std::endl;
+			perror("");
+			_ok = false;
+			return;
+		}
+			std::cout << "bypass decimation set to " << _bypdiv << std::endl;
 
 	  // flush the device read buffers
 	  if (ioctl(_dnFd, FIOFLUSH, 0) == -1)
