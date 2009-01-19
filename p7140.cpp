@@ -26,15 +26,15 @@ _dnFd(-1)
 	if (!ok())
 		return;
 
-	_ok = false;
-
 	// create the down convertor name
 	_dnName = devName + "/dn/" + _dnName;
 
 	 // open it
 	_dnFd = open(_dnName.c_str(), O_RDONLY);
-	if (_dnFd < 0)
+	if (_dnFd < 0) {
+		_ok = false;
 		return;
+	}
 
 	// set the clock source
 	int clockSource;
@@ -47,6 +47,7 @@ _dnFd(-1)
 		std::cerr << "unable to set the clock source for "
 		<< _dnName << std::endl;
 		perror("");
+		_ok = false;
 		return;
 	}
 
@@ -55,13 +56,13 @@ _dnFd(-1)
 	if (ioctl(_dnFd, FIOSAMPRATESET, &doublearg) == -1) {
 		std::cerr << "unable to set the clock rate for "
 		<< _dnName << std::endl;
-		perror("");
+		_ok = false;
 		return;
 	}
 
 	// set the decimation rate
 	if (ioctl(_dnFd, FIODECIMSET, _decrate) == -1) {
-		std::cerr << "unable to set the bypass decimation rate for "
+		std::cerr << "unable to set the decimation rate for "
 			  << _dnName << " to " << _decrate << std::endl;
 		perror("");
 		_ok = false;
@@ -75,14 +76,15 @@ _dnFd(-1)
 		std::cerr << "unable to flush for "
 		<< _dnName << std::endl;
 		perror("");
+		_ok = false;
 		return;
 	}
 
 	// clear the over/under run counters
-	if (overUnderCount() < 0)
+	if (overUnderCount() < 0) {
+		_ok = false;
 		return;
-
-	_ok = true;
+	}
 
 }
 

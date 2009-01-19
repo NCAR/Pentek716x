@@ -34,7 +34,7 @@ namespace Pentek {
 			/// /dev/pentek/p7140/0.
 			/// @param dnName The name of the downconvertor device, e.g. 0B
 			/// @decrate The decimation rate
-			p7140dn(std::string devName, std::string dnName, int decrate=1);
+			p7140dn(std::string devName, std::string dnName, int decrate=8);
 			/// Destructor
 			virtual ~p7140dn();
 			/// Read bytes.
