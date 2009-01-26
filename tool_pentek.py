@@ -16,6 +16,7 @@ libsources = Split("""
 p71xx.cpp
 p7140.cpp
 p7142.cpp
+p7142hcr.cpp
 """)
 
 libpentek = env.Library('pentek', libsources)
