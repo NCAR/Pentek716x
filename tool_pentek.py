@@ -29,7 +29,7 @@ p71xx.h
 
 libpentek = env.Library('pentek', libsources)
 
-html = env.Apidocs(libsources + headers, DOXYFILE_FILE = "#/Doxyfile")
+html = env.Apidocs(libsources + headers, DOXYFILE_FILE = "Doxyfile")
 
 Default(libpentek, html)
 
@@ -38,6 +38,7 @@ def pentek(env):
     env.AppendUnique(CPPPATH   =[thisdir, PENTEK_INCLUDE,])
     env.AppendUnique(CPPDEFINES=['PENTEK_LINUX',])
     env.AppendLibrary('pentek')
+    env.AppendDoxref('pentek')
     env.Require(tools)
 
 Export('pentek')
