@@ -19,13 +19,20 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param dnName The name of the downconvertor device, e.g. 0B
+			/// @param gates The number of gates
 			/// @bypassdivrate The byopass divider (decimation) rate
-			p7142hcrdn(std::string devName, std::string dnName, int bypassdivrate=1);
+			p7142hcrdn(std::string devName, std::string dnName, int gates, int bypassdivrate=1);
 			/// Destructor
 			virtual ~p7142hcrdn();
 
 		protected:
+			/// Configure the p7142hcrdn
+			/// @return True if the configuration was succesful
+			bool config();
+			/// number of gates
+			int _gates;
 	};
+
 }
 
 
