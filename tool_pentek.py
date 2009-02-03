@@ -18,6 +18,10 @@ p71xx.cpp
 p7140.cpp
 p7142.cpp
 p7142hcr.cpp
+FilterSpec.cpp
+BuiltinFilters.cpp
+BuiltinGaussian.cpp
+BuiltinKaiser.cpp
 """)
 
 headers = Split("""
@@ -25,6 +29,10 @@ p7140.h
 p7142.h
 p7142hcr.h
 p71xx.h
+BuiltinFilters.h
+BuiltinGaussian.h
+BuiltinKaiser.h
+FilterSpec.h
 """)
 
 libpentek = env.Library('pentek', libsources)
