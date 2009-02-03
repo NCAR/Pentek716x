@@ -143,8 +143,8 @@ p7140dn::read(char* buf, int bufsize) {
     if (!_ok)
        return -1;
 
-    // if in simulation mode, just pause and say that 
-    // we got a full buffer.
+    // if in simulation mode, create some random values
+	// and return a full buffer.
     if (_simulate) {
     	for (int i = 0; i < bufsize; i++) {
     		buf[i] = rand();
