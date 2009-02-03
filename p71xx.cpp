@@ -8,11 +8,16 @@
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p71xx::p71xx(std::string devName):
+p71xx::p71xx(std::string devName, bool simulate):
 _ok(true),
-_devName(devName)
+_devName(devName, simulate),
+_simulate(simulate)
 {
-
+	if (_simulate) {
+		_ok = true;
+		return;
+	}
+	
 	_ok = false;
 	if (_devName.size() < 1)
 		return;

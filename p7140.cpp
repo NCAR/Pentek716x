@@ -7,8 +7,9 @@
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7140::p7140(std::string devName):
-p71xx(devName) {
+p7140::p7140(std::string devName, bool simulate):
+p71xx(devName, simulate)
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -16,14 +17,19 @@ p7140::~p7140() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7140dn::p7140dn(std::string devName, std::string dnName, int decrate):
-p7140(devName),
+p7140dn::p7140dn(std::string devName, std::string dnName, int decrate,
+bool simulate, int simPauseMS):
+p7140(devName, simulate),
 _dnName(dnName),
 _decrate(decrate),
-_dnFd(-1)
+_dnFd(-1),
+_simPauseMS(simPauseMS)
 {
 	// verify that the card was found
 	if (!ok())
+		return;
+		
+	if (_simulate)
 		return;
 
 	// create the down convertor name
@@ -101,6 +107,11 @@ p7140dn::overUnderCount() {
 
 	if (!_ok)
 		return -1;
+		
+  // if simulate, indicate no errors.
+  if (_simulate) {
+  	return 0;
+  }
 
   int count = ioctl(_dnFd, FIOGETOVRCNT);
   if (count == -1)
@@ -131,6 +142,16 @@ p7140dn::read(char* buf, int bufsize) {
 
     if (!_ok)
        return -1;
+
+    // if in simulation mode, just pause and say that 
+    // we got a full buffer.
+    if (_simulate) {
+    	for (int i = 0; i < bufsize; i++) {
+    		buf[i] = rand();
+    	}
+    	usleep(_simPauseMS*1000);
+    	return bufsize;
+    }
 
 	int n = ::read(_dnFd, buf, bufsize);
 

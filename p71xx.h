@@ -18,7 +18,7 @@ namespace Pentek {
 			/// The ctrl device will be accessed in order to verify
 			/// that the card is available. Use isOkay() to verify
 			/// that it is.
-			p71xx(std::string devName);
+			p71xx(std::string devName, bool simulate=false);
 			/// Destructor.
 			virtual ~p71xx();
 			/// @return true if the last operation was succesfull,
@@ -32,6 +32,8 @@ namespace Pentek {
 			std::string _devName;
 			/// The ctrl device name
 			std::string _devCtrl;
+		    /// set true if in simulation mode
+		    bool _simulate;
 	};
 }
 

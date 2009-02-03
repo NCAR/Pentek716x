@@ -19,7 +19,8 @@ namespace Pentek {
 			/// The ctrl device will be accessed in order to verify
 			/// that the card is available. Use isOkay() to verify
 			/// that it is.
-			p7140(std::string devName);
+			/// @param simulate Set true for simulation mode.
+			p7140(std::string devName, bool simulate=false);
 			/// Destructor.
 			virtual ~p7140();
 
@@ -33,8 +34,12 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param dnName The name of the downconvertor device, e.g. 0B
-			/// @decrate The decimation rate
-			p7140dn(std::string devName, std::string dnName, int decrate=8);
+			/// @param decrate The decimation rate
+			/// @param simulate Set true if we operate in simulation mode.
+			/// @param simPauseMS The number of milliseconds to wait before returning
+			/// simulated data when calling read();
+			p7140dn(std::string devName, std::string dnName, int decrate=8, 
+			bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7140dn();
 			/// Read bytes.
@@ -54,7 +59,9 @@ namespace Pentek {
 			int _decrate;
 			/// The down convertor file descriptor
 			int _dnFd;
-
+			/// The number of milliseconds to wait before returning
+			/// simulated data when calling read();
+			int _simPauseMS;
 	};
 }
 
