@@ -16,24 +16,24 @@
 
 
 //Kaiser Filter Registers
-  #define KAISER_ADDR 0xE98
-  #define KAISER_DATA_MSW 0xEA8
-  #define KAISER_DATA_LSW 0xEA0
-  #define KAISER_READ_MSW 0xEC0
-  #define KAISER_READ_LSW 0xEB8
-  #define KAISER_WR   0xEB0
+  #define KAISER_ADDR 0x8E98
+  #define KAISER_DATA_MSW 0x8EA8
+  #define KAISER_DATA_LSW 0x8EA0
+  #define KAISER_READ_MSW 0x8EC0
+  #define KAISER_READ_LSW 0x8EB8
+  #define KAISER_WR   0x8EB0
 //Values
   #define DDC_START 0x0
   #define DDC_STOP  (0x01<<12)
 
 
 //Gaussian Filter Registers
-  #define GUASSIAN_ADDR 0xEC8
-  #define GUASSIAN_DATA_MSW 0xED8
-  #define GUASSIAN_DATA_LSW 0xED0
-  #define GUASSIAN_READ_MSW 0xEF0
-  #define GUASSIAN_READ_LSW 0xEE8
-  #define GUASSIAN_WR   0xEE0
+  #define GUASSIAN_ADDR 0x8EC8
+  #define GUASSIAN_DATA_MSW 0x8ED8
+  #define GUASSIAN_DATA_LSW 0x8ED0
+  #define GUASSIAN_READ_MSW 0x8EF0
+  #define GUASSIAN_READ_LSW 0x8EE8
+  #define GUASSIAN_WR   0x8EE0
 
 //Clock Decimation Registers
 //  #define DEC_REG     0xA20
@@ -48,9 +48,9 @@
 //  #define DPRT_OFF 0x0
 
 //MultiTimer Registers
-  #define MT_ADDR 0xE80
-  #define MT_DATA 0xE88
-  #define MT_WR   0xE90
+  #define MT_ADDR 0x8E80
+  #define MT_DATA 0x8E88
+  #define MT_WR   0x8E90
 
 //MultTimer Sub Registers
   #define WRITE_ON  0x3
