@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <iostream>
+#include <iomanip.h>
 #include <stdio.h>
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
@@ -31,8 +32,15 @@ _kaiserFile(kaiserFile)
 
 {
 	// set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
-	_pp.page = 1;
+	_pp.page = 2;  // PCIBAR 2
 	_pp.mask = 0;
+
+	// open Pentek 7142 ctrl device
+	_ctrlFd = open(_devCtrl.c_str(), O_RDWR);
+	if (_ctrlFd < 0) {
+		std::cout << "unable to open Ctrl device\n";
+		return;
+	}
 
 	// configure DDC in FPGA
 	if (!config())
@@ -41,6 +49,7 @@ _kaiserFile(kaiserFile)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142hcrdn::~p7142hcrdn() {
+	close(_ctrlFd);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +59,7 @@ p7142hcrdn::config() {
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_STOP;
-    ioctl(_dnFd, FIOREGSET, &_pp);
+    ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(100000);
 
 	// set up the filters. Will do nothing if either of
@@ -68,7 +77,7 @@ p7142hcrdn::config() {
 	// Start the DDC  -- do we really want to do this here???
 	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_START;
-    ioctl(_dnFd, FIOREGSET, &_pp);
+    ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(100000);
 
 	// initialize the timers
@@ -90,7 +99,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	attempt = 0;
 	do {
-		std::cout << "kaiser coeffs:\n";
+//		std::cout << "kaiser coeffs:\n";
 		kaiserLoaded = true;
 		for (unsigned int i = 0; i < kaiser.size(); i++) {
 			//std::cout << "   " << kaiser[i] << "\n";
@@ -101,36 +110,35 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.offset = KAISER_ADDR;
 
 			// set the address
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// write the value
 			// LS word first
 			_pp.value = kaiser[i] & 0xFFFF;
 			_pp.offset = KAISER_DATA_LSW;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
-			_pp.value = (kaiser[i] >> 4) & 0x3;
+			_pp.value = (kaiser[i] >> 16) & 0x3;
 			_pp.offset = KAISER_DATA_MSW;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// enable writing
 			_pp.value = 0x1;
 			_pp.offset = KAISER_WR;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// disable writing (kaiser readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = KAISER_WR;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// read back the programmed value; we need to do this in two words as above.
 			_pp.offset = KAISER_READ_LSW;
-			ioctl(_dnFd, FIOREGGET, &_pp);
+			ioctl(_ctrlFd, FIOREGGET, &_pp);
 			readBack = _pp.value;
 			_pp.offset = KAISER_READ_MSW;
-			ioctl(_dnFd, FIOREGGET, &_pp);
-			readBack |= _pp.value << 4;
-
+			ioctl(_ctrlFd, FIOREGGET, &_pp);
+			readBack |= (_pp.value << 16);
 			if (readBack != kaiser[i]) {
 				std::cout << "kaiser readback failed for coefficient "
 						<< std::dec << i << std::hex << ", wrote " << kaiser[i]
@@ -140,7 +148,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			}
 		}
 		attempt++;
-	} while (!kaiserLoaded && attempt < 50);
+	} while (!kaiserLoaded && attempt < 1); // was 50
 
 	if (kaiserLoaded) {
 		std::cout << kaiser.size()
@@ -165,36 +173,35 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.offset = GUASSIAN_ADDR;
 
 			// set the address
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// write the value
 			// LS word first
 			_pp.value = gaussian[i] & 0xFFFF;
 			_pp.offset = GUASSIAN_DATA_LSW;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
-			_pp.value = (gaussian[i] >> 4) & 0x3;
+			_pp.value = (gaussian[i] >> 16) & 0x3;
 			_pp.offset = GUASSIAN_DATA_MSW;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// enable writing
 			_pp.value = 0x1;
 			_pp.offset = GUASSIAN_WR;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// disable writing (kaiser readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = GUASSIAN_WR;
-			ioctl(_dnFd, FIOREGSET, &_pp);
+			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// read back the programmed value; we need to do this in two words as above.
 			_pp.offset = GUASSIAN_READ_LSW;
-			ioctl(_dnFd, FIOREGGET, &_pp);
+			ioctl(_ctrlFd, FIOREGGET, &_pp);
 			readBack = _pp.value;
 			_pp.offset = GUASSIAN_READ_MSW;
-			ioctl(_dnFd, FIOREGGET, &_pp);
-			readBack |= _pp.value << 4;
-
+			ioctl(_ctrlFd, FIOREGGET, &_pp);
+			readBack |= _pp.value << 16;
 			if (readBack != gaussian[i]) {
 				std::cout << "gaussian readback failed for coefficient "
 						<< std::dec << i << std::hex << ", wrote "
@@ -204,7 +211,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			}
 		}
 		attempt++;
-	} while (!gaussianLoaded && attempt < 50);
+	} while (!gaussianLoaded && attempt < 1); //was 50
 
 	if (gaussianLoaded) {
 		std::cout << gaussian.size()
@@ -226,7 +233,7 @@ int p7142hcrdn::filterSetup() {
 	if (_gaussianFile.size() != 0) {
 		FilterSpec g(_gaussianFile);
 		if (!g.ok()) {
-			std::cerr << "Incorrect or unaccesible filter definition: "
+			std::cerr << "Incorrect or unaccessible filter definition: "
 					<< _gaussianFile << std::endl;
 			return -1;
 		} else {
