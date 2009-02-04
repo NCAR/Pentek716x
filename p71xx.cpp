@@ -47,7 +47,21 @@ p71xx::ok() {
 	return _ok;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+double 
+p71xx::gauss(double mean, double stdDev) {
+
+		// create a normally distributed random number, 
+		// using this nifty little algorithm.
+
+		double x = rand()/(1.0*RAND_MAX);
+		double y = rand()/(1.0*RAND_MAX);
+		double u = sqrt(-2.0*log10(x))*cos(2.0*M_PI*y);
+
+		// set the mean std deviation
+		return stdDev * u + mean;
+	}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////
 

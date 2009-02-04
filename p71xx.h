@@ -3,6 +3,7 @@
 
 #include "ptkdrv.h"
 #include "ptkddr.h"
+#include "math.h"
 #include <string>
 
 namespace Pentek {
@@ -26,6 +27,12 @@ namespace Pentek {
 			virtual bool ok();
 			
 		protected:
+			/// Create a random number, with gaussian ditribution
+			/// Useful for simulation
+			/// @param mean Mean othe result
+			/// @param stdDev Standard deviation of the result
+			/// @returns The number
+			double gauss(double mean, double stdDev);	
 			/// Indicated the success of the last operation.
 			bool _ok;
 			/// The root device name

@@ -147,7 +147,7 @@ p7140dn::read(char* buf, int bufsize) {
 	// and return a full buffer.
     if (_simulate) {
     	for (int i = 0; i < bufsize; i++) {
-    		buf[i] = rand();
+    		buf[i] = rand();//gauss(0, 10000);
     	}
     	usleep(_simPauseMS*1000);
     	return bufsize;
