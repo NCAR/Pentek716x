@@ -96,8 +96,10 @@ namespace Pentek {
 	        std::string _kaiserFile;
 	        /// Time of the first xmit pulse.
 	         boost::posix_time::ptime _xmitStartTime;
-	        ///
+	        /// peak-poke structure pointer
 	         ARG_PEEKPOKE _pp;
+	        /// file descriptor for ctrl function
+	         int _ctrlFd;
 
 	};
 
