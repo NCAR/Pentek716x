@@ -23,12 +23,13 @@ p7140(devName, simulate),
 _dnName(dnName),
 _decrate(decrate),
 _dnFd(-1),
-_simPauseMS(simPauseMS)
+_simPauseMS(simPauseMS),
+_flipSpectrum(false)
 {
 	// verify that the card was found
 	if (!ok())
 		return;
-		
+
 	if (_simulate)
 		return;
 
@@ -45,8 +46,8 @@ _simPauseMS(simPauseMS)
 	// set the clock source
 	int clockSource;
 
-	//  clockSource = CLK_SRC_FRTPAN;
 	clockSource = CLK_SRC_INTERN;
+	clockSource = CLK_SRC_FRTPAN;
 
 	if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
 	{
@@ -86,6 +87,24 @@ _simPauseMS(simPauseMS)
 		return;
 	}
 
+	doublearg = 48000000;
+	if (ioctl(_dnFd, FIONCOSET, &doublearg) == -1)
+	{
+	  std::cerr << "unable to set the tuning frequency for "
+	        << _dnName << std::endl;
+	  perror("");
+	  _ok = false;
+	  exit(1);
+	}
+
+    if (ioctl(_dnFd, FIOSPECTFORMSET, _flipSpectrum? SPECT_FLIP:SPECT_NORMAL) == -1)
+	{
+	  std::cerr << "unable to set the spectral format for "
+	     << _dnName << std::endl;
+	  perror("");
+	  exit(1);
+	}
+
 	// clear the over/under run counters
 	if (overUnderCount() < 0) {
 		_ok = false;
@@ -107,7 +126,7 @@ p7140dn::overUnderCount() {
 
 	if (!_ok)
 		return -1;
-		
+
   // if simulate, indicate no errors.
   if (_simulate) {
   	return 0;

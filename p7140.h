@@ -38,7 +38,7 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			p7140dn(std::string devName, std::string dnName, int decrate=8, 
+			p7140dn(std::string devName, std::string dnName, int decrate=8,
 			bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7140dn();
@@ -62,6 +62,8 @@ namespace Pentek {
 			/// The number of milliseconds to wait before returning
 			/// simulated data when calling read();
 			int _simPauseMS;
+			/// set true to flip the spectrum on the graychip
+			bool _flipSpectrum;
 	};
 }
 
