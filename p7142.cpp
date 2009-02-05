@@ -34,7 +34,7 @@ _simPauseMS(simPauseMS)
 
 	if (_simulate)
 		return;
-		
+
 	// create the down convertor name
 	 _dnName = devName + "/dn/" + _dnName;
 
@@ -49,8 +49,8 @@ _simPauseMS(simPauseMS)
 	  // set the clock source
 	  int clockSource;
 
-	  //  clockSource = CLK_SRC_FRTPAN;
-	  clockSource = CLK_SRC_INTERN;
+	  clockSource = CLK_SRC_FRTPAN;
+	  // clockSource = CLK_SRC_INTERN;
 
 	  if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
 	    {
@@ -147,7 +147,7 @@ p7142dn::read(char* buf, int bufsize) {
 
     if (!_ok)
        return -1;
-       
+
     // if in simulation mode, create some random values
 	// and return a full buffer.
     if (_simulate) {
