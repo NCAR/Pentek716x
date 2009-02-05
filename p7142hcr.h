@@ -40,10 +40,13 @@ namespace Pentek {
 			/// @param pulse_width the radar pulse width in 10 MHz counts
 			/// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
 			/// @bypassdivrate The byopass divider (decimation) rate
+			/// @param simulate Set true if we operate in simulation mode.
+			/// @param simPauseMS The number of milliseconds to wait before returning
+			/// simulated data when calling read();
 			p7142hcrdn(std::string devName, std::string dnName, int gates, int delay, int prt,
 					   int prt2, int pulse_width, bool stgr_prt,
 					   std::string gaussianFile, std::string kaiserFile,
-					   int bypassdivrate=1);
+					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7142hcrdn();
 
