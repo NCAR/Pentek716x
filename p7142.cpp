@@ -50,7 +50,7 @@ _simPauseMS(simPauseMS)
 	  int clockSource;
 
 	  clockSource = CLK_SRC_FRTPAN;
-	  // clockSource = CLK_SRC_INTERN;
+//	  clockSource = CLK_SRC_INTERN;
 
 	  if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
 	    {
@@ -147,12 +147,16 @@ p7142dn::read(char* buf, int bufsize) {
 
     if (!_ok)
        return -1;
-       
+
     // if in simulation mode, create some random values
 	// and return a full buffer.
     if (_simulate) {
-    	for (int i = 0; i < bufsize; i++) {
-    		buf[i] = rand();//gauss(0, 10000);
+    	short* sbuf = (short*)buf;
+    	int wl = 100;
+    	double fact = rand()/RAND_MAX;
+    	for (int i = 0; i < bufsize/2; i = i + 2) {
+    		sbuf[i  ] = 10000.0 * sin(2.0*M_PI*i/wl)*fact;
+    		sbuf[i+1] = 10000.0 * cos(2.0*M_PI*i/wl)*fact;
     	}
     	usleep(_simPauseMS*1000);
     	return bufsize;
