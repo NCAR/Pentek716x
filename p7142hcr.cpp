@@ -19,7 +19,7 @@ using namespace Pentek;
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142hcrdn::p7142hcrdn(std::string devName, std::string dnName, int gates,
 		   int delay, int prt, int prt2, int pulse_width, bool stgr_prt,
-		   std::string gaussianFile, std::string kaiserFile,int bypdivrate, 
+		   std::string gaussianFile, std::string kaiserFile,int bypdivrate,
 		   bool simulate, int simPauseMS):
 p7142dn(devName, dnName, bypdivrate, simulate, simPauseMS),
 _gates(gates),
@@ -34,7 +34,7 @@ _kaiserFile(kaiserFile)
 {
 	if (_simulate)
 		return;
-		
+
 	// set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
 	_pp.page = 2;  // PCIBAR 2
 	_pp.mask = 0;
@@ -223,6 +223,9 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 	} else {
 		std::cout << "Unable to load the Gaussian filter coefficients\n";
 	}
+
+	// return to decimal output
+	std::cout << std::dec << std::endl;
 
 	return kaiserLoaded && gaussianLoaded;
 
