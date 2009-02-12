@@ -27,20 +27,41 @@ namespace Pentek {
 			virtual bool ok();
 			
 		protected:
-			/// Create a random number, with gaussian ditribution
-			/// Useful for simulation
-			/// @param mean Mean othe result
-			/// @param stdDev Standard deviation of the result
-			/// @returns The number
-			double gauss(double mean, double stdDev);	
-			/// Indicated the success of the last operation.
-			bool _ok;
-			/// The root device name
-			std::string _devName;
-			/// The ctrl device name
-			std::string _devCtrl;
-		    /// set true if in simulation mode
-		    bool _simulate;
+		    /// Process an ioctl.
+		    /// @param fd The file descriptor
+		    /// @param ioctlCode The ioctl code.
+		    /// @param arg The ioctl argument
+		    /// @param errMsg an error message to print if the ioctl fails
+		    /// @param doexit If true, call exit(1) if the ioctl returns -1
+			int doIoctl(int fd, int ioctlCode, void* arg, std::string errMsg, bool doexit=true);
+		    /// Process an ioctl.
+		    /// @param fd The file descriptor
+		    /// @param ioctlCode The ioctl code.
+		    /// @param arg The ioctl argument
+		    /// @param errMsg an error message to print if the ioctl fails
+		    /// @param doexit If true, call exit(1) if the ioctl returns -1
+			int doIoctl(int fd, int ioctlCode, int arg, std::string errMsg, bool doexit=true);
+		    /// Process an ioctl.
+		    /// @param fd The file descriptor
+		    /// @param ioctlCode The ioctl code.
+		    /// @param arg The ioctl argument
+		    /// @param errMsg an error message to print if the ioctl fails
+		    /// @param doexit If true, call exit(1) if the ioctl returns -1
+			int doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexit=true);
+			           /// Create a random number, with gaussian ditribution
+            /// Useful for simulation
+            /// @param mean Mean othe result
+            /// @param stdDev Standard deviation of the result
+            /// @returns The number
+            double gauss(double mean, double stdDev);   
+            /// Indicated the success of the last operation.
+            bool _ok;
+            /// The root device name
+            std::string _devName;
+            /// The ctrl device name
+            std::string _devCtrl;
+            /// set true if in simulation mode
+            bool _simulate;
 	};
 }
 

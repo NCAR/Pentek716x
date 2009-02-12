@@ -63,7 +63,34 @@ p71xx::gauss(double mean, double stdDev) {
 	}
 
 
-////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+int
+p71xx::doIoctl(int fd, int ioctlCode, void* arg, std::string errMsg, bool doexit) {
+
+   int status = ioctl(fd, ioctlCode, arg);
+   if (status == -1) {
+    std::cout << errMsg << std::endl;
+    perror("");
+    if (doexit)
+    exit(1);
+   }
+
+   return status;
+}
+
+//////////////////////////////////////////////////////////////////////
+int
+p71xx::doIoctl(int fd, int ioctlCode, int arg, std::string errMsg, bool doexit) {
+   return doIoctl(fd, ioctlCode, (void*) arg, errMsg, doexit);
+}
+ 
+//////////////////////////////////////////////////////////////////////
+int
+p71xx::doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexit) {
+
+   double doubleArg = arg;
+   return doIoctl(fd, ioctlCode, (void*) &doubleArg, errMsg, doexit);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
