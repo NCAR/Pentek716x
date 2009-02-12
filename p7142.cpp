@@ -171,7 +171,8 @@ p7142dn::read(char* buf, int bufsize) {
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 
-p7142up::p7142up(std::string devName, std::string upName, bool simulate):
+p7142up::p7142up(std::string devName, std::string upName, 
+  double sampleClockHz, double ncoFreqHz, bool simulate):
   p7142(devName, simulate),
   _upName(upName),
   _mem2Name(""),
@@ -198,41 +199,20 @@ p7142up::p7142up(std::string devName, std::string upName, bool simulate):
     return;
   }
 
-  // set the clock source
   int clockSource;
   clockSource = CLK_SRC_FRTPAN;
   //	clockSource = CLK_SRC_INTERN;
-
-  if (ioctl(_upFd, FIOCLKSRCSET, clockSource) == -1)
-    {
-      std::cerr << "unable to set the clock source for "
-		<< _upName << std::endl;
-      perror("");
-      _ok = false;
-      return;
-    }
-
-  // set the clock sample rate
-  double doublearg = 100.0e6;
-  if (ioctl(_upFd, FIOSAMPRATESET, &doublearg) == -1) {
-    std::cerr << "unable to set the clock rate for "
-	      << _upName << std::endl;
-    perror("");
-    _ok = false;
-    return;
-  }
-
-  // clock from the front panel
-  doIoctl(_upFd , FIOCLKSRCSET, CLK_SRC_FRTPAN, "unable to set the DAC clock source");
+  // set the clock source
+  doIoctl(_upFd, FIOCLKSRCSET, clockSource, "unable to set the DAC clock source");
  
   // sample rate
-  doIoctl(_upFd, FIOSAMPRATESET, 100000000.0, "unable to set the DAC sample rate");
+  doIoctl(_upFd, FIOSAMPRATESET, sampleClockHz, "unable to set the DAC sample rate");
  
   // PLLVDD disable/enable
   doIoctl(_upFd, PLLVDDSET, 1, "ioctl DAC PLLVDDSET failed", false);
 
   // NCO frequency
-  doIoctl(_upFd , FIONCOSET, 60000000.0, "unable to set the DAC tuning frequency");
+  doIoctl(_upFd , FIONCOSET, ncoFreqHz, "unable to set the DAC tuning frequency");
 
   _ok = true;
 }

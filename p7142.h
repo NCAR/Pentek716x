@@ -71,8 +71,11 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param upName The name of the downconvertor device, e.g. 0C
+			/// @param sampleclockHz The DAC sample clock in Hz
+			/// @param ncofreqHz The NCO frequency in Hz
 			/// @param simulate Set true if we operate in simulation mode.
-			p7142up(std::string devName, std::string upName, bool simulate=false);
+			p7142up(std::string devName, std::string upName, 
+				double sampleClockHz, double ncoFreqHz, bool simulate=false);
 			/// Destructor
 			virtual ~p7142up();
 			/// Write the baseband signal to ram.
