@@ -63,6 +63,33 @@ namespace Pentek {
 			/// simulated data when calling read();
 			int _simPauseMS;
 	};
+	
+	/// A p7142 upconvertor
+	class p7142up: public p7142 {
+		public:
+			/// Constructor
+			/// @param devName The top level device name (e.g.
+			/// /dev/pentek/p7140/0.
+			/// @param upName The name of the downconvertor device, e.g. 0C
+			/// @param simulate Set true if we operate in simulation mode.
+			p7142up(std::string devName, std::string upName, bool simulate=false);
+			/// Destructor
+			virtual ~p7142up();
+			/// Write the baseband signal to ram.
+			/// @param buf The I and Q signal values
+			/// @param n The number of values.
+			virtual void write(short* data, int n);
+			/// Start the DAC output
+			virtual void startDAC();
+
+		protected:
+			/// The down convertor device name
+			std::string _upName;
+			/// The mem2 device name
+			std::string _mem2Name;
+			/// The up convertor file descriptor
+			int _upFd;
+	};
 }
 
 #endif /*P7142_H_*/
