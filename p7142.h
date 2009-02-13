@@ -86,6 +86,14 @@ namespace Pentek {
 			virtual void startDAC();
 
 		protected:
+		    /// Fetch the value of a DAC configuration register
+		    /// @param fd The file descriptor of an open up conversion channel.
+		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
+		    /// @returns The register value 
+		    unsigned char getDACreg(int fd, int reg);
+		    /// Print the values of DAC configuration registers.
+		    /// @param fd The file descriptor of an open up conversion channel.		    
+		    void dumpDACregs(int fd);
 			/// The down convertor device name
 			std::string _upName;
 			/// The mem2 device name

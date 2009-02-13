@@ -199,6 +199,8 @@ p7142up::p7142up(std::string devName, std::string upName,
     return;
   }
 
+  dumpDACregs(_upFd);
+
   int clockSource;
   clockSource = CLK_SRC_FRTPAN;
   //	clockSource = CLK_SRC_INTERN;
@@ -213,6 +215,8 @@ p7142up::p7142up(std::string devName, std::string upName,
 
   // NCO frequency
   doIoctl(_upFd , FIONCOSET, ncoFreqHz, "unable to set the DAC tuning frequency");
+  
+  dumpDACregs(_upFd);
 
   _ok = true;
 }
@@ -221,6 +225,45 @@ p7142up::p7142up(std::string devName, std::string upName,
 p7142up::~p7142up() {
   if (_upFd >=0)
     close (_upFd);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142up::dumpDACregs(int fd) {
+	for (int i = 0; i < 32; i++) {
+		// get value
+		unsigned short val = getDACreg(fd, i);
+		// print hex
+		std::cout << "DAC register " << i;
+		std::cout << std::ios::hex;
+		std::cout << val << std::endl;
+		std::cout << std::ios::dec;
+		// print binary
+		unsigned char mask = 0x8f;
+		for (int i = 0; i < 8; i++) {
+			std::cout << " ";
+			std::cout << ((val & mask)? "1":"0");
+			mask /= 2;
+		}
+		std::cout << std::endl;
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+unsigned char
+p7142up::getDACreg(int fd, int reg) {
+	
+  ARG_PEEKPOKE pp;
+
+  pp.offset = reg;
+  pp.page = 0;
+  pp.mask = 0;
+
+  ioctl(fd,FIOREGGET,(long)&pp);
+  
+  return(pp.value); 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

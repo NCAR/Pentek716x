@@ -33,6 +33,7 @@ namespace Pentek {
 		    /// @param arg The ioctl argument
 		    /// @param errMsg an error message to print if the ioctl fails
 		    /// @param doexit If true, call exit(1) if the ioctl returns -1
+		    /// @returns The result of the ioctl call.
 			int doIoctl(int fd, int ioctlCode, void* arg, std::string errMsg, bool doexit=true);
 		    /// Process an ioctl.
 		    /// @param fd The file descriptor
@@ -40,6 +41,7 @@ namespace Pentek {
 		    /// @param arg The ioctl argument
 		    /// @param errMsg an error message to print if the ioctl fails
 		    /// @param doexit If true, call exit(1) if the ioctl returns -1
+		    /// @returns The result of the ioctl call.
 			int doIoctl(int fd, int ioctlCode, int arg, std::string errMsg, bool doexit=true);
 		    /// Process an ioctl.
 		    /// @param fd The file descriptor
@@ -47,6 +49,7 @@ namespace Pentek {
 		    /// @param arg The ioctl argument
 		    /// @param errMsg an error message to print if the ioctl fails
 		    /// @param doexit If true, call exit(1) if the ioctl returns -1
+		    /// @returns The result of the ioctl call.
 			int doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexit=true);
 			           /// Create a random number, with gaussian ditribution
             /// Useful for simulation
