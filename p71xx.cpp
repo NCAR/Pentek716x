@@ -10,14 +10,14 @@ using namespace Pentek;
 ////////////////////////////////////////////////////////////////////////////////////////
 p71xx::p71xx(std::string devName, bool simulate):
 _ok(true),
-_devName(devName, simulate),
+_devName(devName),
 _simulate(simulate)
 {
 	if (_simulate) {
 		_ok = true;
 		return;
 	}
-	
+
 	_ok = false;
 	if (_devName.size() < 1)
 		return;
@@ -48,10 +48,10 @@ p71xx::ok() {
 }
 
 /////////////////////////////////////////////////////////////////////
-double 
+double
 p71xx::gauss(double mean, double stdDev) {
 
-		// create a normally distributed random number, 
+		// create a normally distributed random number,
 		// using this nifty little algorithm.
 
 		double x = rand()/(1.0*RAND_MAX);
@@ -83,7 +83,7 @@ int
 p71xx::doIoctl(int fd, int ioctlCode, int arg, std::string errMsg, bool doexit) {
    return doIoctl(fd, ioctlCode, (void*) arg, errMsg, doexit);
 }
- 
+
 //////////////////////////////////////////////////////////////////////
 int
 p71xx::doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexit) {

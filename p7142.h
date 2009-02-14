@@ -38,7 +38,7 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			p7142dn(std::string devName, std::string dnName, int bypassdivrate=1, 
+			p7142dn(std::string devName, std::string dnName, int bypassdivrate=1,
 			bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7142dn();
@@ -63,7 +63,7 @@ namespace Pentek {
 			/// simulated data when calling read();
 			int _simPauseMS;
 	};
-	
+
 	/// A p7142 upconvertor
 	class p7142up: public p7142 {
 		public:
@@ -74,8 +74,8 @@ namespace Pentek {
 			/// @param sampleclockHz The DAC sample clock in Hz
 			/// @param ncofreqHz The NCO frequency in Hz
 			/// @param simulate Set true if we operate in simulation mode.
-			p7142up(std::string devName, std::string upName, 
-				double sampleClockHz, double ncoFreqHz, bool simulate=false);
+			p7142up(std::string devName, std::string upName,
+				double sampleClockHz, double ncoFreqHz, long interp, bool simulate=false);
 			/// Destructor
 			virtual ~p7142up();
 			/// Write the baseband signal to ram.
@@ -89,10 +89,15 @@ namespace Pentek {
 		    /// Fetch the value of a DAC configuration register
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
-		    /// @returns The register value 
+		    /// @returns The register value
 		    unsigned char getDACreg(int fd, int reg);
+		    /// Set the value of a DAC configuration register
+		    /// @param fd The file descriptor of an open up conversion channel.
+		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
+		    /// @param val The value for reg.
+		    void setDACreg(int fd, int reg, unsigned short val);
 		    /// Print the values of DAC configuration registers.
-		    /// @param fd The file descriptor of an open up conversion channel.		    
+		    /// @param fd The file descriptor of an open up conversion channel.
 		    void dumpDACregs(int fd);
 			/// The down convertor device name
 			std::string _upName;

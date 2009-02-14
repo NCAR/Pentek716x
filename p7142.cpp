@@ -39,7 +39,7 @@ p7142dn::p7142dn(std::string devName, std::string dnName, int bypdiv,
   _dnName = devName + "/dn/" + _dnName;
 
   // open it
-  _dnFd = open(_dnName.c_str(), O_RDONLY);
+  _dnFd = open(_dnName.c_str(), O_RDWR);
   if (_dnFd < 0) {
     std::cerr << "unable to open " << _dnName << std::endl;
     _ok = false;
@@ -171,13 +171,14 @@ p7142dn::read(char* buf, int bufsize) {
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 
-p7142up::p7142up(std::string devName, std::string upName, 
-  double sampleClockHz, double ncoFreqHz, bool simulate):
+p7142up::p7142up(std::string devName, std::string upName,
+  double sampleClockHz, double ncoFreqHz, long interp, bool simulate):
   p7142(devName, simulate),
   _upName(upName),
   _mem2Name(""),
   _upFd(-1)
 {
+
   // verify that the card was found
   if (!ok()) {
     std::cerr << "p7142 card not ready" << std::endl;
@@ -188,8 +189,8 @@ p7142up::p7142up(std::string devName, std::string upName,
     return;
 
   // create the up device names
-  _upName = devName + "/up/" + _upName;
-  _mem2Name = devName + "/mem2";
+  _upName = _devName + "/up/" + _upName;
+  _mem2Name = _devName + "/mem2";
 
   // open upconverter
   _upFd = open(_upName.c_str(), O_RDONLY);
@@ -199,32 +200,46 @@ p7142up::p7142up(std::string devName, std::string upName,
     return;
   }
 
-  dumpDACregs(_upFd);
+  /// @todo Disable the register dump via the REGGET ioctl; for some strange reason
+  /// if we do a FIOSAMPRATESET, then all of the later REGGETs return 0xff.
+  /// However, the driver parameters are getting set correctly. I think there
+  /// is something broken in the REGGET ioctl.
+  //std::cout << "DAC registers after opening " << _upName << std::endl;
+  //dumpDACregs(_upFd);
 
-  int clockSource;
+  long clockSource;
   clockSource = CLK_SRC_FRTPAN;
   //	clockSource = CLK_SRC_INTERN;
+
   // set the clock source
-  doIoctl(_upFd, FIOCLKSRCSET, clockSource, "unable to set the DAC clock source");
- 
+  ioctl(_upFd, FIOCLKSRCSET, clockSource);
+
   // sample rate
-  doIoctl(_upFd, FIOSAMPRATESET, sampleClockHz, "unable to set the DAC sample rate");
- 
-  // PLLVDD disable/enable
-  doIoctl(_upFd, PLLVDDSET, 1, "ioctl DAC PLLVDDSET failed", false);
+  ioctl(_upFd, FIOSAMPRATESET, &sampleClockHz);
+
+  // interpolation
+  ioctl(_upFd, INTERPSET, interp);
 
   // NCO frequency
-  doIoctl(_upFd , FIONCOSET, ncoFreqHz, "unable to set the DAC tuning frequency");
-  
-  dumpDACregs(_upFd);
+  ioctl(_upFd , FIONCOSET, &ncoFreqHz);
+
+  // Disable the register dump, for the reasons given above
+  //std::cout << "DAC registers after configuration " << _upName << std::endl;
+  //dumpDACregs(_upFd);
+
+  // close the upconverter, otherwise we won't be able to acces the mem2 device
+  close(_upFd);
+  _upFd = -1;
 
   _ok = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142up::~p7142up() {
-  if (_upFd >=0)
-    close (_upFd);
+  if (_upFd >=0) {
+	  std::cout << __FUNCTION__ << " closing upconverter" << std::endl;
+      close (_upFd);
+  }
 }
 
 
@@ -234,11 +249,7 @@ p7142up::dumpDACregs(int fd) {
 	for (int i = 0; i < 32; i++) {
 		// get value
 		unsigned short val = getDACreg(fd, i);
-		// print hex
-		std::cout << "DAC register " << i;
-		std::cout << std::ios::hex;
-		std::cout << val << std::endl;
-		std::cout << std::ios::dec;
+		std::cout << "DAC register "  << std::hex  << i << std::dec << ": ";
 		// print binary
 		unsigned char mask = 0x8f;
 		for (int i = 0; i < 8; i++) {
@@ -246,47 +257,65 @@ p7142up::dumpDACregs(int fd) {
 			std::cout << ((val & mask)? "1":"0");
 			mask /= 2;
 		}
+		// print hex
+		std::cout << "  " << std::hex << val << std::dec << "     ";
 		std::cout << std::endl;
 	}
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////
 unsigned char
 p7142up::getDACreg(int fd, int reg) {
-	
-  ARG_PEEKPOKE pp;
 
+  ARG_PEEKPOKE pp;
   pp.offset = reg;
   pp.page = 0;
   pp.mask = 0;
 
-  ioctl(fd,FIOREGGET,(long)&pp);
-  
-  return(pp.value); 
+  int status = ioctl(fd,FIOREGGET,(long)&pp);
+  if (status < 0) {
+	  perror("FIOREGGET ioctl error");
+  }
+
+  return(pp.value);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142up::setDACreg(int fd, int reg, unsigned short val) {
+
+  ARG_PEEKPOKE pp;
+  pp.offset = reg;
+  pp.page = 0;
+  pp.mask = 0;
+  pp.value = val;
+
+  int status = ioctl(fd,FIOREGSET,(long)&pp);
+  if (status < 0) {
+	  perror("FIOREGSET ioctl error");
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::write(short* data, int n) {
 
-  int mem2depth = n/2;// memory depth in 4 byte words
- 
-  int memFd = open(_mem2Name.c_str(), O_RDWR, 0);
+  long mem2depth = n/2;// memory depth in 4 byte words
+  int memFd = open(_mem2Name.c_str(), O_WRONLY);
   if (memFd < 0) {
     std::cerr << "cannot access " << _mem2Name << "\n";
     perror("");
     exit(1);
   }
- 
-  // set the memory bank depth
-  doIoctl(memFd, FIODEPTHSET, mem2depth, "unable to set the memory depth");
 
-  // It appears that you need to do the 
+  // set the memory bank depth
+  ioctl(memFd, FIODEPTHSET, mem2depth);
+
+  // It appears that you need to do the
   // following lseek to insure writing to
   // the start of memory.
   lseek(memFd, 0, SEEK_SET);
- 
+
   // write the baseband to memory bank 2
   if (::write(memFd, (char*)(data), mem2depth*4)
       != mem2depth*4) {
@@ -303,10 +332,15 @@ p7142up::write(short* data, int n) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::startDAC() {
-  // this seems to be the way that you start it; by 
+  // this seems to be the way that you start it; by
   // selecting the memory route
-  doIoctl(_upFd, MEMROUTESET, 1, "ioctl MEMROUTESET for DAC failed");
-  
+
+  _upFd = open(_upName.c_str(), O_RDWR);
+  long route = 1;
+  ioctl(_upFd, MEMROUTESET, route);
+  close(_upFd);
+  _upFd = -1;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
