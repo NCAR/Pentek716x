@@ -204,8 +204,8 @@ p7142up::p7142up(std::string devName, std::string upName,
   /// if we do a FIOSAMPRATESET, then all of the later REGGETs return 0xff.
   /// However, the driver parameters are getting set correctly. I think there
   /// is something broken in the REGGET ioctl.
-  //std::cout << "DAC registers after opening " << _upName << std::endl;
-  //dumpDACregs(_upFd);
+  std::cout << "DAC registers after opening " << _upName << std::endl;
+  dumpDACregs(_upFd);
 
   long clockSource;
   clockSource = CLK_SRC_FRTPAN;
@@ -215,7 +215,11 @@ p7142up::p7142up(std::string devName, std::string upName,
   ioctl(_upFd, FIOCLKSRCSET, clockSource);
 
   // sample rate
-  ioctl(_upFd, FIOSAMPRATESET, &sampleClockHz);
+  /// @todo commented out due to bug in v2.3 of driver. Enable when
+  /// steve Rotinger (Pentek) provides an updated driver. In the meantime,
+  /// the sample clock can be set via the p7140_clkbrate=125000000 parameter
+  /// during the drive load (via modprobe)
+  //  ioctl(_upFd, FIOSAMPRATESET, &sampleClockHz);
 
   // interpolation
   ioctl(_upFd, INTERPSET, interp);
@@ -224,8 +228,8 @@ p7142up::p7142up(std::string devName, std::string upName,
   ioctl(_upFd , FIONCOSET, &ncoFreqHz);
 
   // Disable the register dump, for the reasons given above
-  //std::cout << "DAC registers after configuration " << _upName << std::endl;
-  //dumpDACregs(_upFd);
+  std::cout << "DAC registers after configuration " << _upName << std::endl;
+  dumpDACregs(_upFd);
 
   // close the upconverter, otherwise we won't be able to acces the mem2 device
   close(_upFd);
@@ -269,7 +273,7 @@ p7142up::getDACreg(int fd, int reg) {
 
   ARG_PEEKPOKE pp;
   pp.offset = reg;
-  pp.page = 0;
+  pp.page = 2;
   pp.mask = 0;
 
   int status = ioctl(fd,FIOREGGET,(long)&pp);
@@ -286,7 +290,7 @@ p7142up::setDACreg(int fd, int reg, unsigned short val) {
 
   ARG_PEEKPOKE pp;
   pp.offset = reg;
-  pp.page = 0;
+  pp.page = 2;
   pp.mask = 0;
   pp.value = val;
 
