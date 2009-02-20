@@ -78,6 +78,20 @@ p7142hcrdn::config() {
 //	Adapter_Write32(&_chanAdapter, V4, DEC_RST_REG, RST_CLR);
 //	usleep(100000);
 
+    // Configure ADC FIFO Control Registers
+
+	unsigned int readBack;
+	_pp.offset = ADC_FIFO_CTRL_1;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	readBack = _pp.value;
+
+	_pp.offset = ADC_FIFO_CTRL_1;
+	_pp.value = readBack & 0x000034BF;
+    ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+    usleep(100000);
+
+
 	// Start the DDC  -- do we really want to do this here???
 	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_START;
