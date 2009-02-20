@@ -3,6 +3,12 @@
  Desc: Pentek 7142 HCR DDC Registers
 
 **********************************************************************************************/
+// ADC FIFO Control Registers
+
+  #define ADC_FIFO_CTRL_1 0x8C08  //ADC #1
+  #define ADC_FIFO_CTRL_2 0x8C40  //ADC #2
+  #define ADC_FIFO_CTRL_3 0x8C78  //ADC #3
+  #define ADC_FIFO_CTRL_4 0x8C80  //ADC #4
 
 //PulseWidths for Decimation
   #define _0_2us 2
