@@ -84,6 +84,8 @@ namespace Pentek {
 			virtual void write(short* data, int n);
 			/// Start the DAC output
 			virtual void startDAC();
+			/// Stop the DAC output
+			virtual void stopDAC();
 
 		protected:
 		    /// Fetch the value of a DAC configuration register
@@ -99,7 +101,13 @@ namespace Pentek {
 		    /// Print the values of DAC configuration registers.
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    void dumpDACregs(int fd);
-			/// The down convertor device name
+		    /// The clock sample rate in hz
+		    double _sampleClockHz;
+		    /// The NCO frequency in HZ
+		    double _ncoFreqHz;
+		    /// The interpolation
+		    long _interp;
+			/// The up converter device name
 			std::string _upName;
 			/// The mem2 device name
 			std::string _mem2Name;

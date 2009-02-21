@@ -104,7 +104,7 @@ p7142dn::~p7142dn() {
     close (_dnFd);
 }
 
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
 int
 p7142dn::overUnderCount() {
 
@@ -174,6 +174,9 @@ p7142dn::read(char* buf, int bufsize) {
 p7142up::p7142up(std::string devName, std::string upName,
   double sampleClockHz, double ncoFreqHz, long interp, bool simulate):
   p7142(devName, simulate),
+  _sampleClockHz(sampleClockHz),
+  _ncoFreqHz(ncoFreqHz),
+  _interp(interp),
   _upName(upName),
   _mem2Name(""),
   _upFd(-1)
@@ -200,10 +203,6 @@ p7142up::p7142up(std::string devName, std::string upName,
     return;
   }
 
-  /// @todo Disable the register dump via the REGGET ioctl; for some strange reason
-  /// if we do a FIOSAMPRATESET, then all of the later REGGETs return 0xff.
-  /// However, the driver parameters are getting set correctly. I think there
-  /// is something broken in the REGGET ioctl.
   std::cout << "DAC registers after opening " << _upName << std::endl;
   dumpDACregs(_upFd);
 
@@ -216,22 +215,22 @@ p7142up::p7142up(std::string devName, std::string upName,
 
   // sample rate
   /// @todo commented out due to bug in v2.3 of driver. Enable when
-  /// steve Rotinger (Pentek) provides an updated driver. In the meantime,
+  /// Steve Rotinger (Pentek) provides an updated driver. In the meantime,
   /// the sample clock can be set via the p7140_clkbrate=125000000 parameter
   /// during the drive load (via modprobe)
-  //  ioctl(_upFd, FIOSAMPRATESET, &sampleClockHz);
+  //  ioctl(_upFd, FIOSAMPRATESET, &_sampleClockHz);
 
   // interpolation
-  ioctl(_upFd, INTERPSET, interp);
+  ioctl(_upFd, INTERPSET, _interp);
 
   // NCO frequency
-  ioctl(_upFd , FIONCOSET, &ncoFreqHz);
+  std::cout << "NCO is " << ncoFreqHz << std::endl;
+  ioctl(_upFd , FIONCOSET, &_ncoFreqHz);
 
-  // Disable the register dump, for the reasons given above
   std::cout << "DAC registers after configuration " << _upName << std::endl;
   dumpDACregs(_upFd);
 
-  // close the upconverter, otherwise we won't be able to acces the mem2 device
+  // close the upconverter, otherwise we won't be able to access the mem2 device
   close(_upFd);
   _upFd = -1;
 
@@ -336,15 +335,22 @@ p7142up::write(short* data, int n) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::startDAC() {
-  // this seems to be the way that you start it; by
-  // selecting the memory route
 
-  _upFd = open(_upName.c_str(), O_RDWR);
+  // keep the device open in order for the data flow to run
+  if (_upFd == -1)
+	_upFd = open(_upName.c_str(), O_RDWR);
+
   long route = 1;
   ioctl(_upFd, MEMROUTESET, route);
-  close(_upFd);
-  _upFd = -1;
 
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142up::stopDAC() {
+
+  if (_upFd != -1)
+	  close(_upFd);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
