@@ -75,7 +75,7 @@ namespace Pentek {
 			/// @param ncofreqHz The NCO frequency in Hz
 			/// @param simulate Set true if we operate in simulation mode.
 			p7142up(std::string devName, std::string upName,
-				double sampleClockHz, double ncoFreqHz, long interp, bool simulate=false);
+				double sampleClockHz, double ncoFreqHz, char mode, bool simulate=false);
 			/// Destructor
 			virtual ~p7142up();
 			/// Write the baseband signal to ram.
@@ -88,16 +88,18 @@ namespace Pentek {
 			virtual void stopDAC();
 
 		protected:
-		    /// Fetch the value of a DAC configuration register
+		    /// Fetch the value of a DAC configuration register.
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
 		    /// @returns The register value
-		    unsigned char getDACreg(int fd, int reg);
-		    /// Set the value of a DAC configuration register
+		    char getDACreg(int fd, int reg);
+		    /// Set the value of a DAC configuration register. Note that
+		    /// DAC registers are programmed 8 bits at a time, even though
+		    /// the RESET ioctl uses a 32 bit value parameter.
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
 		    /// @param val The value for reg.
-		    void setDACreg(int fd, int reg, unsigned short val);
+		    void setDACreg(int fd, int reg, char val);
 		    /// Print the values of DAC configuration registers.
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    void dumpDACregs(int fd);

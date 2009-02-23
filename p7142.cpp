@@ -4,8 +4,9 @@
 #include <iostream>
 #include <stdio.h>
 
-
 using namespace Pentek;
+int drv_peekL(int fd,unsigned intaddr);
+int drv_pokeL(int fd,unsigned int addr,unsigned int value);
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142::p7142(std::string devName, bool simulate):
@@ -172,11 +173,11 @@ p7142dn::read(char* buf, int bufsize) {
 ////////////////////////////////////////////////////////////////////////////////////////
 
 p7142up::p7142up(std::string devName, std::string upName,
-  double sampleClockHz, double ncoFreqHz, long interp, bool simulate):
+  double sampleClockHz, double ncoFreqHz, char mode, bool simulate):
   p7142(devName, simulate),
   _sampleClockHz(sampleClockHz),
   _ncoFreqHz(ncoFreqHz),
-  _interp(interp),
+  _interp(4),
   _upName(upName),
   _mem2Name(""),
   _upFd(-1)
@@ -214,7 +215,7 @@ p7142up::p7142up(std::string devName, std::string upName,
   ioctl(_upFd, FIOCLKSRCSET, clockSource);
 
   // sample rate
-  /// @todo commented out due to bug in v2.3 of driver. Enable when
+  /// @todo Sample rate commented out due to bug in v2.3 of driver. Enable when
   /// Steve Rotinger (Pentek) provides an updated driver. In the meantime,
   /// the sample clock can be set via the p7140_clkbrate=125000000 parameter
   /// during the drive load (via modprobe)
@@ -224,8 +225,16 @@ p7142up::p7142up(std::string devName, std::string upName,
   ioctl(_upFd, INTERPSET, _interp);
 
   // NCO frequency
-  std::cout << "NCO is " << ncoFreqHz << std::endl;
+  std::cout << "NCO is " << std::dec << ncoFreqHz << std::endl;
   ioctl(_upFd , FIONCOSET, &_ncoFreqHz);
+
+  char config0 = getDACreg(_upFd, 0x01);
+  config0 |= 1;
+//  setDACreg(_upFd, 0x01, config0);
+
+  // enable NCO, set cm_mode
+  char config2 = 0x80 | (mode << 1) | 0x01;
+//  setDACreg(_upFd, 0x03, config2);
 
   std::cout << "DAC registers after configuration " << _upName << std::endl;
   dumpDACregs(_upFd);
@@ -251,28 +260,27 @@ void
 p7142up::dumpDACregs(int fd) {
 	for (int i = 0; i < 32; i++) {
 		// get value
-		unsigned short val = getDACreg(fd, i);
-		std::cout << "DAC register "  << std::hex  << i << std::dec << ": ";
+		char val = getDACreg(fd, i);
+		std::cout << "DAC register 0x"  << std::hex  << i << std::dec << ":";
 		// print binary
-		unsigned char mask = 0x8f;
 		for (int i = 0; i < 8; i++) {
+		    char mask = 1 << 7-i;
 			std::cout << " ";
 			std::cout << ((val & mask)? "1":"0");
-			mask /= 2;
 		}
 		// print hex
-		std::cout << "  " << std::hex << val << std::dec << "     ";
+		std::cout << "  " << std::hex << (((int)val) & 0xff) << std::dec << "     ";
 		std::cout << std::endl;
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-unsigned char
+char
 p7142up::getDACreg(int fd, int reg) {
 
   ARG_PEEKPOKE pp;
   pp.offset = reg;
-  pp.page = 2;
+  pp.page = 0;
   pp.mask = 0;
 
   int status = ioctl(fd,FIOREGGET,(long)&pp);
@@ -285,11 +293,11 @@ p7142up::getDACreg(int fd, int reg) {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142up::setDACreg(int fd, int reg, unsigned short val) {
+p7142up::setDACreg(int fd, int reg, char val) {
 
   ARG_PEEKPOKE pp;
   pp.offset = reg;
-  pp.page = 2;
+  pp.page = 0;
   pp.mask = 0;
   pp.value = val;
 
