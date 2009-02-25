@@ -209,7 +209,7 @@ p7142up::p7142up(std::string devName, std::string upName,
 
   long clockSource;
   clockSource = CLK_SRC_FRTPAN;
-  //	clockSource = CLK_SRC_INTERN;
+  //clockSource = CLK_SRC_INTERN;
 
   // set the clock source
   ioctl(_upFd, FIOCLKSRCSET, clockSource);
@@ -221,20 +221,51 @@ p7142up::p7142up(std::string devName, std::string upName,
   /// during the drive load (via modprobe)
   //  ioctl(_upFd, FIOSAMPRATESET, &_sampleClockHz);
 
-  // interpolation
-  ioctl(_upFd, INTERPSET, _interp);
+  // Set DAC FIFO clock source
+  ioctl(_upFd, FIODACCLKSET, 0);
+
+  // Enable PLL on DAC
+  ioctl(_upFd, FIOPLLVDDSET, 1);
+
+  // interpolation -- comment out for now, handled in DAC control registers below
+  // ioctl(_upFd, INTERPSET, _interp);
 
   // NCO frequency
-  std::cout << "NCO is " << std::dec << ncoFreqHz << std::endl;
-  ioctl(_upFd , FIONCOSET, &_ncoFreqHz);
+ // std::cout << "NCO is " << std::dec << ncoFreqHz << std::endl;
+ // ioctl(_upFd , FIONCOSET, &_ncoFreqHz);
 
-  char config0 = getDACreg(_upFd, 0x01);
-  config0 |= 1;
-//  setDACreg(_upFd, 0x01, config0);
+  // Version: set FIR1 to low pass on DAC ChA and ChB
+  char version = 0x0;
+  setDACreg(_upFd, 0x0, version);
 
-  // enable NCO, set cm_mode
+  // Config 0: Bypass DAC FIFOs since we are using PLL, set NCO to high freq, PLL divider = 1, interp = X4L
+  char config0 = 0x20 | (0x2 << 2) | 0x1;
+  setDACreg(_upFd, 0x01, config0);
+
+  // Config 1: Set input Data two two's complement, non-interleaved
+  char config1 = 0x10;
+  setDACreg(_upFd, 0x02, config1);
+
+  // Config 2: Enable NCO, set cm_mode, enable inv. sync filter
   char config2 = 0x80 | (mode << 1) | 0x01;
-//  setDACreg(_upFd, 0x03, config2);
+  setDACreg(_upFd, 0x03, config2);
+
+  // Config 3: For now just a placeholder
+  char config3 = 0x80;
+  setDACreg(_upFd, 0x04, config3);
+
+  // Sync Control: Sync NCO, sync coarse mixer, disable FIFO sync
+  char sync_cntl = 0x40 | 0x20 | 0x6 << 2;
+  setDACreg(_upFd, 0x05, sync_cntl);
+
+  // NCO frequency -- program fixed to 31.25 MHz as a test
+
+  char nco_freq = 0x0;
+  setDACreg(_upFd, 0x09, nco_freq); // bits 0-7
+  setDACreg(_upFd, 0x0A, nco_freq); // bits 8-15
+  setDACreg(_upFd, 0x0B, nco_freq); // bits 16-23
+  nco_freq = 0x20;
+  setDACreg(_upFd, 0x0C, nco_freq); // bits 24-31
 
   std::cout << "DAC registers after configuration " << _upName << std::endl;
   dumpDACregs(_upFd);
