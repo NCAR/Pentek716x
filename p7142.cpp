@@ -257,7 +257,7 @@ p7142up::p7142up(std::string devName, std::string upName,
   char nco_1;
   char nco_2;
   char nco_3;
-  ncoConfig(31.25e6, 500.0e6, nco_0, nco_1, nco_2, nco_3);
+  ncoConfig(_ncoFreqHz, 4*_sampleClockHz, nco_0, nco_1, nco_2, nco_3);
   std::cout << std::hex <<
     (int)nco_0 << " " <<
     (int)nco_1 << " " <<
@@ -265,12 +265,12 @@ p7142up::p7142up(std::string devName, std::string upName,
     (int)nco_3 << " " <<
     std::dec << std::endl;
 
-  char nco_freq = 0x0;
-  setDACreg(_upFd, 0x09, nco_freq); // bits 0-7
-  setDACreg(_upFd, 0x0A, nco_freq); // bits 8-15
-  setDACreg(_upFd, 0x0B, nco_freq); // bits 16-23
-  nco_freq = 0x20;
-  setDACreg(_upFd, 0x0C, nco_freq); // bits 24-31
+  // char nco_freq = 0x0;
+  setDACreg(_upFd, 0x09, nco_0); // bits 0-7
+  setDACreg(_upFd, 0x0A, nco_1); // bits 8-15
+  setDACreg(_upFd, 0x0B, nco_2); // bits 16-23
+  //  nco_freq = 0x20;
+  setDACreg(_upFd, 0x0C, nco_3); // bits 24-31
 
   std::cout << "DAC registers after configuration " << _upName << std::endl;
   dumpDACregs(_upFd);
@@ -415,9 +415,9 @@ p7142up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1,
 		break;
 	}
 
-	long freq;
+	long long freq;
 
-	freq = (fNCO/fNCO_CLK)*(0x80000000);
+	freq = (fNCO/fNCO_CLK)*(0x100000000ll);
 
 	std::cout << "freq is " << std::hex << freq << std::dec << std::endl;
 
