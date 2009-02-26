@@ -81,7 +81,7 @@ namespace Pentek {
 			/// Write the baseband signal to ram.
 			/// @param buf The I and Q signal values
 			/// @param n The number of values.
-			virtual void write(short* data, int n);
+			virtual void write(long* data, int n);
 			/// Start the DAC output
 			virtual void startDAC();
 			/// Stop the DAC output

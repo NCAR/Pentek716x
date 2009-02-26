@@ -231,16 +231,27 @@ p7142up::p7142up(std::string devName, std::string upName,
   char version = 0x0;
   setDACreg(_upFd, 0x0, version);
 
-  // Config 0: Bypass DAC FIFOs since we are using PLL, set NCO to high freq, PLL divider = 1, interp = X4L
-  char config0 = 0x20 | (_interpMode << 2) | 0x1;
+  // Config 0:
+  // Bypass DAC FIFOs since we are using PLL,
+  // set NCO to high freq,
+  // PLL divider = 1,
+  // interp = X4L
+  char config0 =
+	  0 << 6 |               // pll_div
+	  1 << 5 |               // pll_freq
+	  0 << 4 |               // pll_kv
+	  _interpMode << 2  |    // interp
+	  0 << 1 |               // inv_pllock
+	  1 << 0;                // fifo_bypass
+  //char config0 = 0x20 | (_interpMode << 2) | 0x1;
   setDACreg(_upFd, 0x01, config0);
 
   // Config 1: Set input Data two two's complement, non-interleaved
-  char config1 = 0x10;
+  char config1 = 1 << 4;
   setDACreg(_upFd, 0x02, config1);
 
   // Config 2: Enable NCO, set cm_mode, enable inv. sync filter
-  char config2 = 0x80 | (mode << 1) | 0x01;
+  char config2 = 0x80 | (mode << 1) | 0x1;
   setDACreg(_upFd, 0x03, config2);
 
   // Config 3: For now just a placeholder
@@ -345,9 +356,9 @@ p7142up::setDACreg(int fd, int reg, char val) {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142up::write(short* data, int n) {
+p7142up::write(long* data, int n) {
 
-  long mem2depth = n/2;// memory depth in 4 byte words
+  long mem2depth = n;// memory depth in 4 byte words
   int memFd = open(_mem2Name.c_str(), O_WRONLY);
   if (memFd < 0) {
     std::cerr << "cannot access " << _mem2Name << "\n";
@@ -365,7 +376,7 @@ p7142up::write(short* data, int n) {
 
   // write the baseband to memory bank 2
   if (::write(memFd, (char*)(data), mem2depth*4)
-      != mem2depth*4) {
+    != mem2depth*4) {
     std::cerr << "unable to fill pentek memory bank 2" << std::endl;
     perror("");
     exit(1);
@@ -385,7 +396,7 @@ p7142up::startDAC() {
 	_upFd = open(_upName.c_str(), O_RDWR);
 
   long route = 1;
-  ioctl(_upFd, MEMROUTESET, route);
+  ioctl(_upFd, FIOMEMROUTESET, route);
 
 }
 
@@ -393,8 +404,14 @@ p7142up::startDAC() {
 void
 p7142up::stopDAC() {
 
-  if (_upFd != -1)
+  if (_upFd != -1) {
+	  std::cout << "setting memroute to 0" << std::endl;
+	  long route = 0;
+	  ioctl(_upFd, FIOMEMROUTESET, route);
+	  sleep(1);
 	  close(_upFd);
+	  _upFd = -1;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
