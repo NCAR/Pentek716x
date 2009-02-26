@@ -434,7 +434,13 @@ p7142up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1,
 
 	long long freq;
 
-	freq = (fNCO/fNCO_CLK)*(0x100000000ll);
+	if ((fNCO/fNCO_CLK) < 0.5)
+		freq = (fNCO/fNCO_CLK)*(0x100000000ll);
+	else
+		/// @todo the following produces a 33 bit number! There is something
+		/// wrong with the formula in the DAC datasheet.
+		freq = ((fNCO/fNCO_CLK)+1)*(0x100000000ll);
+
 
 	std::cout << "freq is " << std::hex << freq << std::dec << std::endl;
 
