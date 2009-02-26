@@ -177,7 +177,7 @@ p7142up::p7142up(std::string devName, std::string upName,
   p7142(devName, simulate),
   _sampleClockHz(sampleClockHz),
   _ncoFreqHz(ncoFreqHz),
-  _interp(4),
+  _interpMode(2),
   _upName(upName),
   _mem2Name(""),
   _upFd(-1)
@@ -227,19 +227,12 @@ p7142up::p7142up(std::string devName, std::string upName,
   // Enable PLL on DAC
   ioctl(_upFd, FIOPLLVDDSET, 1);
 
-  // interpolation -- comment out for now, handled in DAC control registers below
-  // ioctl(_upFd, INTERPSET, _interp);
-
-  // NCO frequency
- // std::cout << "NCO is " << std::dec << ncoFreqHz << std::endl;
- // ioctl(_upFd , FIONCOSET, &_ncoFreqHz);
-
   // Version: set FIR1 to low pass on DAC ChA and ChB
   char version = 0x0;
   setDACreg(_upFd, 0x0, version);
 
   // Config 0: Bypass DAC FIFOs since we are using PLL, set NCO to high freq, PLL divider = 1, interp = X4L
-  char config0 = 0x20 | (0x2 << 2) | 0x1;
+  char config0 = 0x20 | (_interpMode << 2) | 0x1;
   setDACreg(_upFd, 0x01, config0);
 
   // Config 1: Set input Data two two's complement, non-interleaved
@@ -259,6 +252,18 @@ p7142up::p7142up(std::string devName, std::string upName,
   setDACreg(_upFd, 0x05, sync_cntl);
 
   // NCO frequency -- program fixed to 31.25 MHz as a test
+
+  char nco_0;
+  char nco_1;
+  char nco_2;
+  char nco_3;
+  ncoConfig(31.25e6, 500.0e6, nco_0, nco_1, nco_2, nco_3);
+  std::cout << std::hex <<
+    (int)nco_0 << " " <<
+    (int)nco_1 << " " <<
+    (int)nco_2 << " " <<
+    (int)nco_3 << " " <<
+    std::dec << std::endl;
 
   char nco_freq = 0x0;
   setDACreg(_upFd, 0x09, nco_freq); // bits 0-7
@@ -393,6 +398,35 @@ p7142up::stopDAC() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1, char& nco_freq_2, char& nco_freq_3) {
+
+	double fNCO_CLK;
+
+	switch (_interpMode) {
+	default:
+	case 0: // X2  mode
+	case 2: // X4L mode
+	case 3: // X8  mode
+		fNCO_CLK = fDAC / 2;;
+		break;
+	case 1: // X4 mode
+		fNCO_CLK = fDAC;
+		break;
+	}
+
+	long freq;
+
+	freq = (fNCO/fNCO_CLK)*(0x80000000);
+
+	std::cout << "freq is " << std::hex << freq << std::dec << std::endl;
+
+	nco_freq_0 = (freq >>  0) & 0xff;
+	nco_freq_1 = (freq >>  8) & 0xff;
+	nco_freq_2 = (freq >> 16) & 0xff;
+	nco_freq_3 = (freq >> 24) & 0xff;
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////
 

@@ -88,6 +88,15 @@ namespace Pentek {
 			virtual void stopDAC();
 
 		protected:
+			/// Calculate the NCO frequency control bytes. It is dependent upon the
+			/// the mode (_interp) and the sample clock rate.
+			/// @param fNCO The desired NCO frequency in Hz
+			/// @param fDAC The DAC clock rate
+			/// @param nco_freq_0 Byte 0 of the nco frequency parameter is returned here
+			/// @param nco_freq_1 Byte 1 of the nco frequency parameter is returned here
+			/// @param nco_freq_2 Byte 2 of the nco frequency parameter is returned here
+			/// @param nco_freq_3 Byte 3 of the nco frequency parameter is returned here
+			void ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_0, char& nco_freq_0, char& nco_freq_3);
 		    /// Fetch the value of a DAC configuration register.
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
@@ -107,8 +116,8 @@ namespace Pentek {
 		    double _sampleClockHz;
 		    /// The NCO frequency in HZ
 		    double _ncoFreqHz;
-		    /// The interpolation
-		    long _interp;
+		    /// The interpolation mode. 0=X2, 1=X4, 2=X4L, 3=X8
+		    long _interpMode;
 			/// The up converter device name
 			std::string _upName;
 			/// The mem2 device name
