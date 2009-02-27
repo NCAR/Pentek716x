@@ -405,10 +405,15 @@ void
 p7142up::stopDAC() {
 
   if (_upFd != -1) {
-	  std::cout << "setting memroute to 0" << std::endl;
+
+	  // turn off data routing from mem2
 	  long route = 0;
 	  ioctl(_upFd, FIOMEMROUTESET, route);
-	  sleep(1);
+
+	  // disable NCO in order to stop DAC
+	  char config2 = 0;
+	  setDACreg(_upFd, 0x03, config2);
+
 	  close(_upFd);
 	  _upFd = -1;
   }
