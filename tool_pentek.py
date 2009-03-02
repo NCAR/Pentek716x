@@ -1,6 +1,5 @@
 import os
 
-
 PENTEK_ROOT = os.environ['PENTEK_ROOT']
 PENTEK_INCLUDE = PENTEK_ROOT+'/include'
 

@@ -1,0 +1,27 @@
+# -*- python -*-
+
+tools = Split("""
+pentek
+""")
+
+sources = Split("""
+bwtest.cpp
+dactest.cpp
+dacdump.cpp
+""")
+
+headers = Split("""
+""")
+
+env = Environment(tools = ['default'] + tools)
+
+html = env.Apidocs(sources + headers, DOXYFILE_FILE = "Doxyfile")
+
+bwtest = env.Program('bwtest', 'bwtest.cpp')
+
+dactest = env.Program('dactest', 'dactest.cpp')
+
+dacdump = env.Program('dacdump', 'dacdump.cpp')
+
+Default(bwtest, dactest, dacdump, html)
+
