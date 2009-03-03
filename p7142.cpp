@@ -227,8 +227,13 @@ p7142up::p7142up(std::string devName, std::string upName,
   // Enable PLL on DAC
   ioctl(_upFd, FIOPLLVDDSET, 1);
 
-  // Version: set FIR1 to low pass on DAC ChA and ChB
-  char version = 0x0;
+  // Version: set FIR1 to low pass on DAC ChA and ChB, if operating at 125 MHz
+  char version;
+  if(_sampleClockHz == 125000000)
+      version = 0x0;
+ // Version: set FIR1 to high pass on DAC ChA and ChB, if operating at 48 MHz
+  else
+	  version = 0x30;
   setDACreg(_upFd, 0x0, version);
 
   // Config 0:
@@ -236,14 +241,27 @@ p7142up::p7142up(std::string devName, std::string upName,
   // set NCO to high freq,
   // PLL divider = 1,
   // interp = X4L
-  char config0 =
+  char config0;
+  if(_sampleClockHz == 125000000)  // Settings for 125 MHz clock
+	  config0 =
+
 	  0 << 6 |               // pll_div
 	  1 << 5 |               // pll_freq
 	  0 << 4 |               // pll_kv
 	  _interpMode << 2  |    // interp
 	  0 << 1 |               // inv_pllock
 	  1 << 0;                // fifo_bypass
-  //char config0 = 0x20 | (_interpMode << 2) | 0x1;
+
+  else						 // Settings for 48 MHz Clock
+	  config0 =
+
+	  1 << 6 |               // pll_div
+	  0 << 5 |               // pll_freq
+	  0 << 4 |               // pll_kv
+	  _interpMode << 2  |    // interp
+	  0 << 1 |               // inv_pllock
+	  1 << 0;                // fifo_bypass
+
   setDACreg(_upFd, 0x01, config0);
 
   // Config 1: Set input Data two two's complement, non-interleaved
@@ -261,8 +279,6 @@ p7142up::p7142up(std::string devName, std::string upName,
   // Sync Control: Sync NCO, sync coarse mixer, disable FIFO sync
   char sync_cntl = 0x40 | 0x20 | 0x6 << 2;
   setDACreg(_upFd, 0x05, sync_cntl);
-
-  // NCO frequency -- program fixed to 31.25 MHz as a test
 
   char nco_0;
   char nco_1;
