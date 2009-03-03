@@ -19,10 +19,11 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142dn::p7142dn(std::string devName, std::string dnName, int bypdiv,
+p7142dn::p7142dn(std::string devName, std::string dnName, int chanId, int bypdiv,
 		 bool simulate, int simPauseMS):
   p7142(devName, simulate),
   _dnName(dnName),
+  _chanId(chanId),
   _bypdiv(bypdiv),
   _dnFd(-1),
   _simPauseMS(simPauseMS)

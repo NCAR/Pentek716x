@@ -33,6 +33,7 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param dnName The name of the downconvertor device, e.g. 0B
+			/// @param chanId The channel identifier (should be a zero based small integer)
 			/// @param gates The number of gates
 			/// @param delay the delay to the first gate in 10 MHz counts
 			/// @param prt the radar PRT in 10 MHz counts
@@ -43,7 +44,8 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			p7142hcrdn(std::string devName, std::string dnName, int gates, int delay, int prt,
+			p7142hcrdn(std::string devName, std::string dnName,
+					   int chanId, int gates, int delay, int prt,
 					   int prt2, int pulse_width, bool stgr_prt,
 					   std::string gaussianFile, std::string kaiserFile,
 					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100);

@@ -34,11 +34,12 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param dnName The name of the downconvertor device, e.g. 0B
+			/// @param chanId The channel identifier (should be a zero based small integer)
 			/// @param decrate The decimation rate
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			p7140dn(std::string devName, std::string dnName, int decrate=8,
+			p7140dn(std::string devName, std::string dnName, int chanId, int decrate=8,
 			bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7140dn();
@@ -55,6 +56,8 @@ namespace Pentek {
 		protected:
 			/// The down convertor device name
 			std::string _dnName;
+			/// The channel id
+			int _chanId;
 			/// The decimation rate.
 			int _decrate;
 			/// The down convertor file descriptor

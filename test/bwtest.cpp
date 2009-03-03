@@ -104,7 +104,7 @@ std::string kaiserFile;
 	stgr_prt = false;
 
 	// create the downconvertor
-	Pentek::p7142hcrdn downConvertor(devRoot, dnName, gates, delay, prt, prt2,
+	Pentek::p7142hcrdn downConvertor(devRoot, dnName, 0, gates, delay, prt, prt2,
 			pulsewidth, stgr_prt, gaussianFile, kaiserFile, bypdiv);
 
 	if (!downConvertor.ok()) {

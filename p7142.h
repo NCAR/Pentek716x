@@ -34,12 +34,14 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param dnName The name of the downconvertor device, e.g. 0B
+			/// @param chanId The channel identifier (should be a zero based small integer)
 			/// @bypassdivrate The byopass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			p7142dn(std::string devName, std::string dnName, int bypassdivrate=1,
-			bool simulate=false, int simPauseMS=100);
+			p7142dn(std::string devName, std::string dnName,
+					int chanId, int bypassdivrate=1,
+			        bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7142dn();
 			/// Read bytes.
@@ -55,6 +57,8 @@ namespace Pentek {
 		protected:
 			/// The down convertor device name
 			std::string _dnName;
+			/// The chgannel identifier
+			int _chanId;
 			/// The bypass divider decimation rate.
 			int _bypdiv;
 			/// The down convertor file descriptor
