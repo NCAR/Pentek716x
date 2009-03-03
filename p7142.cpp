@@ -227,13 +227,8 @@ p7142up::p7142up(std::string devName, std::string upName,
   // Enable PLL on DAC
   ioctl(_upFd, FIOPLLVDDSET, 1);
 
-  // Version: set FIR1 to low pass on DAC ChA and ChB, if operating at 125 MHz
-  char version;
-  if(_sampleClockHz == 125000000)
-      version = 0x0;
- // Version: set FIR1 to high pass on DAC ChA and ChB, if operating at 48 MHz
-  else
-	  version = 0x30;
+  // Version: set FIR1 to low pass on DAC ChA and ChB, if operating at 48 or 125 MHz
+  char version = 0x0;
   setDACreg(_upFd, 0x0, version);
 
   // Config 0:
