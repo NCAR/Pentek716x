@@ -71,12 +71,12 @@ std::string kaiserFile;
 
 	if (argc < 5) {
 		std::cout << "usage: " << argv[0]
-				<< " <device root> <down converter name (e.g. 0B)> <bypass decimation rate (1-4096)> <buffer factor> [<output file>]\n";
+				<< " <device root> <channel number (0-3)> <bypass decimation rate (1-4096)> <buffer factor> [<output file>]\n";
 		exit(1);
 	}
 
 	std::string devRoot = argv[1];
-	std::string dnName = argv[2];
+	int chanId = atoi(argv[2]);
 	int bypdiv = atoi(argv[3]);
 	int bufferSize = BASICSIZE * atoi(argv[4]);
 	std::string outFile;
@@ -104,11 +104,11 @@ std::string kaiserFile;
 	stgr_prt = false;
 
 	// create the downconvertor
-	Pentek::p7142hcrdn downConvertor(devRoot, dnName, 0, gates, delay, prt, prt2,
+	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, delay, prt, prt2,
 			pulsewidth, stgr_prt, gaussianFile, kaiserFile, bypdiv);
 
-	if (!downConvertor.ok()) {
-		std::cerr << "cannot access " << devRoot << ", " << dnName << "\n";
+	if (!downConverter.ok()) {
+		std::cerr << "cannot access " << downConverter.dnName() << "\n";
 		exit(1);
 	}
 
@@ -121,7 +121,7 @@ std::string kaiserFile;
 	int lastMb = 0;
 
 	while (1) {
-		int n = downConvertor.read(buf, bufferSize);
+		int n = downConverter.read(buf, bufferSize);
 		if (n <= 0) {
 			std::cerr << "read returned " << n << " ";
 			if (n < 0)
@@ -138,7 +138,7 @@ std::string kaiserFile;
 				double elapsed = nowTime() - startTime;
 				double bw = (total / elapsed) / 1.0e6;
 
-				int overruns = downConvertor.overUnderCount();
+				int overruns = downConverter.overUnderCount();
 
 				std::cout << "total " << std::setw(5) << mb * 100
 						<< " MB,  BW " << std::setprecision(4) << std::setw(5)

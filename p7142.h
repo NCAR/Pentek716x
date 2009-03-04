@@ -27,19 +27,21 @@ namespace Pentek {
 		protected:
 	};
 
-	/// A p7142 downconvertor
+	/// A p7142 downconvertor.
+	/// This class will use the /dn/*B downconversion channels. The
+	/// channel number is specified in the channel id parameter to
+	/// the constructor.
 	class p7142dn: public p7142 {
 		public:
 			/// Constructor
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
-			/// @param dnName The name of the downconvertor device, e.g. 0B
-			/// @param chanId The channel identifier (should be a zero based small integer)
+			/// @param chanId The channel identifier (used to select /dn/*B)
 			/// @bypassdivrate The byopass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			p7142dn(std::string devName, std::string dnName,
+			p7142dn(std::string devName,
 					int chanId, int bypassdivrate=1,
 			        bool simulate=false, int simPauseMS=100);
 			/// Destructor
@@ -53,12 +55,14 @@ namespace Pentek {
 			/// -1 if unable to get this information, and set _ok to false.
 			/// Clear the counter as well.
 			virtual int overUnderCount();
+			/// @return The device path
+			std::string dnName();
 
 		protected:
-			/// The down convertor device name
-			std::string _dnName;
-			/// The chgannel identifier
+			/// The channel identifier
 			int _chanId;
+			/// The full device name for the downconverter
+			std::string _dnName;
 			/// The bypass divider decimation rate.
 			int _bypdiv;
 			/// The down convertor file descriptor

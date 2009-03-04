@@ -17,10 +17,9 @@ p7140::~p7140() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7140dn::p7140dn(std::string devName, std::string dnName, int chanId, int decrate,
+p7140dn::p7140dn(std::string devName, int chanId, int decrate,
 bool simulate, int simPauseMS):
 p7140(devName, simulate),
-_dnName(dnName),
 _chanId(chanId),
 _decrate(decrate),
 _dnFd(-1),
@@ -34,10 +33,15 @@ _flipSpectrum(false)
 	if (_simulate)
 		return;
 
-	// create the down convertor name
-	_dnName = devName + "/dn/" + _dnName;
+	// create the down converter name
+	char c[2];
+	c[0] = '0' + _chanId;
+	c[1] = 0;
+	std::string dnchan(c);
+	dnchan += "C";
+	_dnName = devName + "/dn/" + dnchan;
 
-	 // open it
+	// open it
 	_dnFd = open(_dnName.c_str(), O_RDONLY);
 	if (_dnFd < 0) {
 		_ok = false;
@@ -120,6 +124,11 @@ p7140dn::~p7140dn() {
 		close (_dnFd);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////
+std::string
+p7140dn::dnName() {
+	return _dnName;
+}
 
 ///////////////////////////////////////////////////////////
 int

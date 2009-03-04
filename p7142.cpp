@@ -19,10 +19,9 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142dn::p7142dn(std::string devName, std::string dnName, int chanId, int bypdiv,
+p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
 		 bool simulate, int simPauseMS):
   p7142(devName, simulate),
-  _dnName(dnName),
   _chanId(chanId),
   _bypdiv(bypdiv),
   _dnFd(-1),
@@ -37,8 +36,14 @@ p7142dn::p7142dn(std::string devName, std::string dnName, int chanId, int bypdiv
   if (_simulate)
     return;
 
-  // create the down convertor name
-  _dnName = devName + "/dn/" + _dnName;
+  char c[2];
+  c[0] = '0' + _chanId;
+  c[1] = 0;
+  std::string dnchan(c);
+  dnchan += "B";
+
+  // create the down converter name
+  _dnName = devName + "/dn/" + dnchan;
 
   // open it
   _dnFd = open(_dnName.c_str(), O_RDWR);
@@ -104,6 +109,12 @@ p7142dn::p7142dn(std::string devName, std::string dnName, int chanId, int bypdiv
 p7142dn::~p7142dn() {
   if (_dnFd >=0)
     close (_dnFd);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+std::string
+p7142dn::dnName() {
+	return _dnName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
