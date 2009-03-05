@@ -57,6 +57,8 @@ namespace Pentek {
 			virtual int overUnderCount();
 			/// @return The device path
 			std::string dnName();
+			/// @return The file descriptor.
+			int fd();
 
 		protected:
 			/// The channel identifier
