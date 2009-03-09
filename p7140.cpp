@@ -30,8 +30,10 @@ _flipSpectrum(false)
 	if (!ok())
 		return;
 
-	if (_simulate)
+	if (_simulate) {
+		_dnName = "dnSimulate";
 		return;
+	}
 
 	// create the down converter name
 	char c[2];

@@ -33,8 +33,10 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
     return;
   }
 
-  if (_simulate)
+  if (_simulate) {
+  	_dnName = "dnSimulate";
     return;
+  }
 
   char c[2];
   c[0] = '0' + _chanId;
