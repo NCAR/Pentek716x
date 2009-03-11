@@ -42,7 +42,7 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
   c[0] = '0' + _chanId;
   c[1] = 0;
   std::string dnchan(c);
-  dnchan += "B";
+  dnchan += "BR";
 
   // create the down converter name
   _dnName = devName + "/dn/" + dnchan;
