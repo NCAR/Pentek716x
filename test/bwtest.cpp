@@ -65,9 +65,6 @@ double nowTime() {
 
 ///////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
-int gates, delay, prt, prt2, pulsewidth, stgr_prt;
-std::string gaussianFile;
-std::string kaiserFile;
 
 	if (argc < 5) {
 		std::cout << "usage: " << argv[0]
@@ -96,12 +93,14 @@ std::string kaiserFile;
 	makeRealTime();
 
 	// default configuration
-	gates = 500;
-	delay = 0;
-	prt = 2000; // 10 MHz counts
-	prt2 = prt; // no staggered prt
-	pulsewidth = 10; // 10 MHz counts
-	stgr_prt = false;
+	int gates = 500;
+	int delay = 0;
+	int prt = 2000; // 10 MHz counts
+	int prt2 = prt; // no staggered prt
+	int pulsewidth = 10; // 10 MHz counts
+	bool stgr_prt = false;
+	std::string gaussianFile = "";
+	std::string kaiserFile = "";
 
 	// create the downconvertor
 	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, delay, prt, prt2,
