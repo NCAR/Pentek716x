@@ -80,12 +80,30 @@ p7142hcrdn::config() {
 
     // Configure ADC FIFO Control Registers
 
+	int ppOffset = ADC_FIFO_CTRL_1;
+
+	switch(_chanId) {
+	case 0:
+		ppOffset = ADC_FIFO_CTRL_1;
+		break;
+	case 1:
+		ppOffset = ADC_FIFO_CTRL_2;
+		break;
+	case 2:
+		ppOffset = ADC_FIFO_CTRL_3;
+		break;
+	case 3:
+		ppOffset = ADC_FIFO_CTRL_4;
+		break;
+	}
+
 	unsigned int readBack;
-	_pp.offset = ADC_FIFO_CTRL_1;
+
+	_pp.offset = ppOffset;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	readBack = _pp.value;
 
-	_pp.offset = ADC_FIFO_CTRL_1;
+	_pp.offset = ppOffset;
 	_pp.value = readBack & 0x000034BF;
     ioctl(_ctrlFd, FIOREGSET, &_pp);
 
