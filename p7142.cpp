@@ -70,16 +70,6 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
       return;
     }
 
-  // set the clock sample rate
-  double doublearg = 100.0e6;
-  if (ioctl(_dnFd, FIOSAMPRATESET, &doublearg) == -1) {
-    std::cerr << "unable to set the clock rate for "
-	      << _dnName << std::endl;
-    perror("");
-    _ok = false;
-    return;
-  }
-
   // set the decimation rate
   if (ioctl(_dnFd, FIOBYPDIVSET, _bypdiv) == -1) {
     std::cerr << "unable to set the bypass decimation rate for "
