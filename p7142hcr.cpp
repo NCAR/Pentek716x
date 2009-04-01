@@ -49,6 +49,12 @@ _kaiserFile(kaiserFile)
 	// configure DDC in FPGA
 	if (!config())
 		std::cout << "error initializing filters\n";
+
+	_pp.offset = KAISER_ADDR;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "channel " << _chanId << " KAISER_ADDR is "
+	<< std::hex << _pp.value << std::endl;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -60,11 +66,21 @@ p7142hcrdn::~p7142hcrdn() {
 bool
 p7142hcrdn::config() {
 
+	_pp.offset = KAISER_ADDR;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "channel " << _chanId << " KAISER_ADDR is "
+	<< std::hex << _pp.value << std::endl;
+
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_STOP;
     ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(100000);
+
+	_pp.offset = KAISER_ADDR;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "channel " << _chanId << " KAISER_ADDR is "
+	<< std::hex << _pp.value << std::endl;
 
 	// Reset Decimator clocks
 //	Adapter_Write32(&_chanAdapter, V4, DEC_RST_REG, RST_ACT);
@@ -129,6 +145,7 @@ void p7142hcrdn::startFilters() {
 	_pp.value = DDC_START;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(100000);
+	std::cout << "filters started on channel " << _chanId << std::endl;
 
 }
 
@@ -150,7 +167,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			unsigned int readBack;
 			int ramAddr = i/8;
 			int ramSelect = i%8 << 4;
-			_pp.value = ddcSelect | 0x1000 | ramSelect | ramAddr;
+			_pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
 

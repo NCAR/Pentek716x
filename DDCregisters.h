@@ -32,7 +32,6 @@
   #define DDC_START 0x0
   #define DDC_STOP  (0x01<<12)
 
-
 //Gaussian Filter Registers
   #define GUASSIAN_ADDR 0x8EC8
   #define GUASSIAN_DATA_MSW 0x8ED8
