@@ -50,6 +50,10 @@ namespace Pentek {
 					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100);
 			/// Destructor
 			virtual ~p7142hcrdn();
+			/// Set the start bit. Applies only to channel 0
+			/// @todo Fix the start logic - really does not belong
+			/// per channel
+			void startFilters();
 
 		protected:
 			/// Configure the p7142hcrdn

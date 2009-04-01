@@ -66,12 +66,6 @@ p7142hcrdn::config() {
     ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(100000);
 
-	// set up the filters. Will do nothing if either of
-	// the filter file paths is empty.
-	if (filterSetup()) {
-		// error initializing the filters
-		return false;
-	}
 	// Reset Decimator clocks
 //	Adapter_Write32(&_chanAdapter, V4, DEC_RST_REG, RST_ACT);
 //	usleep(100000);
@@ -107,14 +101,15 @@ p7142hcrdn::config() {
 	_pp.value = readBack & 0x000034BF;
     ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-    usleep(100000);
+	// set up the filters. Will do nothing if either of
+	// the filter file paths is empty.
+	if (filterSetup()) {
+		// error initializing the filters
+		return false;
+	}
 
-
-	// Start the DDC  -- do we really want to do this here???
-	_pp.offset = KAISER_ADDR;
-	_pp.value = DDC_START;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(100000);
+
 
 	// initialize the timers
 //	if (!timerInit())
@@ -124,6 +119,20 @@ p7142hcrdn::config() {
 }
 //////////////////////////////////////////////////////////////////////
 
+void p7142hcrdn::startFilters() {
+
+	// Start the DDC  -- do we really want to do this here???
+	/// @todo Note that this sets the start bit on channel 0. Doesn't
+	/// really belong in this class
+
+	_pp.offset = KAISER_ADDR;
+	_pp.value = DDC_START;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(100000);
+
+}
+
+//////////////////////////////////////////////////////////////////////
 bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	bool kaiserLoaded;
@@ -143,8 +152,6 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			int ramSelect = i%8 << 4;
 			_pp.value = ddcSelect | 0x1000 | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
-
-			// set the address
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 			// write the value
