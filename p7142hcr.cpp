@@ -133,16 +133,15 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	// program kaiser coefficients
 
+	int ddcSelect = _chanId << 14;
 	attempt = 0;
 	do {
-//		std::cout << "kaiser coeffs:\n";
 		kaiserLoaded = true;
 		for (unsigned int i = 0; i < kaiser.size(); i++) {
-			//std::cout << "   " << kaiser[i] << "\n";
 			unsigned int readBack;
 			int ramAddr = i/8;
 			int ramSelect = i%8 << 4;
-			_pp.value = 0x1000 | ramSelect | ramAddr;
+			_pp.value = ddcSelect | 0x1000 | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
 
 			// set the address
@@ -196,11 +195,11 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 	// program gaussian coefficients
 	attempt = 0;
 
+	// Note that the DDC select is accomplished in the kaiser filter coefficient
+	// address register, which was done during the previous kaiser filter load.
 	do {
 		gaussianLoaded = true;
-		//std::cout << "gaussian coeffs:\n";
 		for (unsigned int i = 0; i< gaussian.size(); i++) {
-			//std::cout << "    " << i << " " << gaussian[i] << std::endl;
 
 			unsigned int readBack;
 			int ramAddr = i%8;
@@ -226,7 +225,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.offset = GUASSIAN_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-			// disable writing (kaiser readback only succeeds if we do this)
+			// disable writing (gaussian readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = GUASSIAN_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
