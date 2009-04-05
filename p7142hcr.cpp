@@ -52,8 +52,6 @@ _kaiserFile(kaiserFile)
 
 	_pp.offset = KAISER_ADDR;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	std::cout << "channel " << _chanId << " KAISER_ADDR is "
-	<< std::hex << _pp.value << std::endl;
 
 }
 
@@ -223,7 +221,11 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			unsigned int readBack;
 			int ramAddr = i%8;
 			int ramSelect = i/8 << 4;
-			_pp.value = ramSelect | ramAddr;
+			/// @todo early versions of the gaussian filter programming required
+			/// the ds select bits to be set in the gaussian address register.
+			/// We can take this out when we get a working bitstream with this
+			/// fixed
+			_pp.value = ddcSelect | ramSelect | ramAddr;
 			_pp.offset = GUASSIAN_ADDR;
 
 			// set the address
