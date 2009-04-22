@@ -167,6 +167,9 @@ p7142dn::read(char* buf, int bufsize) {
 
   int n = ::read(_dnFd, buf, bufsize);
 
+  if (n > 0)
+	  _bytesRead += n;
+
   if (n < 0)
     _ok = false;
 

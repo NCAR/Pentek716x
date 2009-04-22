@@ -11,7 +11,8 @@ using namespace Pentek;
 p71xx::p71xx(std::string devName, bool simulate):
 _ok(true),
 _devName(devName),
-_simulate(simulate)
+_simulate(simulate),
+_bytesRead(0L)
 {
 	if (_simulate) {
 		_ok = true;
@@ -62,6 +63,17 @@ p71xx::gauss(double mean, double stdDev) {
 		return stdDev * u + mean;
 	}
 
+
+//////////////////////////////////////////////////////////////////////
+long
+p71xx::bytesRead() {
+	/// @todo this needs to be protected by a mutex,
+	/// and there needs to be a similarly protected
+	/// function for setting _bytesRead.
+	long retval = _bytesRead;
+	_bytesRead = 0;
+	return retval;
+}
 
 //////////////////////////////////////////////////////////////////////
 int

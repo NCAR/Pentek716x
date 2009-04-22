@@ -7,13 +7,13 @@
 #include <string>
 
 namespace Pentek {
-	
+
 	/// Base class for a p7142 digital transceiver card.
 	class p71xx {
-		
+
 		public:
 			/// Constructor,
-			/// @param devName The top level device name (e.g. 
+			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0. Other device names, such
 			/// as ctrl will be constructed as needed.
 			/// The ctrl device will be accessed in order to verify
@@ -25,7 +25,10 @@ namespace Pentek {
 			/// @return true if the last operation was succesfull,
 			/// false otherwise.
 			virtual bool ok();
-			
+			/// @return the number of bytes read by a down converter,
+			/// since the last call to bytesRead().
+			long bytesRead();
+
 		protected:
 		    /// Process an ioctl.
 		    /// @param fd The file descriptor
@@ -51,12 +54,12 @@ namespace Pentek {
 		    /// @param doexit If true, call exit(1) if the ioctl returns -1
 		    /// @returns The result of the ioctl call.
 			int doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexit=true);
-			           /// Create a random number, with gaussian ditribution
+			/// Create a random number, with gaussian ditribution
             /// Useful for simulation
             /// @param mean Mean othe result
             /// @param stdDev Standard deviation of the result
             /// @returns The number
-            double gauss(double mean, double stdDev);   
+            double gauss(double mean, double stdDev);
             /// Indicated the success of the last operation.
             bool _ok;
             /// The root device name
@@ -65,6 +68,9 @@ namespace Pentek {
             std::string _devCtrl;
             /// set true if in simulation mode
             bool _simulate;
+            /// The number of bytes read by a down converter, since the
+            /// last call to bytesRead()
+            long _bytesRead;
 	};
 }
 
