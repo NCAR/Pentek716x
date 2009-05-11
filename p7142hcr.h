@@ -44,7 +44,7 @@ namespace Pentek {
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
 			p7142hcrdn(std::string devName,
-					   int chanId, int gates, int delay, int prt,
+				   int chanId, int gates, int nsum, int delay, int prt,
 					   int prt2, int pulse_width, bool stgr_prt,
 					   std::string gaussianFile, std::string kaiserFile,
 					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100);
@@ -56,12 +56,17 @@ namespace Pentek {
 			void startFilters();
 
 		protected:
-			/// Configure the p7142hcrdn
-			/// @return True if the configuration was successful
+		/// Configure the p7142hcrdn
+		/// @return True if the configuration was successful
+		bool config();
 
-			bool config();
+		/// set the number of gates
+		void setGates(int gates);
 
-			/// Configure the filters and the decimation value.
+		/// set the number of sums
+		void setNsum(int nsum);
+
+		/// Configure the filters and the decimation value.
 	        int filterSetup();
 
 	        /// Program the cofficients for the gaussian and
@@ -88,6 +93,8 @@ namespace Pentek {
 
 			/// number of gates
 			int _gates;
+			/// number of coherent integrator sums
+			int _nsum;
 			/// radar PRT in 10 MHz counts
 			int _delay;
 			/// second PRT of staggered PRT in 10 MHz counts

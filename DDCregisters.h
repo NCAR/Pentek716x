@@ -27,7 +27,7 @@
   #define KAISER_DATA_LSW 0x8EA0
   #define KAISER_READ_MSW 0x8EC0
   #define KAISER_READ_LSW 0x8EB8
-  #define KAISER_WR   0x8EB0
+  #define KAISER_WR       0x8EB0
 //Values
   #define DDC_START 0x0
   #define DDC_STOP  (0x01<<12)
@@ -38,8 +38,11 @@
   #define GUASSIAN_DATA_LSW 0x8ED0
   #define GUASSIAN_READ_MSW 0x8EF0
   #define GUASSIAN_READ_LSW 0x8EE8
-  #define GUASSIAN_WR   0x8EE0
+  #define GUASSIAN_WR       0x8EE0
 
+#define RADAR_GATES         0x8EF8
+#define CI_NSUM             0x8F00
+   
 //Clock Decimation Registers
 //  #define DEC_REG     0xA20
 //  #define DEC_RST_REG 0xA24

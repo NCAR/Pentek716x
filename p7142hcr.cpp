@@ -17,12 +17,13 @@
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates,
+p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		   int delay, int prt, int prt2, int pulse_width, bool stgr_prt,
 		   std::string gaussianFile, std::string kaiserFile,int bypdivrate,
 		   bool simulate, int simPauseMS):
 p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS),
 _gates(gates),
+_nsum(nsum),
 _delay(delay),
 _prt(prt),
 _pulse_width(pulse_width),
@@ -101,6 +102,10 @@ p7142hcrdn::config() {
 		break;
 	}
 
+	setGates(_gates);
+
+	setNsum(_nsum);
+
 	unsigned int readBack;
 
 	_pp.offset = ppOffset;
@@ -109,7 +114,7 @@ p7142hcrdn::config() {
 
 	_pp.offset = ppOffset;
 	_pp.value = readBack & 0x000034BF;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// set up the filters. Will do nothing if either of
 	// the filter file paths is empty.
@@ -143,6 +148,26 @@ void p7142hcrdn::startFilters() {
 }
 
 //////////////////////////////////////////////////////////////////////
+void p7142hcrdn::setGates(int gates) {
+  _pp.offset = RADAR_GATES;
+  _pp.value  = gates;
+  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+  ioctl(_ctrlFd, FIOREGGET, &_pp);
+  std::cout << "gates are " << _pp.value << std::endl;
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142hcrdn::setNsum(int nsum) {
+  _pp.offset = CI_NSUM;
+  _pp.value  = nsum;
+  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+  ioctl(_ctrlFd, FIOREGGET, &_pp);
+  std::cout << "nsum is " << _pp.value << std::endl;
+}
+
+//////////////////////////////////////////////////////////////////////
 bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	bool kaiserLoaded;
@@ -163,33 +188,40 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// write the value
 			// LS word first
 			_pp.value = kaiser[i] & 0xFFFF;
 			_pp.offset = KAISER_DATA_LSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
 			_pp.value = (kaiser[i] >> 16) & 0x3;
 			_pp.offset = KAISER_DATA_MSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// latch coefficient
 			_pp.value = 0x1;
 			_pp.offset = KAISER_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// disable writing (kaiser readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = KAISER_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// read back the programmed value; we need to do this in two words as above.
 			_pp.offset = KAISER_READ_LSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
+			usleep(1000);
 			readBack = _pp.value;
 			_pp.offset = KAISER_READ_MSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
+			usleep(1000);
 			readBack |= (_pp.value << 16);
 			if (readBack != kaiser[i]) {
 				std::cout << "kaiser readback failed for coefficient "
@@ -230,33 +262,40 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 			// set the address
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// write the value
 			// LS word first
 			_pp.value = gaussian[i] & 0xFFFF;
 			_pp.offset = GUASSIAN_DATA_LSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
 			_pp.value = (gaussian[i] >> 16) & 0x3;
 			_pp.offset = GUASSIAN_DATA_MSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// enable writing
 			_pp.value = 0x1;
 			_pp.offset = GUASSIAN_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// disable writing (gaussian readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = GUASSIAN_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
+			usleep(1000);
 
 			// read back the programmed value; we need to do this in two words as above.
 			_pp.offset = GUASSIAN_READ_LSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
+			usleep(1000);
 			readBack = _pp.value;
 			_pp.offset = GUASSIAN_READ_MSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
+			usleep(1000);
 			readBack |= _pp.value << 16;
 			if (readBack != gaussian[i]) {
 				std::cout << "gaussian readback failed for coefficient "
