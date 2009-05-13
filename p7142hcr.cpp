@@ -47,12 +47,12 @@ _kaiserFile(kaiserFile)
 		return;
 	}
 
-	// configure DDC in FPGA
-	if (!config())
-		std::cout << "error initializing filters\n";
+	std::cout << "FPGA repository revision is " << fpgaRepoRevision() << std::endl;
 
-	_pp.offset = KAISER_ADDR;
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	// configure DDC in FPGA
+	if (!config()) {
+		std::cout << "error initializing filters\n";
+	}
 
 }
 
@@ -65,28 +65,20 @@ p7142hcrdn::~p7142hcrdn() {
 bool
 p7142hcrdn::config() {
 
-	_pp.offset = KAISER_ADDR;
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
 
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_STOP;
     ioctl(_ctrlFd, FIOREGSET, &_pp);
-	usleep(100000);
-
+	usleep(10000);
 	_pp.offset = KAISER_ADDR;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 
-	// Reset Decimator clocks
-//	Adapter_Write32(&_chanAdapter, V4, DEC_RST_REG, RST_ACT);
-//	usleep(100000);
-//	Adapter_Write32(&_chanAdapter, V4, DEC_RST_REG, RST_CLR);
-//	usleep(100000);
 
-    // Configure ADC FIFO Control Registers
-
+	unsigned int readBack;
 	int ppOffset = ADC_FIFO_CTRL_1;
-
 	switch(_chanId) {
 	case 0:
 		ppOffset = ADC_FIFO_CTRL_1;
@@ -102,19 +94,22 @@ p7142hcrdn::config() {
 		break;
 	}
 
-	setGates(_gates);
-
-	setNsum(_nsum);
-
-	unsigned int readBack;
-
 	_pp.offset = ppOffset;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	readBack = _pp.value;
 
+    // Configure ADC FIFO Control for this channel
+
+
 	_pp.offset = ppOffset;
 	_pp.value = readBack & 0x000034BF;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	// set number of gates
+	setGates(_gates);
+
+	// set number of coherent integrator sums
+	setNsum(_nsum);
 
 	// set up the filters. Will do nothing if either of
 	// the filter file paths is empty.
@@ -123,15 +118,17 @@ p7142hcrdn::config() {
 		return false;
 	}
 
-	usleep(100000);
-
-
-	// initialize the timers
-//	if (!timerInit())
-//		return -1;
-
 	return true;
 }
+//////////////////////////////////////////////////////////////////////
+
+int p7142hcrdn::fpgaRepoRevision() {
+	  _pp.offset = FPGA_REPO_REV;
+	  ioctl(_ctrlFd, FIOREGGET, &_pp);
+	  return _pp.value;
+
+}
+
 //////////////////////////////////////////////////////////////////////
 
 void p7142hcrdn::startFilters() {

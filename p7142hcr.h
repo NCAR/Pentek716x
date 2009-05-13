@@ -54,6 +54,9 @@ namespace Pentek {
 			/// @todo Fix the start logic - really does not belong
 			/// per channel
 			void startFilters();
+			/// @return The FPGA firmware software repository revision number.
+			int fpgaRepoRevision();
+
 
 		protected:
 		/// Configure the p7142hcrdn
