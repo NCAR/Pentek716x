@@ -419,7 +419,7 @@ bool p7142hcrdn::timerInit() {
 	//
 	//    This section initializes the timers.
 
-	double prtClock = (125e6); // Timer Input Clock Freq
+	double prtClock = (62.5e6); // Timer Input Clock Freq
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
@@ -430,7 +430,7 @@ bool p7142hcrdn::timerInit() {
 	// Calculate the period and PRT Scheme for dual prt or single prt
 	int X, Y;
 	float prt_ms, prt2_ms;
-	if (_stgr_prt == 1) //dual prt
+	if (_stgr_prt == true) //dual prt
 	{
 		prt_ms = (float)_prt/1e3;
 		prt2_ms = (float)_prt2/1e3;
@@ -479,7 +479,7 @@ bool p7142hcrdn::timerInit() {
 	  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	  _pp.offset = MT_DATA;					// Data
-	  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+	  _pp.value  = (int) ceil((_pulse_width * _gates *prtClock/62.5e6));
 	  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// For now configure all 8 Timers identically, later we will customize per application
