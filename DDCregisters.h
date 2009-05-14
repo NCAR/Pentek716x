@@ -78,6 +78,10 @@ Desc: Pentek 7142 HCR DDC Registers
 #define TIMER1 (0x02<<4)
 #define TIMER2 (0x04<<4)
 #define TIMER3 (0x08<<4)
+#define TIMER4 (0x10<<4)
+#define TIMER5 (0x20<<4)
+#define TIMER6 (0x40<<4)
+#define TIMER7 (0x80<<4)
 
 #define W_Ch0 (0x01<<4)
 #define W_Ch1 (0x02<<4)

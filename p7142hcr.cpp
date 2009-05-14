@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
+#define USE_TIMER;
 
 using namespace Pentek;
 
@@ -26,6 +27,7 @@ _gates(gates),
 _nsum(nsum),
 _delay(delay),
 _prt(prt),
+_prt2(prt2),
 _pulse_width(pulse_width),
 _stgr_prt(stgr_prt),
 _gaussianFile(gaussianFile),
@@ -417,90 +419,235 @@ bool p7142hcrdn::timerInit() {
 	//
 	//    This section initializes the timers.
 
-	double prtClock = (60e6); // Timer Input Clock Freq
+	double prtClock = (125e6); // Timer Input Clock Freq
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
 	// Internal Timing Setup
 
-	unsigned int ALL_TIMERS= TIMER0 | TIMER1 | TIMER2 | TIMER3;
+	unsigned int ALL_TIMERS= TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4 | TIMER5 | TIMER6 | TIMER7;
 
 	// Calculate the period and PRT Scheme for dual prt or single prt
 	int X, Y;
-	if (_radarParams.radd_nipp == 2) //dual prt
+	float prt_ms, prt2_ms;
+	if (_stgr_prt == 1) //dual prt
 	{
-		periodCount = (int) (_radarParams.radd_ipp1
-				* ((float) _radarParams.radd_ipp2 / _radarParams.radd_ipp1
-						- (int) (_radarParams.radd_ipp2
-								/ _radarParams.radd_ipp1))
-				/ (int) (_radarParams.radd_ipp2 / _radarParams.radd_ipp1)
-				* prtClock / 1e3);
+		prt_ms = (float)_prt/1e3;
+		prt2_ms = (float)_prt2/1e3;
 
-		X = (int) ((int) (_radarParams.radd_ipp2 / _radarParams.radd_ipp1)
-				/ ((float) _radarParams.radd_ipp2 / _radarParams.radd_ipp1
-						- (int) (_radarParams.radd_ipp2
-								/ _radarParams.radd_ipp1)));
-		Y = (int) (X * _radarParams.radd_ipp2 / _radarParams.radd_ipp1);
+		periodCount = (int) (prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms / prt_ms))
+				/ (int) (prt2_ms / prt_ms) * prtClock / 1e3);
+
+		X = (int) ((int) (prt2_ms / prt_ms) / (prt2_ms / prt_ms
+						- (int) (prt2_ms / prt_ms)));
+		Y = (int) (X * prt2_ms / prt_ms);
 
 		PrtScheme = (Y<<4) | X;
 	} else //single prt
 	{
-		periodCount = (int) ceil((_radarParams.radd_ipp1 * prtClock / 1e3));
+		periodCount = (int) ceil((_prt * prtClock / 10e6));
 		PrtScheme = 0x0000;
 	}
+	// Control Register
+	  _pp.offset = MT_ADDR;
+	  _pp.value  = CONTROL_REG | ALL_TIMERS;
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, CONTROL_REG | ALL_TIMERS); // Control Register
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, TIMER_ON); // Enable Timer
-	Adapter_Write32(&_chanAdapter, V4, MT_WR, WRITE_ON); // Turn on Write Strobes
+	// Enable Timer
+	  _pp.offset = MT_DATA;
+	  _pp.value  = TIMER_ON;
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	// Turn on Write Strobes
+	  _pp.offset = MT_WR;
+	  _pp.value  = WRITE_ON;
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 0
 	// Delay Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, DELAY_REG | TIMER0); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpoff[0]); // Data
+	  _pp.offset = MT_ADDR;					// Address
+	  _pp.value  = DELAY_REG | TIMER0;
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	  _pp.offset = MT_DATA;					// Data
+	  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
 	// Pulse Width Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, WIDTH_REG | TIMER0); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpwid[0]
-			* _radarParams.wave_ngates[0]); // Data
-	// TIMER 1
-	// Delay Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, DELAY_REG | TIMER1); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpoff[1]); // Data
-	// Pulse Width Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, WIDTH_REG | TIMER1); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpwid[1]
-			* _radarParams.wave_ngates[1]); // Data
-	// TIMER 2
-	// Delay Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, DELAY_REG | TIMER2); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpoff[2]); // Data
-	// Pulse Width Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, WIDTH_REG | TIMER2); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpwid[2]
-			* _radarParams.wave_ngates[2]); // Data
-	// TIMER 3
-	// Delay Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, DELAY_REG | TIMER3); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpoff[3]); // Data
-	// Pulse Width Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, WIDTH_REG | TIMER3); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, _radarParams.wave_chpwid[3]
-			* _radarParams.wave_ngates[3]); // Data
+	  _pp.offset = MT_ADDR;					// Address
+	  _pp.value  = WIDTH_REG | TIMER0;
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	  _pp.offset = MT_DATA;					// Data
+	  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	// For now configure all 8 Timers identically, later we will customize per application
+    // TIMER 1
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER1;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER1;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+   // TIMER 2
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER2;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER2;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+   // TIMER 3
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER3;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER3;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+   // TIMER 4
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER4;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER4;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+   // TIMER 5
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER5;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER5;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+   // TIMER 6
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER6;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER6;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+   // TIMER 7
+		// Delay Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = DELAY_REG | TIMER7;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		// Pulse Width Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = WIDTH_REG | TIMER7;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
 	// ALL TIMERS
-	// Period Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, PERIOD_REG | ALL_TIMERS); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, periodCount); // Data
-	//Multiple PRT Register
-	Adapter_Write32(&_chanAdapter, V4, MT_ADDR, PRT_REG | ALL_TIMERS); // Address
-	Adapter_Write32(&_chanAdapter, V4, MT_DATA, PrtScheme); // Mult PRT Value Timer 0
+		// Period Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = PERIOD_REG | ALL_TIMERS;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Data
+		  _pp.value  = periodCount;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	   //Multiple PRT Register
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = PRT_REG | ALL_TIMERS;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+		  _pp.offset = MT_DATA;					// Mult PRT Valu Timer 0
+		  _pp.value  = PrtScheme;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+
 
 	// Enable and Trigger All Timers
-	Adapter_Write32(&_chanAdapter, V4,
-	MT_ADDR,
-	PRT_REG | ALL_TIMERS | TIMER_EN); // Set Global Enable
+
+	  // Set Global Enable
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = PRT_REG | ALL_TIMERS | TIMER_EN;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	usleep(1000);
 
-	Adapter_Write32(&_chanAdapter, V4, MT_WR, WRITE_OFF); // Turn off Write Strobes
+	  // Turn off Write Strobes
+		  _pp.offset = MT_WR;
+		  _pp.value  = WRITE_OFF;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
 #endif
 	return true;
 
@@ -514,21 +661,28 @@ void p7142hcrdn::startInternalTimer() {
 	//
 	//    This start the internal timers.
 
-	unsigned int ALL_TIMERS= TIMER0 | TIMER1 | TIMER2 | TIMER3;
+	unsigned int ALL_TIMERS= TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4 | TIMER5 | TIMER6 | TIMER7;
 
-	Adapter_Write32(&_chanAdapter, V4, MT_WR, WRITE_ON); // Turn on Write Strobes
+	// Turn on Write Strobes
+		  _pp.offset = MT_WR;
+		  _pp.value  = WRITE_ON;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Enable and Trigger All Timers
-	Adapter_Write32(&_chanAdapter, V4,
-	MT_ADDR,
-	PRT_REG | ALL_TIMERS | ADDR_TRIG); // Set Global Enable
+
+		  _pp.offset = MT_ADDR;					// Address
+		  _pp.value  = ALL_TIMERS | ADDR_TRIG;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	usleep(1000);
 
-	Adapter_Write32(&_chanAdapter, V4, MT_WR, WRITE_OFF); // Turn off Write Strobes
+	// Turn off Write Strobes
+		  _pp.offset = MT_WR;
+		  _pp.value  = WRITE_OFF;
+		  ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Get current system time as xmit start time
-	setXmitStartTime(microsec_clock::universal_time());
+	// setXmitStartTime(microsec_clock::universal_time());
 #endif
 }
 
