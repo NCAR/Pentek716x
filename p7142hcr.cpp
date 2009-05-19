@@ -119,6 +119,8 @@ p7142hcrdn::config() {
 		// error initializing the filters
 		return false;
 	}
+	// initialize the internal timers
+	timerInit();
 
 	return true;
 }
