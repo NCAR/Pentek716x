@@ -1,7 +1,13 @@
 import os
+import sys
 
-PENTEK_ROOT = os.environ['PENTEK_ROOT']
-PENTEK_INCLUDE = PENTEK_ROOT+'/include'
+try:
+    PENTEK_ROOT = os.environ['PENTEK_ROOT']
+except KeyError:
+    print "tool_pentek: environment variable PENTEK_ROOT must be set!"
+    sys.exit(1)
+    
+PENTEK_INCLUDE = os.path.join(PENTEK_ROOT, 'include')
 
 tools = Split("""
 doxygen
