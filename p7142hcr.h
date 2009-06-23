@@ -43,11 +43,14 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
+			/// @param useInternalClock Set true if the internal clock should be
+			/// used instead of the front panel clock.
 			p7142hcrdn(std::string devName,
 				   int chanId, int gates, int nsum, int delay, int prt,
 					   int prt2, int pulse_width, bool stgr_prt,
 					   std::string gaussianFile, std::string kaiserFile,
-					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100);
+					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100,
+					   bool internalClock=false);
 			/// Destructor
 			virtual ~p7142hcrdn();
 			/// Set the start bit. Applies only to channel 0

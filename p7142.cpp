@@ -20,7 +20,7 @@ p7142::~p7142() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
-		 bool simulate, int simPauseMS):
+		 bool simulate, int simPauseMS, bool internalClock):
   p7142(devName, simulate),
   _chanId(chanId),
   _bypdiv(bypdiv),
@@ -58,8 +58,11 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
   // set the clock source
   int clockSource;
 
-  clockSource = CLK_SRC_FRTPAN;
-  //	clockSource = CLK_SRC_INTERN;
+  if (internalClock) {
+	  clockSource = CLK_SRC_INTERN;
+  } else {
+	  clockSource = CLK_SRC_FRTPAN;
+  }
 
   if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1)
     {

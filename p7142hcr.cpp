@@ -21,8 +21,8 @@ using namespace Pentek;
 p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		   int delay, int prt, int prt2, int pulse_width, bool stgr_prt,
 		   std::string gaussianFile, std::string kaiserFile,int bypdivrate,
-		   bool simulate, int simPauseMS):
-p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS),
+		   bool simulate, int simPauseMS, bool internalClock):
+p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, internalClock),
 _gates(gates),
 _nsum(nsum),
 _delay(delay),

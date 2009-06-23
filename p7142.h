@@ -41,9 +41,11 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
+			/// @param useInternalClock Set true if the internal clock should be
+			/// used instead of the front panel clock.
 			p7142dn(std::string devName,
 					int chanId, int bypassdivrate=1,
-			        bool simulate=false, int simPauseMS=100);
+			        bool simulate=false, int simPauseMS=100, bool internalClock=false);
 			/// Destructor
 			virtual ~p7142dn();
 			/// Read bytes.
