@@ -51,6 +51,7 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
   _dnFd = open(_dnName.c_str(), O_RDWR);
   if (_dnFd < 0) {
     std::cerr << "unable to open " << _dnName << std::endl;
+    perror("error opening pentek device:");
     _ok = false;
     return;
   }
