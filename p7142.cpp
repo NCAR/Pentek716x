@@ -3,6 +3,7 @@
 #include <sys/ioctl.h>
 #include <iostream>
 #include <stdio.h>
+#include <stdlib.h>
 
 using namespace Pentek;
 int drv_peekL(int fd,unsigned intaddr);

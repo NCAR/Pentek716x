@@ -9,11 +9,10 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <iostream>
-#include <iomanip.h>
 #include <stdio.h>
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
-#define USE_TIMER;
+#define USE_TIMER
 
 using namespace Pentek;
 
