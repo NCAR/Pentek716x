@@ -37,7 +37,7 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param chanId The channel identifier (used to select /dn/*B)
-			/// @bypassdivrate The byopass divider (decimation) rate
+			/// @param bypassdivrate The byopass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
@@ -83,15 +83,15 @@ namespace Pentek {
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
 			/// @param upName The name of the downconvertor device, e.g. 0C
-			/// @param sampleclockHz The DAC sample clock in Hz
-			/// @param ncofreqHz The NCO frequency in Hz
+			/// @param sampleClockHz The DAC sample clock in Hz
+			/// @param ncoFreqHz The NCO frequency in Hz
 			/// @param simulate Set true if we operate in simulation mode.
 			p7142up(std::string devName, std::string upName,
 				double sampleClockHz, double ncoFreqHz, char mode, bool simulate=false);
 			/// Destructor
 			virtual ~p7142up();
 			/// Write the baseband signal to ram.
-			/// @param buf The I and Q signal values
+			/// @param data The I and Q signal values
 			/// @param n The number of values.
 			virtual void write(long* data, int n);
 			/// Start the DAC output
@@ -108,7 +108,7 @@ namespace Pentek {
 			/// @param nco_freq_1 Byte 1 of the nco frequency parameter is returned here
 			/// @param nco_freq_2 Byte 2 of the nco frequency parameter is returned here
 			/// @param nco_freq_3 Byte 3 of the nco frequency parameter is returned here
-			void ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_0, char& nco_freq_0, char& nco_freq_3);
+			void ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1, char& nco_freq_2, char& nco_freq_3);
 		    /// Fetch the value of a DAC configuration register.
 		    /// @param fd The file descriptor of an open up conversion channel.
 		    /// @param reg The desired register number (0==VERSION, 1==CONFIG0, etc.)
