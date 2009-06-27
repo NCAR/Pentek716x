@@ -185,6 +185,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 		kaiserLoaded = true;
 		for (unsigned int i = 0; i < kaiser.size(); i++) {
 			unsigned int readBack;
+
 			int ramAddr = i/8;
 			int ramSelect = i%8 << 4;
 			_pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
@@ -198,6 +199,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.offset = KAISER_DATA_LSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
 			usleep(1000);
+
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
 			_pp.value = (kaiser[i] >> 16) & 0x3;
 			_pp.offset = KAISER_DATA_MSW;
@@ -220,10 +222,12 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.offset = KAISER_READ_LSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
 			usleep(1000);
+
 			readBack = _pp.value;
 			_pp.offset = KAISER_READ_MSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
 			usleep(1000);
+
 			readBack |= (_pp.value << 16);
 			if (readBack != kaiser[i]) {
 				std::cout << "kaiser readback failed for coefficient "
