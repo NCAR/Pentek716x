@@ -114,12 +114,14 @@ p7142hcrdn::config() {
 
 	// set up the filters. Will do nothing if either of
 	// the filter file paths is empty.
-	if (filterSetup()) {
-		// error initializing the filters
-		return false;
-	}
+	bool filterError = filterSetup();
+
 	// initialize the internal timers
 	timerInit();
+
+	if (filterError) {
+		return false;
+	}
 
 	return true;
 }
@@ -390,7 +392,7 @@ int p7142hcrdn::filterSetup() {
 	if (_kaiserFile.size() != 0) {
 		FilterSpec k(_kaiserFile);
 		if (!k.ok()) {
-			std::cerr << "Incorrect or unaccesible filter definition: "
+			std::cerr << "Incorrect or unaccessible filter definition: "
 					<< _kaiserFile << std::endl;
 			return -1;
 		} else {
