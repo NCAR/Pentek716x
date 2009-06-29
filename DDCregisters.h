@@ -3,14 +3,13 @@
 Desc: Pentek 7142 HCR DDC Registers
 
 **********************************************************************************************/
-// ADC FIFO Control Registers
+/// ADC FIFO Control Registers
+#define ADC_FIFO_CTRL_1 0x8C08  ///< ADC #1
+#define ADC_FIFO_CTRL_2 0x8C40  ///< ADC #2
+#define ADC_FIFO_CTRL_3 0x8C78  ///< ADC #3
+#define ADC_FIFO_CTRL_4 0x8CB0  ///< ADC #4
 
-#define ADC_FIFO_CTRL_1 0x8C08  //ADC #1
-#define ADC_FIFO_CTRL_2 0x8C40  //ADC #2
-#define ADC_FIFO_CTRL_3 0x8C78  //ADC #3
-#define ADC_FIFO_CTRL_4 0x8CB0  //ADC #4
-
-//PulseWidths for Decimation
+/// PulseWidths for Decimation
 #define _0_2us 2
 #define _0_4us 4
 #define _0_6us 6
@@ -21,31 +20,32 @@ Desc: Pentek 7142 HCR DDC Registers
 #define _1_6us 16
 
 
+/// Filter control bits
+#define DDC_START          0x0  ///< Allow the filter to run. Set in the filter ADDR register.
+#define DDC_STOP     (0x01<<12) ///< Force the filter to stop. Set in the filter ADDR register.
+
 //Kaiser Filter Registers
-#define KAISER_ADDR 0x8E98
-#define KAISER_DATA_MSW 0x8EA8
-#define KAISER_DATA_LSW 0x8EA0
-#define KAISER_READ_MSW 0x8EC0
-#define KAISER_READ_LSW 0x8EB8
-#define KAISER_WR       0x8EB0
-//Values
-#define DDC_START 0x0
-#define DDC_STOP  (0x01<<12)
+#define KAISER_ADDR     0x8E98  ///< Register 467 Kaiser filter coefficient address and control
+#define KAISER_DATA_LSW 0x8EA0  ///< Register 468 Kaiser filter coefficient data (LSW)
+#define KAISER_DATA_MSW 0x8EA8  ///< Register 469 Kaiser filter coefficient data (MSW)
+#define KAISER_WR       0x8EB0  ///< Register 470 Kaiser filter write
+#define KAISER_READ_LSW 0x8EB8  ///< Register 471 Kaiser filter coefficient read (LSW)
+#define KAISER_READ_MSW 0x8EC0  ///< Register 472 Kaiser filter coefficient read (MSW)
 
 //Gaussian Filter Registers
-#define GUASSIAN_ADDR 0x8EC8
-#define GUASSIAN_DATA_MSW 0x8ED8
-#define GUASSIAN_DATA_LSW 0x8ED0
-#define GUASSIAN_READ_MSW 0x8EF0
-#define GUASSIAN_READ_LSW 0x8EE8
-#define GUASSIAN_WR       0x8EE0
+#define GUASSIAN_ADDR     0x8EC8  ///< Register 473 Gaussian filter coefficient address and control
+#define GUASSIAN_DATA_LSW 0x8ED0  ///< Register 474 Gaussian filter coefficient data (LSW)
+#define GUASSIAN_DATA_MSW 0x8ED8  ///< Register 475 Gaussian filter coefficient data (MSW)
+#define GUASSIAN_WR       0x8EE0  ///< Register 476 Gaussian filter write
+#define GUASSIAN_READ_LSW 0x8EE8  ///< Register 477 Gaussian filter coefficient read (LSW)
+#define GUASSIAN_READ_MSW 0x8EF0  ///< Register 478 Gaussian filter coefficient read (MSW)
 
-/// The number of radar gates
-#define RADAR_GATES         0x8EF8
-/// The number of values for one coherent integrator sum
-#define CI_NSUM             0x8F00
-/// The fpga source code repository revision number
-#define FPGA_REPO_REV       0x8F08
+
+#define RADAR_GATES       0x8EF8 ///< Register 479The number of radar gates
+
+#define CI_NSUM           0x8F00 ///< Register 480 The number of values for one coherent integrator sum
+
+#define FPGA_REPO_REV     0x8F08 ///< Register 481 The fpga source code repository revision number
 
 //Clock Decimation Registers
 //  #define DEC_REG     0xA20
@@ -109,9 +109,6 @@ Desc: Pentek 7142 HCR DDC Registers
 #define PRT3 (0x0<<8)
 #define PRT4 (0x0<<12)
 
-// SVN Revision Register on V4
-//  #define SVN_REV_ADR 0xA5C
-
 // Timer DCM Lock Status
 //  #define FILTER_DCM_UNLOCKED (0x1<<1)
 //  #define FILTER_DCM_RST (0x1<<1)
@@ -119,8 +116,8 @@ Desc: Pentek 7142 HCR DDC Registers
 //-------------------------------
 //Added by Tom 1-3-08 for timing error detection
 //Bits 23-20 of status register correspond to sync error for channel A-D
-#define A_SYNC_ERROR (0x1<<23)
-#define B_SYNC_ERROR (0x1<<22)
-#define C_SYNC_ERROR (0x1<<21)
-#define D_SYNC_ERROR (0x1<<20)
+//#define A_SYNC_ERROR (0x1<<23)
+//#define B_SYNC_ERROR (0x1<<22)
+//#define C_SYNC_ERROR (0x1<<21)
+//b#define D_SYNC_ERROR (0x1<<20)
 

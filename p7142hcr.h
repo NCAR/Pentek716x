@@ -26,7 +26,20 @@
 
 namespace Pentek {
 
-	/// A p7142 downconvertor for use with the HCR firmware
+	/// A p7142 downconvertor adapted for specific use with the HCR firmware.
+    ///
+    /// <b>The HCR firmware</b>
+	/// This firmware contains identical user blocks on all 4 ADC channels. The user blocks
+    /// contain downconvertors implemented with the csac filters. The csac filters
+    /// have a guassian and a kaiser filter in series. The filter coefficients are
+    /// configurable.
+    ///
+    /// The downconvertors is followed by a coherent integrators. The coherent integrators
+    /// can by bypassed by specifying a coherent integration sum of 1.
+    /// In coherent integrator bypass mode, the data are delivered as packed 16 bit
+    /// I and Q values, along with beam tags. In coherent integration mode, the data
+    /// are delivered as 32 bit sums, for I and Q, for even and odd pulses. Beam tags
+    /// are also included in this mode.
 	class p7142hcrdn: public p7142dn {
 		public:
 			/// Constructor
