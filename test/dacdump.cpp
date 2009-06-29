@@ -31,7 +31,7 @@ dumpDACregs(int fd) {
 		std::cout << "DAC register 0x"  << std::hex  << i << std::dec << ":";
 		// print binary
 		for (int i = 0; i < 8; i++) {
-		    char mask = 1 << 7-i;
+		    char mask = 1 << (7 - i);
 			std::cout << " ";
 			std::cout << ((val & mask)? "1":"0");
 		}

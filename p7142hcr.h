@@ -34,16 +34,21 @@ namespace Pentek {
 			/// /dev/pentek/p7140/0.
 			/// @param chanId The channel identifier (should be a zero based small integer)
 			/// @param gates The number of gates
+		    /// @param nsum The number of coherent integrator sums
 			/// @param delay the delay to the first gate in 10 MHz counts
 			/// @param prt the radar PRT in 10 MHz counts
 			/// @param prt2 the second PRT of a staggered PRT sequence, expressed in 10 MHz counts
 			/// @param pulse_width the radar pulse width in 10 MHz counts
 			/// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
-			/// @bypassdivrate The byopass divider (decimation) rate
+            /// @param gaussianFile Name of the file containing the Gaussian 
+		    ///   filter parameters
+            /// @param kaiserFile Name of the file containing the Kaiser 
+		    ///   filter parameters
+			/// @param bypassdivrate The bypass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			/// @param useInternalClock Set true if the internal clock should be
+			/// @param internalClock Set true if the internal clock should be
 			/// used instead of the front panel clock.
 			p7142hcrdn(std::string devName,
 				   int chanId, int gates, int nsum, int delay, int prt,

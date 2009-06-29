@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 	}
 
 	// create the signal
-	int n = 100;
+	unsigned int n = 100;
 	long IQ[n];
 	for (unsigned int i = 0; i < n/4; i++) {
 		IQ[i]   = 0x7FFF << 16 | 0x7FFF;

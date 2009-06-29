@@ -41,7 +41,7 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
-			/// @param useInternalClock Set true if the internal clock should be
+			/// @param internalClock Set true if the internal clock should be
 			/// used instead of the front panel clock.
 			p7142dn(std::string devName,
 					int chanId, int bypassdivrate=1,
@@ -85,6 +85,7 @@ namespace Pentek {
 			/// @param upName The name of the downconvertor device, e.g. 0C
 			/// @param sampleClockHz The DAC sample clock in Hz
 			/// @param ncoFreqHz The NCO frequency in Hz
+		    /// @param mode The mode @TODO details here
 			/// @param simulate Set true if we operate in simulation mode.
 			p7142up(std::string devName, std::string upName,
 				double sampleClockHz, double ncoFreqHz, char mode, bool simulate=false);
