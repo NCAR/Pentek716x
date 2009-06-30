@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
 #define USE_TIMER
