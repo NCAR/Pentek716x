@@ -170,6 +170,7 @@ void p7142hcrdn::setNsum(int nsum) {
 }
 
 //////////////////////////////////////////////////////////////////////
+#define IOCTLSLEEPUS 10000
 bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	bool kaiserLoaded;
@@ -191,42 +192,42 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			_pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// write the value
 			// LS word first
 			_pp.value = kaiser[i] & 0xFFFF;
 			_pp.offset = KAISER_DATA_LSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
 			_pp.value = (kaiser[i] >> 16) & 0x3;
 			_pp.offset = KAISER_DATA_MSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// latch coefficient
 			_pp.value = 0x1;
 			_pp.offset = KAISER_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// disable writing (kaiser readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = KAISER_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// read back the programmed value; we need to do this in two words as above.
 			_pp.offset = KAISER_READ_LSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			readBack = _pp.value;
 			_pp.offset = KAISER_READ_MSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			readBack |= (_pp.value << 16);
 			if (readBack != kaiser[i]) {
@@ -235,7 +236,10 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 						<< ", read " << readBack << std::endl;
 
 				kaiserLoaded = false;
+			} else {
+				std::cout << "programmed kaiser " << i << std::endl;
 			}
+
 		}
 		attempt++;
 	} while (!kaiserLoaded && attempt < 1); // was 50
@@ -268,40 +272,40 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 			// set the address
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// write the value
 			// LS word first
 			_pp.value = gaussian[i] & 0xFFFF;
 			_pp.offset = GUASSIAN_DATA_LSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 			// then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
 			_pp.value = (gaussian[i] >> 16) & 0x3;
 			_pp.offset = GUASSIAN_DATA_MSW;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// enable writing
 			_pp.value = 0x1;
 			_pp.offset = GUASSIAN_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// disable writing (gaussian readback only succeeds if we do this)
 			_pp.value = 0x0;
 			_pp.offset = GUASSIAN_WR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 
 			// read back the programmed value; we need to do this in two words as above.
 			_pp.offset = GUASSIAN_READ_LSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 			readBack = _pp.value;
 			_pp.offset = GUASSIAN_READ_MSW;
 			ioctl(_ctrlFd, FIOREGGET, &_pp);
-			usleep(1000);
+			usleep(IOCTLSLEEPUS);
 			readBack |= _pp.value << 16;
 			if (readBack != gaussian[i]) {
 				std::cout << "gaussian readback failed for coefficient "
@@ -309,6 +313,8 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 						<< gaussian[i] << ", read " << readBack << std::endl;
 
 				gaussianLoaded = false;
+			} else {
+				std::cout << "programmed gaussian " << i << std::endl;
 			}
 		}
 		attempt++;

@@ -38,6 +38,7 @@ BuiltinFilters.h
 BuiltinGaussian.h
 BuiltinKaiser.h
 FilterSpec.h
+DDCregisters.h
 """)
 
 libpentek = env.Library('pentek', libsources)
