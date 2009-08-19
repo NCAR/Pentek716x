@@ -13,6 +13,7 @@
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
 #define USE_TIMER
+#define IOCTLSLEEPUS 100
 
 using namespace Pentek;
 
@@ -170,7 +171,6 @@ void p7142hcrdn::setNsum(int nsum) {
 }
 
 //////////////////////////////////////////////////////////////////////
-#define IOCTLSLEEPUS 10000
 bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	bool kaiserLoaded;
@@ -237,7 +237,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 				kaiserLoaded = false;
 			} else {
-				std::cout << "programmed kaiser " << i << std::endl;
+				// std::cout << "programmed kaiser " << i << std::endl;
 			}
 
 		}
@@ -314,7 +314,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 				gaussianLoaded = false;
 			} else {
-				std::cout << "programmed gaussian " << i << std::endl;
+				// std::cout << "programmed gaussian " << i << std::endl;
 			}
 		}
 		attempt++;
