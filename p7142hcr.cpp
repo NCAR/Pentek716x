@@ -18,13 +18,14 @@
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
+p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum, int tsLength,
 		   int delay, int prt, int prt2, int pulse_width, bool stgr_prt,
-		   std::string gaussianFile, std::string kaiserFile,int bypdivrate,
+		   std::string gaussianFile, std::string kaiserFile, int bypdivrate,
 		   bool simulate, int simPauseMS, bool internalClock):
 p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, internalClock),
 _gates(gates),
 _nsum(nsum),
+_tsLength(tsLength),
 _delay(delay),
 _prt(prt),
 _prt2(prt2),
@@ -48,6 +49,39 @@ _kaiserFile(kaiserFile)
 		std::cout << "unable to open Ctrl device\n";
 		return;
 	}
+
+	// how many bytes are there in each time series?
+	int tsBlockSize;
+	if (_nsum < 2) {
+		tsBlockSize = tsLength*_gates*2*2;
+	} else {
+	  // coherently integrated data has:
+	  // 4 tags followed by even IQ pairs followed by odd IQ pairs,
+	  // for all gates. Tags, I and Q are 4 byte integers.
+		tsBlockSize = tsLength*(4 + _gates*2*2)*4;
+	}
+
+	double pulseFreq = 1.0/(prt/(10.0e6));
+	double tsFreq = pulseFreq/tsLength;
+
+	// we want the interrupt buffer size to be a multiple of tsBlockSize,
+	// but no more than 20 interrupts per second.
+	int intBlocks = 1;
+	if (tsFreq <= 20) {
+		intBlocks = 1;
+	} else {
+		intBlocks = (tsFreq/20)+1;
+	}
+
+	int bufferSize = tsBlockSize*intBlocks;
+
+	std::cout << "prt is "<< prt <<  "  prt frequency is " << pulseFreq
+	   << "  ts freq is " << tsFreq << "  tsblocks per interrupt is " << intBlocks << std::endl;
+
+	std::cout << "pentek interrupt buffer size is "<< bufferSize << std::endl;
+
+	// set the buffer size
+	bufset(_dnFd, bufferSize, 2);
 
 	std::cout << "FPGA repository revision is " << fpgaRepoRevision() << std::endl;
 

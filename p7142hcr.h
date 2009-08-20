@@ -48,14 +48,16 @@ namespace Pentek {
 			/// @param chanId The channel identifier (should be a zero based small integer)
 			/// @param gates The number of gates
 		    /// @param nsum The number of coherent integrator sums
+			/// @param tsLength The number of pulses in one time series. Used to set interrupt buffer size, so
+			/// that we have reasonable responsiveness in the data stream.
 			/// @param delay the delay to the first gate in 10 MHz counts
 			/// @param prt the radar PRT in 10 MHz counts
 			/// @param prt2 the second PRT of a staggered PRT sequence, expressed in 10 MHz counts
 			/// @param pulse_width the radar pulse width in 10 MHz counts
 			/// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
-            /// @param gaussianFile Name of the file containing the Gaussian 
+            /// @param gaussianFile Name of the file containing the Gaussian
 		    ///   filter parameters
-            /// @param kaiserFile Name of the file containing the Kaiser 
+            /// @param kaiserFile Name of the file containing the Kaiser
 		    ///   filter parameters
 			/// @param bypassdivrate The bypass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
@@ -64,7 +66,7 @@ namespace Pentek {
 			/// @param internalClock Set true if the internal clock should be
 			/// used instead of the front panel clock.
 			p7142hcrdn(std::string devName,
-				   int chanId, int gates, int nsum, int delay, int prt,
+				   int chanId, int gates, int nsum, int tsLengeth, int delay, int prt,
 					   int prt2, int pulse_width, bool stgr_prt,
 					   std::string gaussianFile, std::string kaiserFile,
 					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100,
@@ -119,6 +121,8 @@ namespace Pentek {
 			int _gates;
 			/// number of coherent integrator sums
 			int _nsum;
+			//// The time series length
+			int _tsLength;
 			/// radar PRT in 10 MHz counts
 			int _delay;
 			/// second PRT of staggered PRT in 10 MHz counts
@@ -137,8 +141,6 @@ namespace Pentek {
 	         boost::posix_time::ptime _xmitStartTime;
 	        /// peak-poke structure pointer
 	         ARG_PEEKPOKE _pp;
-	        /// file descriptor for ctrl function
-	         int _ctrlFd;
 
 	};
 

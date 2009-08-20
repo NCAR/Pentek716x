@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 	std::string kaiserFile = "";
 
 	// create the downconvertor
-	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, 1, delay, prt, prt2,
+	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, 256, 1, delay, prt, prt2,
 			pulsewidth, stgr_prt, gaussianFile, kaiserFile, bypdiv);
 
 	if (!downConverter.ok()) {

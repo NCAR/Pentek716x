@@ -106,7 +106,21 @@ p71xx::doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexi
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
+int
+p71xx::bufset(int fd, int intbufsize, int bufN) {
 
+	BUFFER_CFG bc;
+	bc.bufno = 0;
+	bc.bufsize = bufN*intbufsize;
+	bc.intbufsize = intbufsize;
+	bc.physAddr = 0;
+
+	int status = ioctl(fd, BUFSET, &bc);
+	if (status == -1) {
+		std::cout << "Error setting pentek buffer sizes" << std::endl;
+		perror("");
+	}
+}
 ////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////

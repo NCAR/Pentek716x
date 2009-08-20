@@ -61,12 +61,22 @@ namespace Pentek {
             /// @param stdDev Standard deviation of the result
             /// @returns The number
             double gauss(double mean, double stdDev);
+            /// Set the dma buffer and interrupt buffersize. The
+            /// buffersize must be at least 2x the interrupt buffer size.
+            /// Perhaps it should be even more?
+            /// @param fd file descriptor
+            /// @param intbufsize Interrupt buffer size.
+            /// @param bufN The driver buffer will be this factor times intbufsize
+            /// @return 0 on success, -1 on failure.
+            int bufset(int fd, int intbufsize, int bufN);
             /// Indicated the success of the last operation.
             bool _ok;
             /// The root device name
             std::string _devName;
             /// The ctrl device name
             std::string _devCtrl;
+	        /// file descriptor for ctrl function
+	        int _ctrlFd;
             /// set true if in simulation mode
             bool _simulate;
             /// The number of bytes read by a down converter, since the
