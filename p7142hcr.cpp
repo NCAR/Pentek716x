@@ -456,8 +456,7 @@ int p7142hcrdn::filterSetup() {
 					<< " in the list of builtin Kaiser filters!" << std::endl;
 			abort();
 		}
-		BuiltinKaiser k;
-		kaiser = FilterSpec(k[kaiserFilterName]);
+		kaiser = FilterSpec(builtins[kaiserFilterName]);
 	}
 
 	std::cout << "Kaiser filter will be programmed for " << kaiserBandwidth
