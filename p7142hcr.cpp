@@ -18,29 +18,22 @@
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum, int tsLength,
-		   int delay, int prt, int prt2, int pulse_width, bool stgr_prt,
-		   std::string gaussianFile, std::string kaiserFile, int bypdivrate,
-		   bool simulate, int simPauseMS, bool internalClock):
-p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, internalClock),
-_gates(gates),
-_nsum(nsum),
-_tsLength(tsLength),
-_delay(delay),
-_prt(prt),
-_prt2(prt2),
-_pulse_width(pulse_width),
-_stgr_prt(stgr_prt),
-_gaussianFile(gaussianFile),
-_kaiserFile(kaiserFile)
-
+p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
+		int tsLength, int delay, int prt, int prt2, int pulse_width,
+		bool stgr_prt, std::string gaussianFile, std::string kaiserFile,
+		int bypdivrate, bool simulate, int simPauseMS, bool internalClock):
+	p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, internalClock),
+			_gates(gates), _nsum(nsum), _tsLength(tsLength), _delay(delay),
+			_prt(prt), _prt2(prt2), _pulse_width(pulse_width), _stgr_prt(
+					stgr_prt), _gaussianFile(gaussianFile), _kaiserFile(
+					kaiserFile)
 
 {
 	if (_simulate)
 		return;
 
 	// set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
-	_pp.page = 2;  // PCIBAR 2
+	_pp.page = 2; // PCIBAR 2
 	_pp.mask = 0;
 
 	// open Pentek 7142 ctrl device
@@ -53,16 +46,16 @@ _kaiserFile(kaiserFile)
 	// how many bytes are there in each time series?
 	int tsBlockSize;
 	if (_nsum < 2) {
-		tsBlockSize = tsLength*_gates*2*2;
+		tsBlockSize = tsLength * _gates * 2 * 2;
 	} else {
-	  // coherently integrated data has:
-	  // 4 tags followed by even IQ pairs followed by odd IQ pairs,
-	  // for all gates. Tags, I and Q are 4 byte integers.
-		tsBlockSize = tsLength*(4 + _gates*2*2)*4;
+		// coherently integrated data has:
+		// 4 tags followed by even IQ pairs followed by odd IQ pairs,
+		// for all gates. Tags, I and Q are 4 byte integers.
+		tsBlockSize = tsLength * (4 + _gates * 2 * 2) * 4;
 	}
 
-	double pulseFreq = 1.0/(prt/(10.0e6));
-	double tsFreq = pulseFreq/tsLength;
+	double pulseFreq = 1.0 / (prt / (10.0e6));
+	double tsFreq = pulseFreq / tsLength;
 
 	// we want the interrupt buffer size to be a multiple of tsBlockSize,
 	// but no more than 20 interrupts per second.
@@ -70,20 +63,22 @@ _kaiserFile(kaiserFile)
 	if (tsFreq <= 20) {
 		intBlocks = 1;
 	} else {
-		intBlocks = (tsFreq/20)+1;
+		intBlocks = (tsFreq / 20) + 1;
 	}
 
-	int bufferSize = tsBlockSize*intBlocks;
+	int bufferSize = tsBlockSize * intBlocks;
 
-	std::cout << "prt is "<< prt <<  "  prt frequency is " << pulseFreq
-	   << "  ts freq is " << tsFreq << "  tsblocks per interrupt is " << intBlocks << std::endl;
+	std::cout << "prt is " << prt << "  prt frequency is " << pulseFreq
+			<< "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
+			<< intBlocks << std::endl;
 
-	std::cout << "pentek interrupt buffer size is "<< bufferSize << std::endl;
+	std::cout << "pentek interrupt buffer size is " << bufferSize << std::endl;
 
 	// set the buffer size
 	bufset(_dnFd, bufferSize, 2);
 
-	std::cout << "FPGA repository revision is " << fpgaRepoRevision() << std::endl;
+	std::cout << "FPGA repository revision is " << fpgaRepoRevision()
+			<< std::endl;
 
 	// configure DDC in FPGA
 	if (!config()) {
@@ -98,24 +93,21 @@ p7142hcrdn::~p7142hcrdn() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-bool
-p7142hcrdn::config() {
-
+bool p7142hcrdn::config() {
 
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_STOP;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(10000);
 	_pp.offset = KAISER_ADDR;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 
-
 	unsigned int readBack;
 	int ppOffset = ADC_FIFO_CTRL_1;
-	switch(_chanId) {
+	switch (_chanId) {
 	case 0:
 		ppOffset = ADC_FIFO_CTRL_1;
 		break;
@@ -134,7 +126,7 @@ p7142hcrdn::config() {
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	readBack = _pp.value;
 
-    // Configure ADC FIFO Control for this channel
+	// Configure ADC FIFO Control for this channel
 
 
 	_pp.offset = ppOffset;
@@ -163,9 +155,9 @@ p7142hcrdn::config() {
 //////////////////////////////////////////////////////////////////////
 
 int p7142hcrdn::fpgaRepoRevision() {
-	  _pp.offset = FPGA_REPO_REV;
-	  ioctl(_ctrlFd, FIOREGGET, &_pp);
-	  return _pp.value;
+	_pp.offset = FPGA_REPO_REV;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	return _pp.value;
 
 }
 
@@ -186,22 +178,22 @@ void p7142hcrdn::startFilters() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142hcrdn::setGates(int gates) {
-  _pp.offset = RADAR_GATES;
-  _pp.value  = gates;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = RADAR_GATES;
+	_pp.value = gates;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  std::cout << "gates are " << _pp.value << std::endl;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "gates are " << _pp.value << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////
 void p7142hcrdn::setNsum(int nsum) {
-  _pp.offset = CI_NSUM;
-  _pp.value  = nsum;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = CI_NSUM;
+	_pp.value = nsum;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  std::cout << "nsum is " << _pp.value << std::endl;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "nsum is " << _pp.value << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -221,8 +213,8 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 		for (unsigned int i = 0; i < kaiser.size(); i++) {
 			unsigned int readBack;
 
-			int ramAddr = i/8;
-			int ramSelect = i%8 << 4;
+			int ramAddr = i / 8;
+			int ramSelect = i % 8 << 4;
 			_pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -292,11 +284,11 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 	// address register, which was done during the previous kaiser filter load.
 	do {
 		gaussianLoaded = true;
-		for (unsigned int i = 0; i< gaussian.size(); i++) {
+		for (unsigned int i = 0; i < gaussian.size(); i++) {
 
 			unsigned int readBack;
-			int ramAddr = i%8;
-			int ramSelect = i/8 << 4;
+			int ramAddr = i % 8;
+			int ramSelect = i / 8 << 4;
 			/// @todo early versions of the gaussian filter programming required
 			/// the ds select bits to be set in the gaussian address register.
 			/// We can take this out when we get a working bitstream with this
@@ -371,8 +363,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 int p7142hcrdn::filterSetup() {
 
-
-    // get the gaussian filter coeeficients.
+	// get the gaussian filter coefficients.
 	FilterSpec gaussian;
 	if (_gaussianFile.size() != 0) {
 		FilterSpec g(_gaussianFile);
@@ -384,36 +375,46 @@ int p7142hcrdn::filterSetup() {
 			gaussian = g;
 		}
 	} else {
+		std::string gaussianFilterName;
 		BuiltinGaussian builtins;
-	    // The pulsewidth in microseconds. It must match one of those
-	    // available in BuiltinGaussian.
-	    double pulseWidthUs = 1.00;
+		// The pulsewidth in microseconds. It must match one of those
+		// available in BuiltinGaussian.
+		double pulseWidthUs = 1.00;
+		gaussianFilterName = "ddc8_1_0";
 
 		// Choose the correct builtin Gaussian filter coefficient set.
-		switch (_pulse_width) {  // pulse width in 10 MHz counts
+		switch (_pulse_width) { // pulse width in 10 MHz counts
 		case 2:
 			pulseWidthUs = 0.2;
+			gaussianFilterName = "ddc8_0_2";
 			break;
 		case 4:
 			pulseWidthUs = 0.4;
+			gaussianFilterName = "ddc8_0_4";
 			break;
 		case 6:
 			pulseWidthUs = 0.6;
+			gaussianFilterName = "ddc8_0_6";
 			break;
 		case 8:
 			pulseWidthUs = 0.8;
+			gaussianFilterName = "ddc8_0_8";
 			break;
 		case 10:
 			pulseWidthUs = 1.0;
+			gaussianFilterName = "ddc8_1_0";
 			break;
 		case 12:
 			pulseWidthUs = 1.2;
+			gaussianFilterName = "ddc8_1_2";
 			break;
 		case 14:
 			pulseWidthUs = 1.4;
+			gaussianFilterName = "ddc8_1_4";
 			break;
 		case 16:
 			pulseWidthUs = 1.6;
+			gaussianFilterName = "ddc8_1_6";
 			break;
 		default:
 			std::cerr << "chip width specification of " << _pulse_width
@@ -421,18 +422,23 @@ int p7142hcrdn::filterSetup() {
 					<< pulseWidthUs << " uS pulse\n";
 			break;
 		}
-		if (builtins.find(pulseWidthUs) == builtins.end()) {
-			std::cerr << "No entry for " << pulseWidthUs <<
-				" us pulsewidth in list of builtin Gaussian filters!" <<
-				std::endl;
+
+		if (builtins.find(gaussianFilterName) == builtins.end()) {
+			std::cerr << "No entry for " << gaussianFilterName << ", "
+					<< pulseWidthUs
+					<< " us pulsewidth in the list of builtin Gaussian filters!"
+					<< std::endl;
 			abort();
 		}
-		gaussian = FilterSpec(builtins[pulseWidthUs]);
-	    std::cout << "Gaussian filter programmed for a " << pulseWidthUs << " uS pulse\n";
+		gaussian = FilterSpec(builtins[gaussianFilterName]);
+		std::cout << "Gaussian filter programmed for a " << pulseWidthUs
+				<< " uS pulse\n";
 	}
 
 	// get the kaiser filter coefficients
+	std::string kaiserFilterName;
 	FilterSpec kaiser;
+	double kaiserBandwidth = 5.0;
 	if (_kaiserFile.size() != 0) {
 		FilterSpec k(_kaiserFile);
 		if (!k.ok()) {
@@ -443,11 +449,19 @@ int p7142hcrdn::filterSetup() {
 			kaiser = k;
 		}
 	} else {
+		BuiltinKaiser builtins;
+		std::string kaiserFilterName = "ddc8_5_0";
+		if (builtins.find(kaiserFilterName) == builtins.end()) {
+			std::cerr << "No entry for " << kaiserFilterName
+					<< " in the list of builtin Kaiser filters!" << std::endl;
+			abort();
+		}
 		BuiltinKaiser k;
-		kaiser = FilterSpec(k[5.0]); // select 5 MHz bandwidth filter
+		kaiser = FilterSpec(k[kaiserFilterName]);
 	}
 
-	std::cout << "Kaiser filter programmed for " << 5.0 << " MHz bandwidth\n";
+	std::cout << "Kaiser filter will be programmed for " << kaiserBandwidth
+			<< " MHz bandwidth\n";
 
 	// load the filter coefficients
 	if (!loadFilters(gaussian, kaiser)) {
@@ -472,229 +486,229 @@ bool p7142hcrdn::timerInit() {
 
 	// Internal Timing Setup
 
-	unsigned int ALL_TIMERS= TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4 | TIMER5 | TIMER6 | TIMER7;
+	unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
+			| TIMER5 | TIMER6 | TIMER7;
 
 	// Calculate the period and PRT Scheme for dual prt or single prt
 	int X, Y;
 	float prt_ms, prt2_ms;
 	if (_stgr_prt == true) //dual prt
 	{
-		prt_ms = (float)_prt/1e3;
-		prt2_ms = (float)_prt2/1e3;
+		prt_ms = (float) _prt / 1e3;
+		prt2_ms = (float) _prt2 / 1e3;
 
-		periodCount = (int) (prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms / prt_ms))
-				/ (int) (prt2_ms / prt_ms) * prtClock / 1e3);
+		periodCount = (int) (prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms
+				/ prt_ms)) / (int) (prt2_ms / prt_ms) * prtClock / 1e3);
 
 		X = (int) ((int) (prt2_ms / prt_ms) / (prt2_ms / prt_ms
-						- (int) (prt2_ms / prt_ms)));
+				- (int) (prt2_ms / prt_ms)));
 		Y = (int) (X * prt2_ms / prt_ms);
 
-		PrtScheme = (Y<<4) | X;
+		PrtScheme = (Y << 4) | X;
 	} else //single prt
 	{
 		periodCount = (int) ceil((_prt * prtClock / 10e6));
 		PrtScheme = 0x0000;
 	}
 	// Control Register
-	  _pp.offset = MT_ADDR;
-	  _pp.value  = CONTROL_REG | ALL_TIMERS;
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_ADDR;
+	_pp.value = CONTROL_REG | ALL_TIMERS;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Enable Timer
-	  _pp.offset = MT_DATA;
-	  _pp.value  = TIMER_ON;
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA;
+	_pp.value = TIMER_ON;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Turn on Write Strobes
-	  _pp.offset = MT_WR;
-	  _pp.value  = WRITE_ON;
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_WR;
+	_pp.value = WRITE_ON;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 0
 	// Delay Register
-	  _pp.offset = MT_ADDR;					// Address
-	  _pp.value  = DELAY_REG | TIMER0;
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER0;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	  _pp.offset = MT_DATA;					// Data
-	  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
-	  _pp.offset = MT_ADDR;					// Address
-	  _pp.value  = WIDTH_REG | TIMER0;
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER0;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	  _pp.offset = MT_DATA;					// Data
-	  _pp.value  = (int) ceil((_pulse_width * _gates *prtClock/62.5e6));
-	  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * _gates * prtClock / 62.5e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// For now configure all 8 Timers identically, later we will customize per application
-    // TIMER 1
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER1;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 1
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER1;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER1;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER1;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-   // TIMER 2
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER2;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 2
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER2;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER2;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER2;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-   // TIMER 3
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER3;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 3
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER3;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER3;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER3;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-   // TIMER 4
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER4;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 4
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER4;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER4;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER4;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-   // TIMER 5
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER5;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 5
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER5;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER5;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER5;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-   // TIMER 6
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER6;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 6
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER6;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER6;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER6;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-   // TIMER 7
-		// Delay Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = DELAY_REG | TIMER7;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// TIMER 7
+	// Delay Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = DELAY_REG | TIMER7;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_delay * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		// Pulse Width Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = WIDTH_REG | TIMER7;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Pulse Width Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = WIDTH_REG | TIMER7;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = (int) ceil((_pulse_width * prtClock / 10e6));
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// ALL TIMERS
-		// Period Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = PERIOD_REG | ALL_TIMERS;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Period Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = PERIOD_REG | ALL_TIMERS;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Data
-		  _pp.value  = periodCount;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_DATA; // Data
+	_pp.value = periodCount;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	   //Multiple PRT Register
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = PRT_REG | ALL_TIMERS;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	//Multiple PRT Register
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = PRT_REG | ALL_TIMERS;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-		  _pp.offset = MT_DATA;					// Mult PRT Valu Timer 0
-		  _pp.value  = PrtScheme;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
+	_pp.offset = MT_DATA; // Mult PRT Valu Timer 0
+	_pp.value = PrtScheme;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Enable and Trigger All Timers
 
-	  // Set Global Enable
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = PRT_REG | ALL_TIMERS | TIMER_EN;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Set Global Enable
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = PRT_REG | ALL_TIMERS | TIMER_EN;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	usleep(1000);
 
-	  // Turn off Write Strobes
-		  _pp.offset = MT_WR;
-		  _pp.value  = WRITE_OFF;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Turn off Write Strobes
+	_pp.offset = MT_WR;
+	_pp.value = WRITE_OFF;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 #endif
 	return true;
 
@@ -708,25 +722,26 @@ void p7142hcrdn::startInternalTimer() {
 	//
 	//    This start the internal timers.
 
-	unsigned int ALL_TIMERS= TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4 | TIMER5 | TIMER6 | TIMER7;
+	unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
+			| TIMER5 | TIMER6 | TIMER7;
 
 	// Turn on Write Strobes
-		  _pp.offset = MT_WR;
-		  _pp.value  = WRITE_ON;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_WR;
+	_pp.value = WRITE_ON;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Enable and Trigger All Timers
 
-		  _pp.offset = MT_ADDR;					// Address
-		  _pp.value  = ALL_TIMERS | ADDR_TRIG;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = ALL_TIMERS | ADDR_TRIG;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	usleep(1000);
 
 	// Turn off Write Strobes
-		  _pp.offset = MT_WR;
-		  _pp.value  = WRITE_OFF;
-		  ioctl(_ctrlFd, FIOREGSET, &_pp);
+	_pp.offset = MT_WR;
+	_pp.value = WRITE_OFF;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Get current system time as xmit start time
 	// setXmitStartTime(microsec_clock::universal_time());

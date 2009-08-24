@@ -2,12 +2,12 @@
 #include <iostream>
 //////////////////////////////////////////////////////////////////
 BuiltinFilters::BuiltinFilters() {
-	
+
 }
 
 //////////////////////////////////////////////////////////////////
 
-void BuiltinFilters::init(double key, unsigned int* coeffs, int n) {
+void BuiltinFilters::init(std::string key, unsigned int* coeffs, int n) {
 
 	(*this)[key].resize(n);
 
