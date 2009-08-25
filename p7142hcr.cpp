@@ -21,12 +21,13 @@ using namespace Pentek;
 p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		int tsLength, int delay, int prt, int prt2, int pulse_width,
 		bool stgr_prt, std::string gaussianFile, std::string kaiserFile,
-		int bypdivrate, bool simulate, int simPauseMS, bool internalClock):
+		DDCDECIMATETYPE decimateType, int bypdivrate, bool simulate,
+		int simPauseMS, bool internalClock) :
 	p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, internalClock),
 			_gates(gates), _nsum(nsum), _tsLength(tsLength), _delay(delay),
 			_prt(prt), _prt2(prt2), _pulse_width(pulse_width), _stgr_prt(
 					stgr_prt), _gaussianFile(gaussianFile), _kaiserFile(
-					kaiserFile)
+					kaiserFile), _decimateType(decimateType)
 
 {
 	if (_simulate)
@@ -383,44 +384,54 @@ int p7142hcrdn::filterSetup() {
 		gaussianFilterName = "ddc8_1_0";
 
 		// Choose the correct builtin Gaussian filter coefficient set.
-		switch (_pulse_width) { // pulse width in 10 MHz counts
-		case 2:
-			pulseWidthUs = 0.2;
-			gaussianFilterName = "ddc8_0_2";
+		switch (_decimateType) {
+		case DDC8DECIMATE: {
+			switch (_pulse_width) { // pulse width in 10 MHz counts
+			case 2:
+				pulseWidthUs = 0.2;
+				gaussianFilterName = "ddc8_0_2";
+				break;
+			case 4:
+				pulseWidthUs = 0.4;
+				gaussianFilterName = "ddc8_0_4";
+				break;
+			case 6:
+				pulseWidthUs = 0.6;
+				gaussianFilterName = "ddc8_0_6";
+				break;
+			case 8:
+				pulseWidthUs = 0.8;
+				gaussianFilterName = "ddc8_0_8";
+				break;
+			case 10:
+				pulseWidthUs = 1.0;
+				gaussianFilterName = "ddc8_1_0";
+				break;
+			case 12:
+				pulseWidthUs = 1.2;
+				gaussianFilterName = "ddc8_1_2";
+				break;
+			case 14:
+				pulseWidthUs = 1.4;
+				gaussianFilterName = "ddc8_1_4";
+				break;
+			case 16:
+				pulseWidthUs = 1.6;
+				gaussianFilterName = "ddc8_1_6";
+				break;
+			default:
+				std::cerr << "chip width specification of " << _pulse_width
+						<< " is not recognized, filter will be configured for a "
+						<< pulseWidthUs << " uS pulse\n";
+				break;
+			}
 			break;
-		case 4:
-			pulseWidthUs = 0.4;
-			gaussianFilterName = "ddc8_0_4";
-			break;
-		case 6:
-			pulseWidthUs = 0.6;
-			gaussianFilterName = "ddc8_0_6";
-			break;
-		case 8:
-			pulseWidthUs = 0.8;
-			gaussianFilterName = "ddc8_0_8";
-			break;
-		case 10:
+		}
+		case DDC4DECIMATE: {
 			pulseWidthUs = 1.0;
-			gaussianFilterName = "ddc8_1_0";
+			gaussianFilterName = "ddc4_1_0";
 			break;
-		case 12:
-			pulseWidthUs = 1.2;
-			gaussianFilterName = "ddc8_1_2";
-			break;
-		case 14:
-			pulseWidthUs = 1.4;
-			gaussianFilterName = "ddc8_1_4";
-			break;
-		case 16:
-			pulseWidthUs = 1.6;
-			gaussianFilterName = "ddc8_1_6";
-			break;
-		default:
-			std::cerr << "chip width specification of " << _pulse_width
-					<< " is not recognized, filter will be configured for a "
-					<< pulseWidthUs << " uS pulse\n";
-			break;
+		}
 		}
 
 		if (builtins.find(gaussianFilterName) == builtins.end()) {
@@ -431,8 +442,7 @@ int p7142hcrdn::filterSetup() {
 			abort();
 		}
 		gaussian = FilterSpec(builtins[gaussianFilterName]);
-		std::cout << "Gaussian filter programmed for a " << pulseWidthUs
-				<< " uS pulse\n";
+		std::cout << "Using gaussian filter coefficient set " << gaussianFilterName << std::endl;
 	}
 
 	// get the kaiser filter coefficients
@@ -450,13 +460,24 @@ int p7142hcrdn::filterSetup() {
 		}
 	} else {
 		BuiltinKaiser builtins;
-		std::string kaiserFilterName = "ddc8_5_0";
+		std::string kaiserFilterName;
+		switch (_decimateType) {
+		case DDC8DECIMATE: {
+			kaiserFilterName = "ddc8_5_0";
+			break;
+		}
+		case DDC4DECIMATE: {
+			kaiserFilterName = "ddc4_5_0";
+			break;
+		}
+		}
 		if (builtins.find(kaiserFilterName) == builtins.end()) {
 			std::cerr << "No entry for " << kaiserFilterName
 					<< " in the list of builtin Kaiser filters!" << std::endl;
 			abort();
 		}
 		kaiser = FilterSpec(builtins[kaiserFilterName]);
+		std::cout << "Using kaiser filter coefficient set " << kaiserFilterName << std::endl;
 	}
 
 	std::cout << "Kaiser filter will be programmed for " << kaiserBandwidth

@@ -42,6 +42,9 @@ namespace Pentek {
     /// are also included in this mode.
 	class p7142hcrdn: public p7142dn {
 		public:
+			///The type of downconverter that is instantiated in the pentek firmware.
+			enum DDCDECIMATETYPE {DDC8DECIMATE, DDC4DECIMATE};
+
 			/// Constructor
 			/// @param devName The top level device name (e.g.
 			/// /dev/pentek/p7140/0.
@@ -59,6 +62,7 @@ namespace Pentek {
 		    ///   filter parameters
             /// @param kaiserFile Name of the file containing the Kaiser
 		    ///   filter parameters
+			/// @param decimateType The type of downconverter instantiated in the pentek firmware
 			/// @param bypassdivrate The bypass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
@@ -68,7 +72,7 @@ namespace Pentek {
 			p7142hcrdn(std::string devName,
 				   int chanId, int gates, int nsum, int tsLengeth, int delay, int prt,
 					   int prt2, int pulse_width, bool stgr_prt,
-					   std::string gaussianFile, std::string kaiserFile,
+					   std::string gaussianFile, std::string kaiserFile, DDCDECIMATETYPE decimateType,
 					   int bypassdivrate=1, bool simulate=false, int simPauseMS=100,
 					   bool internalClock=false);
 			/// Destructor
@@ -133,6 +137,8 @@ namespace Pentek {
 			int _pulse_width;
 			/// staggered PRT flag: 1 = stagger, 0 = uniform
 			bool _stgr_prt;
+			/// The type of downconverter instantiated in the firmware
+			DDCDECIMATETYPE _decimateType;
 	        /// The path to the file containing the gaussian filter definitions.
 	        std::string _gaussianFile;
 	        /// The path to the file containing the kaiser filter coefficients.
