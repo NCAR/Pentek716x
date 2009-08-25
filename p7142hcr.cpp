@@ -214,8 +214,18 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 		for (unsigned int i = 0; i < kaiser.size(); i++) {
 			unsigned int readBack;
 
-			int ramAddr = i / 8;
-			int ramSelect = i % 8 << 4;
+			int ramAddr = 0;
+			int ramSelect = 0;
+			switch (_decimateType) {
+			case DDC8DECIMATE:
+				ramAddr = i / 8;
+				ramSelect = (i % 8) << 4;
+				break;
+			case DDC4DECIMATE:
+				ramAddr = i / 4;
+				ramSelect = (i % 4) << 4;
+				break;
+			}
 			_pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
 			_pp.offset = KAISER_ADDR;
 			ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -288,8 +298,18 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 		for (unsigned int i = 0; i < gaussian.size(); i++) {
 
 			unsigned int readBack;
-			int ramAddr = i % 8;
-			int ramSelect = i / 8 << 4;
+			int ramAddr = 0;
+			int ramSelect = 0;
+			switch (_decimateType) {
+			case DDC8DECIMATE:
+				ramAddr = i % 8;
+				ramSelect = (i / 8) << 4;
+				break;
+			case DDC4DECIMATE:
+				ramAddr = i % 12;
+				ramSelect = (i / 12) << 4;
+				break;
+			}
 			/// @todo early versions of the gaussian filter programming required
 			/// the ds select bits to be set in the gaussian address register.
 			/// We can take this out when we get a working bitstream with this
