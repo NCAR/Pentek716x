@@ -80,6 +80,9 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 
 	std::cout << "FPGA repository revision is " << fpgaRepoRevision()
 			<< std::endl;
+	std::cout << "FPGA downconverter type is "
+	        << ((ddcType()== Pentek::p7142hcrdn::DDC8DECIMATE) ? "decimate by 8"
+			: "decimate by 4") << std::endl;
 
 	// configure DDC in FPGA
 	if (!config()) {
@@ -158,7 +161,26 @@ bool p7142hcrdn::config() {
 int p7142hcrdn::fpgaRepoRevision() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	return _pp.value;
+	return _pp.value & 0x7fff;
+
+}
+
+//////////////////////////////////////////////////////////////////////
+
+p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddcType() {
+	_pp.offset = FPGA_REPO_REV;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	DDCDECIMATETYPE ddctype;
+	switch (_pp.value & 0x8000) {
+	case 0x8000:
+		ddctype = DDC8DECIMATE;
+		break;
+	case 0x0000:
+		ddctype = DDC4DECIMATE;
+		break;
+	}
+
+	return ddctype;
 
 }
 
@@ -462,7 +484,8 @@ int p7142hcrdn::filterSetup() {
 			abort();
 		}
 		gaussian = FilterSpec(builtins[gaussianFilterName]);
-		std::cout << "Using gaussian filter coefficient set " << gaussianFilterName << std::endl;
+		std::cout << "Using gaussian filter coefficient set "
+				<< gaussianFilterName << std::endl;
 	}
 
 	// get the kaiser filter coefficients
@@ -497,7 +520,8 @@ int p7142hcrdn::filterSetup() {
 			abort();
 		}
 		kaiser = FilterSpec(builtins[kaiserFilterName]);
-		std::cout << "Using kaiser filter coefficient set " << kaiserFilterName << std::endl;
+		std::cout << "Using kaiser filter coefficient set " << kaiserFilterName
+				<< std::endl;
 	}
 
 	std::cout << "Kaiser filter will be programmed for " << kaiserBandwidth
@@ -794,16 +818,4 @@ void p7142hcrdn::setXmitStartTime(ptime startTime) {
 	_xmitStartTime = startTime;
 }
 #endif
-
-//////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
 
