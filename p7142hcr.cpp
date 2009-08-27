@@ -69,14 +69,14 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 
 	int bufferSize = tsBlockSize * intBlocks;
 
-	std::cout << "prt is " << prt << "  prt frequency is " << pulseFreq
-			<< "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
-			<< intBlocks << std::endl;
+	//std::cout << "prt is " << prt << "  prt frequency is " << pulseFreq
+	//		<< "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
+	//		<< intBlocks << std::endl;
 
-	std::cout << "pentek interrupt buffer size is " << bufferSize << std::endl;
+	//std::cout << "pentek interrupt buffer size is " << bufferSize << std::endl;
 
 	// set the buffer size
-	bufset(_dnFd, bufferSize, 2);
+	//bufset(_dnFd, bufferSize, 2);
 
 	std::cout << "FPGA repository revision is " << fpgaRepoRevision()
 			<< std::endl;
