@@ -328,8 +328,8 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 				ramSelect = (i / 8) << 4;
 				break;
 			case DDC4DECIMATE:
-				ramAddr = i % 4;
-				ramSelect = (i / 4) << 4;
+				ramAddr = i % 12;
+				ramSelect = (i / 12) << 4;
 				break;
 			}
 			/// @todo early versions of the gaussian filter programming required
