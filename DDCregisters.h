@@ -19,6 +19,8 @@ Desc: Pentek 7142 HCR DDC Registers
 #define _1_4us 14
 #define _1_6us 16
 
+/// Pentek DCM control register
+#define DCM_CONTROL    0x8020
 
 /// Filter control bits
 #define DDC_START          0x0  ///< Allow the filter to run. Set in the filter ADDR register.

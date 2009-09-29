@@ -99,6 +99,28 @@ p7142hcrdn::~p7142hcrdn() {
 ////////////////////////////////////////////////////////////////////////////////////////
 bool p7142hcrdn::config() {
 
+	_pp.offset = DCM_CONTROL;
+
+	// read the dcm control register
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+	// turn on the DCM reset bit
+	_pp.value = 0x10 | _pp.value;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(1000);
+
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+	// turn off the DCM reset bit
+	_pp.value = _pp.value & ~0x10;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(1000);
+
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
