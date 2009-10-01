@@ -5,6 +5,8 @@
 #include "ptkdrv.h"
 #include "ptkddr.h"
 #include <string>
+#include "DDCregisters.h"
+
 
 namespace Pentek {
 
@@ -25,7 +27,7 @@ namespace Pentek {
 			virtual ~p7142();
 
 		protected:
-	};
+};
 
 	/// A p7142 downconvertor.
 	/// This class will use the /dn/*B downconversion channels. The

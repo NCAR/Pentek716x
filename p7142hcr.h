@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "FilterSpec.h"
-#include "DDCregisters.h"
 
 namespace Pentek {
 
@@ -91,6 +90,11 @@ protected:
 	/// Configure the p7142hcrdn
 	/// @return True if the configuration was successful
 	bool config();
+
+	/// Reset the digital clock managers on the FPGA. Necessary since
+	/// some of the new DCMs we have added in the firmware use the
+	/// CLKFX output, which won't lock at startup.
+	void resetDCM(int fd);
 
 	/// set the number of gates
 	void setGates(int gates);

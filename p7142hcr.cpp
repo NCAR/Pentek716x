@@ -97,8 +97,8 @@ p7142hcrdn::~p7142hcrdn() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-bool p7142hcrdn::config() {
-
+void
+p7142hcrdn::resetDCM(int fd) {
 	_pp.offset = DCM_CONTROL;
 
 	// read the dcm control register
@@ -130,6 +130,15 @@ bool p7142hcrdn::config() {
 	usleep(10000);
 	_pp.offset = KAISER_ADDR;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+bool p7142hcrdn::config() {
+
+	// reset the FPGA clock mananagers. Necessary since some of the
+	// new DCMs in the firmware use the CLKFX output, which won't
+	// lock at startup.
+	resetDCM(_ctrlFd);
 
 	unsigned int readBack;
 	int ppOffset = ADC_FIFO_CTRL_1;
