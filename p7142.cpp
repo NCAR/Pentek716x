@@ -166,6 +166,8 @@ p7142dn::read(char* buf, int bufsize) {
       sbuf[i] = (10000.0 * sin(2.0*M_PI*i/wl)*fact);
       sbuf[i+1] = (10000.0 * cos(2.0*M_PI*i/wl)*fact);
     }
+    _bytesRead += bufsize;
+    
     usleep(_simPauseMS*1000);
     return bufsize;
   }
