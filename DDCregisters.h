@@ -22,6 +22,11 @@ Desc: Pentek 7142 HCR DDC Registers
 /// Pentek DCM control register
 #define DCM_CONTROL    0x8020
 
+/// GateFlow option 223 ttl_in register
+#define TTL_IN          0x8200
+/// GateFlow option 223 ttl_out1 register, 16 bits
+#define TTL_OUT1        0x8208
+
 /// Filter control bits
 #define DDC_START          0x0  ///< Allow the filter to run. Set in the filter ADDR register.
 #define DDC_STOP     (0x01<<12) ///< Force the filter to stop. Set in the filter ADDR register.

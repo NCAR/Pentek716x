@@ -126,6 +126,14 @@ protected:
 		return _xmitStartTime;
 	}
 
+	/// Read the ttl input lines from the fpga
+	/// @return The input line values.
+	unsigned short int TTLIn();
+
+	/// Set the ttl output lines on the FPGA.
+	/// @param data The value to be written.
+	void TTLOut(unsigned short int data);
+
 	/// number of gates
 	int _gates;
 	/// number of coherent integrator sums

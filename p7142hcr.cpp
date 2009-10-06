@@ -67,7 +67,7 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		intBlocks = (tsFreq / 20) + 1;
 	}
 
-	int bufferSize = tsBlockSize * intBlocks;
+	//int bufferSize = tsBlockSize * intBlocks;
 
 	//std::cout << "prt is " << prt << "  prt frequency is " << pulseFreq
 	//		<< "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
@@ -841,6 +841,24 @@ void p7142hcrdn::startInternalTimer() {
 	// Get current system time as xmit start time
 	// setXmitStartTime(microsec_clock::universal_time());
 #endif
+}
+
+//////////////////////////////////////////////////////////////////////
+unsigned short int p7142hcrdn::TTLIn() {
+
+	_pp.offset = TTL_IN;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+
+	return _pp.value;
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142hcrdn::TTLOut(unsigned short int data) {
+	_pp.value = data;
+
+	_pp.offset = TTL_OUT1;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
 }
 
 //////////////////////////////////////////////////////////////////////
