@@ -134,6 +134,14 @@ protected:
 	/// @param data The value to be written.
 	void TTLOut(unsigned short int data);
 
+	/// Set the interrupt buffer size for the pentek. Useful
+	/// for trying to control the interrupt rate, based on how
+	/// fast the FPGA is running.
+	/// @todo We don't currently use this, because there were
+	/// indications that it was causing the driver to drop
+	/// blocks of data.
+	void setInterruptBufSize();
+
 	/// number of gates
 	int _gates;
 	/// number of coherent integrator sums

@@ -44,45 +44,23 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		return;
 	}
 
-	// how many bytes are there in each time series?
-	int tsBlockSize;
-	if (_nsum < 2) {
-		tsBlockSize = tsLength * _gates * 2 * 2;
-	} else {
-		// coherently integrated data has:
-		// 4 tags followed by even IQ pairs followed by odd IQ pairs,
-		// for all gates. Tags, I and Q are 4 byte integers.
-		tsBlockSize = tsLength * (4 + _gates * 2 * 2) * 4;
-	}
-
-	double pulseFreq = 1.0 / (prt / (10.0e6));
-	double tsFreq = pulseFreq / tsLength;
-
-	// we want the interrupt buffer size to be a multiple of tsBlockSize,
-	// but no more than 20 interrupts per second.
-	int intBlocks = 1;
-	if (tsFreq <= 20) {
-		intBlocks = 1;
-	} else {
-		intBlocks = (tsFreq / 20) + 1;
-	}
-
-	//int bufferSize = tsBlockSize * intBlocks;
-
-	//std::cout << "prt is " << prt << "  prt frequency is " << pulseFreq
-	//		<< "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
-	//		<< intBlocks << std::endl;
-
-	//std::cout << "pentek interrupt buffer size is " << bufferSize << std::endl;
-
-	// set the buffer size
-	//bufset(_dnFd, bufferSize, 2);
-
+	// check the fpga firmware revision
 	std::cout << "FPGA repository revision is " << fpgaRepoRevision()
 			<< std::endl;
+	if (fpgaRepoRevision() == 0) {
+		std::cerr << "**** Warning: The FPGA firmware revision number is zero. Was the correct firmware loaded?"
+		<< std::endl;
+	}
+
+	// verify that the correct down converter was selected.
 	std::cout << "FPGA downconverter type is "
 	        << ((ddcType()== Pentek::p7142hcrdn::DDC8DECIMATE) ? "decimate by 8"
 			: "decimate by 4") << std::endl;
+	if (ddcType() != decimateType) {
+		std::cerr << "The firmware DDC type (ddc4 or ddc8) does not match the specified type. Program will terminate."
+		<< std::endl;
+		exit(1);
+	}
 
 	// configure DDC in FPGA
 	if (!config()) {
@@ -858,6 +836,46 @@ void p7142hcrdn::TTLOut(unsigned short int data) {
 
 	_pp.offset = TTL_OUT1;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142hcrdn::setInterruptBufSize() {
+
+	// how many bytes are there in each time series?
+	int tsBlockSize;
+	if (_nsum < 2) {
+		tsBlockSize = _tsLength * _gates * 2 * 2;
+	} else {
+		// coherently integrated data has:
+		// 4 tags followed by even IQ pairs followed by odd IQ pairs,
+		// for all gates. Tags, I and Q are 4 byte integers.
+		tsBlockSize = _tsLength * (4 + _gates * 2 * 2) * 4;
+	}
+
+	double pulseFreq = 1.0 / (_prt / (10.0e6));
+	double tsFreq = pulseFreq / _tsLength;
+
+	// we want the interrupt buffer size to be a multiple of tsBlockSize,
+	// but no more than 20 interrupts per second.
+	int intBlocks = 1;
+
+	if (tsFreq <= 20) {
+		intBlocks = 1;
+	} else {
+		intBlocks = (tsFreq / 20) + 1;
+	}
+
+	int bufferSize = tsBlockSize * intBlocks;
+
+	std::cout << "prt is " << _prt << "  prt frequency is " << pulseFreq
+			<< "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
+			<< intBlocks << std::endl;
+
+	std::cout << "pentek interrupt buffer size is " << bufferSize << std::endl;
+
+	// set the buffer size
+	bufset(_dnFd, bufferSize, 2);
 
 }
 
