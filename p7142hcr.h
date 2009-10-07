@@ -77,16 +77,21 @@ public:
 					false, int simPauseMS = 100, bool internalClock = false);
 	/// Destructor
 	virtual ~p7142hcrdn();
-	/// Set the start bit. Applies only to channel 0
-	/// @todo Fix the start logic - really does not belong
-	/// per channel
-	void startFilters();
+
 	/// @return The FPGA firmware software repository revision number.
 	int fpgaRepoRevision();
+
 	/// @return The type of DDC instantiated in the firmware
 	DDCDECIMATETYPE ddcType();
 
 protected:
+	/// Set the filter start bit, which starts the data flow. Applies only to channel 0
+	/// @todo Fix the start logic - really does not belong per channel
+	void startFilters();
+
+	/// Stop the filters
+	void stopFilters();
+
 	/// Configure the p7142hcrdn
 	/// @return True if the configuration was successful
 	bool config();
@@ -95,6 +100,9 @@ protected:
 	/// some of the new DCMs we have added in the firmware use the
 	/// CLKFX output, which won't lock at startup.
 	void resetDCM(int fd);
+
+	/// Configure the down converter fifos
+	void fifoConfig();
 
 	/// set the number of gates
 	void setGates(int gates);

@@ -75,76 +75,18 @@ p7142hcrdn::~p7142hcrdn() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-void
-p7142hcrdn::resetDCM(int fd) {
-	_pp.offset = DCM_CONTROL;
-
-	// read the dcm control register
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-	// turn on the DCM reset bit
-	_pp.value = 0x10 | _pp.value;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-	usleep(1000);
-
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-	// turn off the DCM reset bit
-	_pp.value = _pp.value & ~0x10;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-	usleep(1000);
-
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-	// stop the filters if they are running.
-	_pp.offset = KAISER_ADDR;
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	_pp.offset = KAISER_ADDR;
-	_pp.value = DDC_STOP;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-	usleep(10000);
-	_pp.offset = KAISER_ADDR;
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
 bool p7142hcrdn::config() {
 
-	// reset the FPGA clock mananagers. Necessary since some of the
+	// reset the FPGA clock managers. Necessary since some of our
 	// new DCMs in the firmware use the CLKFX output, which won't
 	// lock at startup.
 	resetDCM(_ctrlFd);
 
-	unsigned int readBack;
-	int ppOffset = ADC_FIFO_CTRL_1;
-	switch (_chanId) {
-	case 0:
-		ppOffset = ADC_FIFO_CTRL_1;
-		break;
-	case 1:
-		ppOffset = ADC_FIFO_CTRL_2;
-		break;
-	case 2:
-		ppOffset = ADC_FIFO_CTRL_3;
-		break;
-	case 3:
-		ppOffset = ADC_FIFO_CTRL_4;
-		break;
-	}
+	// configure the fifo
+	fifoConfig();
 
-	_pp.offset = ppOffset;
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	readBack = _pp.value;
-
-	// Configure ADC FIFO Control for this channel
-
-
-	_pp.offset = ppOffset;
-	_pp.value = readBack & 0x000034BF;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Stop the filters from running
+	stopFilters();
 
 	// set number of gates
 	setGates(_gates);
@@ -175,7 +117,6 @@ int p7142hcrdn::fpgaRepoRevision() {
 }
 
 //////////////////////////////////////////////////////////////////////
-
 p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddcType() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
@@ -194,7 +135,6 @@ p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddcType() {
 }
 
 //////////////////////////////////////////////////////////////////////
-
 void p7142hcrdn::startFilters() {
 
 	// Start the DDC  -- do we really want to do this here???
@@ -204,7 +144,22 @@ void p7142hcrdn::startFilters() {
 	_pp.offset = KAISER_ADDR;
 	_pp.value = DDC_START;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
-	usleep(100000);
+	usleep(IOCTLSLEEPUS);
+
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142hcrdn::stopFilters() {
+
+	// stop the filters if they are running.
+	_pp.offset = KAISER_ADDR;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	_pp.offset = KAISER_ADDR;
+	_pp.value = DDC_STOP;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(IOCTLSLEEPUS);
+	_pp.offset = KAISER_ADDR;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
 
 }
 
@@ -878,6 +833,67 @@ void p7142hcrdn::setInterruptBufSize() {
 	bufset(_dnFd, bufferSize, 2);
 
 }
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142hcrdn::resetDCM(int fd) {
+	_pp.offset = DCM_CONTROL;
+
+	// read the dcm control register
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	//std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+	// turn on the DCM reset bit
+	_pp.value = 0x10 | _pp.value;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(1000);
+
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	//std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+	// turn off the DCM reset bit
+	_pp.value = _pp.value & ~0x10;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(1000);
+
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	//std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142hcrdn::fifoConfig() {
+	// The fifos need to be configured for
+	// the given channel that we are using.
+
+	// find the fifo configuration register
+	unsigned int readBack;
+	int ppOffset = ADC_FIFO_CTRL_1;
+	switch (_chanId) {
+	case 0:
+		ppOffset = ADC_FIFO_CTRL_1;
+		break;
+	case 1:
+		ppOffset = ADC_FIFO_CTRL_2;
+		break;
+	case 2:
+		ppOffset = ADC_FIFO_CTRL_3;
+		break;
+	case 3:
+		ppOffset = ADC_FIFO_CTRL_4;
+		break;
+	}
+
+	_pp.offset = ppOffset;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	readBack = _pp.value;
+
+	// And configure ADC FIFO Control for this channel
+	_pp.offset = ppOffset;
+	_pp.value = readBack & 0x000034BF;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+}
+
 
 //////////////////////////////////////////////////////////////////////
 #ifdef TIME
