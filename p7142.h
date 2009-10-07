@@ -43,14 +43,18 @@ namespace Pentek {
 			/// @param simulate Set true if we operate in simulation mode.
 			/// @param simPauseMS The number of milliseconds to wait before returning
 			/// simulated data when calling read();
+			/// @param simWaveLength The wave length, in timeseries points, for the
+			/// simulated data. See read().
 			/// @param internalClock Set true if the internal clock should be
 			/// used instead of the front panel clock.
 			p7142dn(std::string devName,
 					int chanId, int bypassdivrate=1,
-			        bool simulate=false, int simPauseMS=100, bool internalClock=false);
+			        bool simulate=false, int simPauseMS=100, 
+			        int simWaveLength=20000, bool internalClock=false);
 			/// Destructor
 			virtual ~p7142dn();
-			/// Read bytes.
+			/// Read bytes. If in simulated mode, a sin wave with wavelength 
+			/// of _simWaveLength will be synthesized. It will have some random noise 
 			/// @param buf read bytes into this buffer
 			/// @param bufsize The number of bytes tor read.
 			/// @return The actual number of bytes read
@@ -76,6 +80,8 @@ namespace Pentek {
 			/// The number of milliseconds to wait before returning
 			/// simulated data when calling read();
 			int _simPauseMS;
+			/// The wavelength for simulated data
+			int _simWaveLength;
 	};
 
 	/// A p7142 upconvertor

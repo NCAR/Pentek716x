@@ -21,12 +21,14 @@ p7142::~p7142() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
-		 bool simulate, int simPauseMS, bool internalClock):
+		 bool simulate, int simPauseMS, int simWaveLength,
+		 bool internalClock):
   p7142(devName, simulate),
   _chanId(chanId),
   _bypdiv(bypdiv),
   _dnFd(-1),
-  _simPauseMS(simPauseMS)
+  _simPauseMS(simPauseMS),
+  _simWaveLength(simWaveLength)
 {
   // verify that the card was found
   if (!ok()) {
@@ -160,11 +162,10 @@ p7142dn::read(char* buf, int bufsize) {
   // and return a full buffer.
   if (_simulate) {
     short* sbuf = (short*)buf;
-    int wl = 200;
-    double fact = 1.0 + 0.05*(1.0*rand())/RAND_MAX;
     for (int i = 0; i < bufsize/2; i = i + 2) {
-      sbuf[i] = (short int)(10000.0 * sin(2.0*M_PI*i/wl)*fact);
-      sbuf[i+1] = (short int)(10000.0 * cos(2.0*M_PI*i/wl)*fact);
+	  double fact = 1.0 + 0.1*(1.0*rand())/RAND_MAX;
+      sbuf[i] = (short int)(10000.0 * sin(2.0*M_PI*i/_simWaveLength)*fact);
+      sbuf[i+1] = (short int)(10000.0 * cos(2.0*M_PI*i/_simWaveLength)*fact);
     }
     _bytesRead += bufsize;
     
