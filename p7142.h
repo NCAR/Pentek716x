@@ -6,6 +6,7 @@
 #include "ptkddr.h"
 #include <string>
 #include "DDCregisters.h"
+#include <pthread.h>
 
 
 namespace Pentek {
@@ -29,6 +30,17 @@ namespace Pentek {
 		protected:
 };
 
+	class SingleMutex {
+	public:
+		SingleMutex();
+		virtual ~SingleMutex();
+	    static SingleMutex* create();
+		static void lock();
+		void unlock();
+		static SingleMutex* _instance;
+		static pthread_mutex_t* _m;
+	};
+
 	/// A p7142 downconvertor.
 	/// This class will use the /dn/*B downconversion channels. The
 	/// channel number is specified in the channel id parameter to
@@ -49,12 +61,12 @@ namespace Pentek {
 			/// used instead of the front panel clock.
 			p7142dn(std::string devName,
 					int chanId, int bypassdivrate=1,
-			        bool simulate=false, int simPauseMS=100, 
+			        bool simulate=false, int simPauseMS=100,
 			        int simWaveLength=20000, bool internalClock=false);
 			/// Destructor
 			virtual ~p7142dn();
-			/// Read bytes. If in simulated mode, a sin wave with wavelength 
-			/// of _simWaveLength will be synthesized. It will have some random noise 
+			/// Read bytes. If in simulated mode, a sin wave with wavelength
+			/// of _simWaveLength will be synthesized. It will have some random noise
 			/// @param buf read bytes into this buffer
 			/// @param bufsize The number of bytes tor read.
 			/// @return The actual number of bytes read
@@ -82,6 +94,9 @@ namespace Pentek {
 			int _simPauseMS;
 			/// The wavelength for simulated data
 			int _simWaveLength;
+			/// A singleton mutex to insure that read() is not called
+			/// simultaneously from different threads.
+			SingleMutex _readMutex;
 	};
 
 	/// A p7142 upconvertor

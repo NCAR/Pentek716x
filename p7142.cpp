@@ -20,6 +20,41 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
+SingleMutex* SingleMutex::_instance = 0;
+pthread_mutex_t* SingleMutex::_m = new pthread_mutex_t;
+////////////////////////////////////////////////////////////////////////////////////////
+SingleMutex::SingleMutex() {
+}
+////////////////////////////////////////////////////////////////////////////////////////
+SingleMutex*
+SingleMutex::create() {
+	if (_instance == NULL) {
+		_instance = new SingleMutex();
+		pthread_mutex_init(_m, NULL);
+	}
+	return _instance;
+}
+////////////////////////////////////////////////////////////////////////////////////////
+SingleMutex::~SingleMutex() {
+	if (!_instance) {
+		return;
+	}
+	pthread_mutex_destroy(_m);
+	delete _m;
+	delete _instance;
+	_instance = NULL;
+}
+////////////////////////////////////////////////////////////////////////////////////////
+void
+SingleMutex::lock() {
+	pthread_mutex_lock(_m);
+}
+////////////////////////////////////////////////////////////////////////////////////////
+void
+SingleMutex::unlock() {
+	pthread_mutex_unlock(_m);
+}
+////////////////////////////////////////////////////////////////////////////////////////
 p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
 		 bool simulate, int simPauseMS, int simWaveLength,
 		 bool internalClock):
@@ -30,6 +65,9 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
   _simPauseMS(simPauseMS),
   _simWaveLength(simWaveLength)
 {
+  // create the read mutex
+  _readMutex.create();
+
   // verify that the card was found
   if (!ok()) {
     std::cerr << "p7142 card not ready" << std::endl;
@@ -168,12 +206,15 @@ p7142dn::read(char* buf, int bufsize) {
       sbuf[i+1] = (short int)(10000.0 * cos(2.0*M_PI*i/_simWaveLength)*fact);
     }
     _bytesRead += bufsize;
-    
+
     usleep(_simPauseMS*1000);
     return bufsize;
   }
 
-  int n = ::read(_dnFd, buf, bufsize);
+  int n;
+  //_readMutex.lock();
+  n = ::read(_dnFd, buf, bufsize);
+  //_readMutex.unlock();
 
   if (n > 0)
 	  _bytesRead += n;
