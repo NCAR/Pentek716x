@@ -71,7 +71,7 @@ public:
 	/// @param internalClock Set true if the internal clock should be
 	/// used instead of the front panel clock.
 	p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
-			int tsLengeth, int delay, int prt, int prt2, int pulse_width,
+			int tsLength, int delay, int prt, int prt2, int pulse_width,
 			bool stgr_prt, std::string gaussianFile, std::string kaiserFile,
 			DDCDECIMATETYPE decimateType, int bypassdivrate = 1, bool simulate =
 					false, int simPauseMS = 100, bool internalClock = false);
