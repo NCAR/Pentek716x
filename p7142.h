@@ -108,7 +108,7 @@ namespace Pentek {
 			/// @param upName The name of the downconvertor device, e.g. 0C
 			/// @param sampleClockHz The DAC sample clock in Hz
 			/// @param ncoFreqHz The NCO frequency in Hz
-		    /// @param mode The mode @TODO details here
+		    /// @param mode The mode @todo details here
 			/// @param simulate Set true if we operate in simulation mode.
 			p7142up(std::string devName, std::string upName,
 				double sampleClockHz, double ncoFreqHz, char mode, bool simulate=false);
