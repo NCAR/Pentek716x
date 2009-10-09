@@ -120,6 +120,7 @@ p71xx::bufset(int fd, int intbufsize, int bufN) {
 		std::cout << "Error setting pentek buffer sizes" << std::endl;
 		perror("");
 	}
+	return status;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
