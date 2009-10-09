@@ -94,6 +94,10 @@ bool p7142hcrdn::config() {
 	// set number of coherent integrator sums
 	setNsum(_nsum);
 
+	// Is coherent integration enabled?
+	std::cout << "coherent integration is " <<
+	      (_nsum > 1 ? "enabled" : "disabled") << std::endl;
+
 	// set up the filters. Will do nothing if either of
 	// the filter file paths is empty.
 	bool filterError = filterSetup();
