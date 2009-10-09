@@ -124,7 +124,7 @@ int p7142hcrdn::fpgaRepoRevision() {
 p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddcType() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	DDCDECIMATETYPE ddctype = 0;
+	DDCDECIMATETYPE ddctype = DDC4DECIMATE;
 	switch (_pp.value & 0x8000) {
 	case 0x8000:
 		ddctype = DDC8DECIMATE;
