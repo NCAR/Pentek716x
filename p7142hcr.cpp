@@ -25,9 +25,9 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		int simPauseMS, bool internalClock) :
 	p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, gates*tsLength/3, internalClock),
 			_gates(gates), _nsum(nsum), _tsLength(tsLength), _delay(delay),
-			_prt(prt), _prt2(prt2), _pulse_width(pulse_width), _stgr_prt(
-					stgr_prt), _gaussianFile(gaussianFile), _kaiserFile(
-					kaiserFile), _decimateType(decimateType)
+			_prt(prt), _prt2(prt2), _pulse_width(pulse_width), 
+			_stgr_prt(stgr_prt), _decimateType(decimateType),
+			_gaussianFile(gaussianFile), _kaiserFile(kaiserFile)
 
 {
 	if (_simulate)
