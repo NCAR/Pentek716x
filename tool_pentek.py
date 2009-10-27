@@ -27,6 +27,7 @@ FilterSpec.cpp
 BuiltinFilters.cpp
 BuiltinGaussian.cpp
 BuiltinKaiser.cpp
+SingleMutex.cpp
 """)
 
 headers = Split("""
@@ -39,6 +40,7 @@ BuiltinGaussian.h
 BuiltinKaiser.h
 FilterSpec.h
 DDCregisters.h
+SingleMutex.h
 """)
 
 libpentek = env.Library('pentek', libsources)
