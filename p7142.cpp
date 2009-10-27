@@ -20,41 +20,6 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-SingleMutex* SingleMutex::_instance = 0;
-pthread_mutex_t* SingleMutex::_m = new pthread_mutex_t;
-////////////////////////////////////////////////////////////////////////////////////////
-SingleMutex::SingleMutex() {
-}
-////////////////////////////////////////////////////////////////////////////////////////
-SingleMutex*
-SingleMutex::create() {
-	if (_instance == NULL) {
-		_instance = new SingleMutex();
-		pthread_mutex_init(_m, NULL);
-	}
-	return _instance;
-}
-////////////////////////////////////////////////////////////////////////////////////////
-SingleMutex::~SingleMutex() {
-	if (!_instance) {
-		return;
-	}
-	pthread_mutex_destroy(_m);
-	delete _m;
-	delete _instance;
-	_instance = NULL;
-}
-////////////////////////////////////////////////////////////////////////////////////////
-void
-SingleMutex::lock() {
-	pthread_mutex_lock(_m);
-}
-////////////////////////////////////////////////////////////////////////////////////////
-void
-SingleMutex::unlock() {
-	pthread_mutex_unlock(_m);
-}
-////////////////////////////////////////////////////////////////////////////////////////
 p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
 		 bool simulate, int simPauseMS, int simWaveLength,
 		 bool internalClock):
@@ -66,7 +31,7 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
   _simWaveLength(simWaveLength)
 {
   // create the read mutex
-  _readMutex.create();
+  //_readMutex.create();
 
   // verify that the card was found
   if (!ok()) {
@@ -212,6 +177,7 @@ p7142dn::read(char* buf, int bufsize) {
   }
 
   int n;
+  // the mutex doesn't cure the multi channel seg fault, so disable it.
   //_readMutex.lock();
   n = ::read(_dnFd, buf, bufsize);
   //_readMutex.unlock();

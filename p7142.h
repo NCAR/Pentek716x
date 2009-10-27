@@ -6,7 +6,6 @@
 #include "ptkddr.h"
 #include <string>
 #include "DDCregisters.h"
-#include <pthread.h>
 
 
 namespace Pentek {
@@ -29,17 +28,6 @@ namespace Pentek {
 
 		protected:
 };
-
-	class SingleMutex {
-	public:
-		SingleMutex();
-		virtual ~SingleMutex();
-	    static SingleMutex* create();
-		static void lock();
-		void unlock();
-		static SingleMutex* _instance;
-		static pthread_mutex_t* _m;
-	};
 
 	/// A p7142 downconvertor.
 	/// This class will use the /dn/*B downconversion channels. The
@@ -96,7 +84,8 @@ namespace Pentek {
 			int _simWaveLength;
 			/// A singleton mutex to insure that read() is not called
 			/// simultaneously from different threads.
-			SingleMutex _readMutex;
+			/// Doesn't fix the problem so comment it out
+			/// SingleMutex _readMutex;
 	};
 
 	/// A p7142 upconvertor
