@@ -388,7 +388,7 @@ int p7142hcrdn::filterSetup() {
 	} else {
 		std::string gaussianFilterName;
 		BuiltinGaussian builtins;
-		// The pulsewidth in microseconds. It must match one of those
+		// The pulsewidth expressed in microseconds must match one of those
 		// available in BuiltinGaussian.
 		double pulseWidthUs = 1.00;
 		gaussianFilterName = "ddc8_1_0";
@@ -396,38 +396,35 @@ int p7142hcrdn::filterSetup() {
 		// Choose the correct builtin Gaussian filter coefficient set.
 		switch (_decimateType) {
 		case DDC8DECIMATE: {
-			switch (_pulse_width) { // pulse width in 10 MHz counts
-			case 2:
-				pulseWidthUs = 0.2;
+			switch ((int)(_pulse_width/62.5 * 10)) { // pulse width in 62.5 MHz counts
+
+			case 2:                             //pulse width = 0.256 microseconds
+				pulseWidthUs = 0.256;
 				gaussianFilterName = "ddc8_0_2";
 				break;
-			case 4:
-				pulseWidthUs = 0.4;
-				gaussianFilterName = "ddc8_0_4";
+			case 3:								//pulse width = 0.384 microseconds
+				pulseWidthUs = 0.384;
+				gaussianFilterName = "ddc8_0_3";
 				break;
-			case 6:
-				pulseWidthUs = 0.6;
+			case 5:
+				pulseWidthUs = 0.512;			//pulse width = 0.512 microseconds
+				gaussianFilterName = "ddc8_0_5";
+				break;
+			case 6:								//pulse width = 0.64 microseconds
+				pulseWidthUs = 0.64;
 				gaussianFilterName = "ddc8_0_6";
 				break;
-			case 8:
-				pulseWidthUs = 0.8;
+			case 7:								//pulse width = 0.768 microseconds
+				pulseWidthUs = 0.768;
+				gaussianFilterName = "ddc8_0_7";
+				break;
+			case 8:								//pulse width = 0.896 microseconds
+				pulseWidthUs = 0.896;
 				gaussianFilterName = "ddc8_0_8";
 				break;
-			case 10:
-				pulseWidthUs = 1.0;
+			case 10:							//pulse width = 1.024 microseconds
+				pulseWidthUs = 1.024;
 				gaussianFilterName = "ddc8_1_0";
-				break;
-			case 12:
-				pulseWidthUs = 1.2;
-				gaussianFilterName = "ddc8_1_2";
-				break;
-			case 14:
-				pulseWidthUs = 1.4;
-				gaussianFilterName = "ddc8_1_4";
-				break;
-			case 16:
-				pulseWidthUs = 1.6;
-				gaussianFilterName = "ddc8_1_6";
 				break;
 			default:
 				std::cerr << "chip width specification of " << _pulse_width
@@ -437,7 +434,7 @@ int p7142hcrdn::filterSetup() {
 			}
 			break;
 		}
-		case DDC4DECIMATE: {
+		case DDC4DECIMATE: {    // pulse_widht in 24 MHz counts
 			pulseWidthUs = 1.0;
 			gaussianFilterName = "ddc4_1_0";
 			break;
@@ -512,7 +509,7 @@ bool p7142hcrdn::timerInit() {
 	//
 	//    This section initializes the timers.
 
-	double prtClock = (62.5e6); // Timer Input Clock Freq
+	double prtClock; // Timer Input Clock Freq
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
@@ -522,12 +519,29 @@ bool p7142hcrdn::timerInit() {
 			| TIMER5 | TIMER6 | TIMER7;
 
 	// Calculate the period and PRT Scheme for dual prt or single prt
+	// Note: _prt and _prt2 are expressed in ADC_Clk/2 MHz Counts!
+	//       for DDC4: 24 MHz; for DDC8: 62.5 MHz
+
 	int X, Y;
 	float prt_ms, prt2_ms;
+
+	switch (_decimateType) {
+			case DDC8DECIMATE: {
+				prtClock = 62.5e6;
+				break;
+			}
+			case DDC4DECIMATE: {
+				prtClock = 24.0e6;
+				break;
+			}
+	}
 	if (_stgr_prt == true) //dual prt
 	{
-		prt_ms = (float) _prt / 1e3;
-		prt2_ms = (float) _prt2 / 1e3;
+//		prt_ms = (float) _prt / 1e3;
+//		prt2_ms = (float) _prt2 / 1e3;
+
+		prt_ms = (float) _prt / prtClock * 1e3;
+		prt2_ms = (float) _prt2 / prtClock * 1e3;
 
 		periodCount = (int) (prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms
 				/ prt_ms)) / (int) (prt2_ms / prt_ms) * prtClock / 1e3);
@@ -539,7 +553,10 @@ bool p7142hcrdn::timerInit() {
 		PrtScheme = (Y << 4) | X;
 	} else //single prt
 	{
-		periodCount = (int) ceil((_prt * prtClock / 10e6));
+//		periodCount = (int) ceil((_prt * prtClock / 10e6));
+
+// 		PRT must be integral multiple of pulsewidth !
+		periodCount = _prt;
 		PrtScheme = 0x0000;
 	}
 	// Control Register
@@ -564,7 +581,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
@@ -573,7 +590,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * _gates * prtClock / 62.5e6));
+	_pp.value = _pulse_width * _gates;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// For now configure all 8 Timers identically, later we will customize per application
@@ -584,7 +601,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
@@ -593,7 +610,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 2
@@ -603,7 +620,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
@@ -612,35 +629,36 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 3
 	// Delay Register
-	_pp.offset = MT_ADDR; // Address
+	_pp.offset = MT_ADDR; // A	_delayddress
 	_pp.value = DELAY_REG | TIMER3;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
 	_pp.offset = MT_ADDR; // Address
 	_pp.value = WIDTH_REG | TIMER3;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	// TIMER 4
+	// TIMER 4_delay
 	// Delay Register
 	_pp.offset = MT_ADDR; // Address
 	_pp.value = DELAY_REG | TIMER4;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
@@ -649,7 +667,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 5
@@ -659,7 +677,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
@@ -668,7 +686,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 6
@@ -678,7 +696,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = (int) _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
@@ -687,7 +705,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 7
@@ -697,16 +715,16 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_delay * prtClock / 10e6));
+	_pp.value = _delay;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
+	_pp.offset = MT_ADDR; // Address_delay
 	_pp.value = WIDTH_REG | TIMER7;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) ceil((_pulse_width * prtClock / 10e6));
+	_pp.value = _pulse_width;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// ALL TIMERS
@@ -737,7 +755,7 @@ bool p7142hcrdn::timerInit() {
 
 	usleep(1000);
 
-	// Turn off Write Strobes
+	// Turn off Write Strobes	_delay
 	_pp.offset = MT_WR;
 	_pp.value = WRITE_OFF;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
