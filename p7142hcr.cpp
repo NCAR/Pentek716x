@@ -62,6 +62,8 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		exit(1);
 	}
 
+	std::cout << "prt is " << _prt << std::endl;
+
 	// configure DDC in FPGA
 	if (!config()) {
 		std::cout << "error initializing filters\n";
