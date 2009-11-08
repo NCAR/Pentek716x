@@ -20,7 +20,6 @@ env.AppendUnique(CPPDEFINES=['PENTEK_LINUX',])
 
 libsources = Split("""
 p71xx.cpp
-p7140.cpp
 p7142.cpp
 p7142hcr.cpp
 FilterSpec.cpp
@@ -31,7 +30,6 @@ SingleMutex.cpp
 """)
 
 headers = Split("""
-p7140.h
 p7142.h
 p7142hcr.h
 p71xx.h
