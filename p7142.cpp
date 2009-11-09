@@ -20,12 +20,12 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
+p7142dn::p7142dn(std::string devName, int chanId, int decimation,
 		 bool simulate, int simPauseMS, int simWaveLength,
 		 bool internalClock):
   p7142(devName, simulate),
   _chanId(chanId),
-  _bypdiv(bypdiv),
+  _decimation(decimation),
   _dnFd(-1),
   _simPauseMS(simPauseMS),
   _simWaveLength(simWaveLength)
@@ -81,14 +81,13 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
     }
 
   // set the decimation rate
-  if (ioctl(_dnFd, FIOBYPDIVSET, _bypdiv) == -1) {
+  if (ioctl(_dnFd, FIOBYPDIVSET, _decimation) == -1) {
     std::cerr << "unable to set the bypass decimation rate for "
-	      << _dnName << " to " << _bypdiv << std::endl;
+	      << _dnName << " to " << _decimation << std::endl;
     perror("");
     _ok = false;
     return;
   }
-  std::cout << "bypass decimation set to " << _bypdiv << std::endl;
 
   // flush the device read buffers
   if (ioctl(_dnFd, FIOFLUSH, 0) == -1)
@@ -105,6 +104,7 @@ p7142dn::p7142dn(std::string devName, int chanId, int bypdiv,
     return;
 
   _ok = true;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

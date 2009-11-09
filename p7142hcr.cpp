@@ -19,17 +19,30 @@ using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
-		int tsLength, int delay, int prt, int prt2, int pulse_width,
-		bool stgr_prt, std::string gaussianFile, std::string kaiserFile,
-		DDCDECIMATETYPE decimateType, int bypdivrate, bool simulate,
+		int tsLength, int delay, int prt, int prt2, int pulseWidth,
+		bool staggeredPrt, std::string gaussianFile, std::string kaiserFile,
+		DDCDECIMATETYPE ddcType, int decimation, bool simulate,
 		int simPauseMS, bool internalClock) :
-	p7142dn(devName, chanId, bypdivrate, simulate, simPauseMS, gates*tsLength/3, internalClock),
+	p7142dn(devName, chanId, decimation, simulate, simPauseMS, gates*tsLength/3, internalClock),
 			_gates(gates), _nsum(nsum), _tsLength(tsLength), _delay(delay),
-			_prt(prt), _prt2(prt2), _pulse_width(pulse_width),
-			_stgr_prt(stgr_prt), _decimateType(decimateType),
+			_prt(prt), _prt2(prt2), _pulseWidth(pulseWidth),
+			_staggeredPrt(staggeredPrt), _ddcType(ddcType),
 			_gaussianFile(gaussianFile), _kaiserFile(kaiserFile)
 
 {
+	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142hcrdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
+	std::cout << "decimation:    " << _decimation      << std::endl;
+	std::cout << "pulse width:   " << _pulseWidth << std::endl;
+	std::cout << "prt:           " << _prt         << std::endl;
+	std::cout << "prt2:          " << _prt2        << std::endl;
+	std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false") << std::endl;
+	std::cout << "delay          " << _delay       << std::endl;
+	std::cout << "clock source:  " << ((internalClock) ? "internal" : "external") << std::endl;
+	std::cout << "ts length:     " << _tsLength    << std::endl;
+	std::cout << "gates:         " << _gates       << std::endl;
+	std::cout << "nsum:          " << _nsum        << std::endl;
+
+
 	if (_simulate)
 		return;
 
@@ -45,24 +58,20 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 	}
 
 	// check the fpga firmware revision
-	std::cout << "FPGA repository revision is " << fpgaRepoRevision()
+	std::cout << "FPGA revision: " << fpgaRepoRevision()
 			<< std::endl;
+
 	if (fpgaRepoRevision() == 0) {
 		std::cerr << "**** Warning: The FPGA firmware revision number is zero. Was the correct firmware loaded?"
 		<< std::endl;
 	}
 
 	// verify that the correct down converter was selected.
-	std::cout << "FPGA downconverter type is "
-	        << ((ddcType()== Pentek::p7142hcrdn::DDC8DECIMATE) ? "decimate by 8"
-			: "decimate by 4") << std::endl;
-	if (ddcType() != decimateType) {
+	if (ddc_type() != ddcType) {
 		std::cerr << "The firmware DDC type (ddc4 or ddc8) does not match the specified type. Program will terminate."
 		<< std::endl;
 		exit(1);
 	}
-
-	std::cout << "prt is " << _prt << std::endl;
 
 	// configure DDC in FPGA
 	if (!config()) {
@@ -123,7 +132,7 @@ int p7142hcrdn::fpgaRepoRevision() {
 }
 
 //////////////////////////////////////////////////////////////////////
-p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddcType() {
+p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddc_type() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	DDCDECIMATETYPE ddctype = DDC4DECIMATE;
@@ -176,7 +185,6 @@ void p7142hcrdn::setGates(int gates) {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	std::cout << "gates are " << _pp.value << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -186,7 +194,6 @@ void p7142hcrdn::setNsum(int nsum) {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
-	std::cout << "nsum is " << _pp.value << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -208,7 +215,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 			int ramAddr = 0;
 			int ramSelect = 0;
-			switch (_decimateType) {
+			switch (_ddcType) {
 			case DDC8DECIMATE:
 				ramAddr = i / 8;
 				ramSelect = (i % 8) << 4;
@@ -292,7 +299,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 			unsigned int readBack;
 			int ramAddr = 0;
 			int ramSelect = 0;
-			switch (_decimateType) {
+			switch (_ddcType) {
 			case DDC8DECIMATE:
 				ramAddr = i % 8;
 				ramSelect = (i / 8) << 4;
@@ -396,9 +403,9 @@ int p7142hcrdn::filterSetup() {
 		gaussianFilterName = "ddc8_1_0";
 
 		// Choose the correct builtin Gaussian filter coefficient set.
-		switch (_decimateType) {
+		switch (_ddcType) {
 		case DDC8DECIMATE: {
-			switch ((int)(_pulse_width/62.5 * 10)) { // pulse width in 62.5 MHz counts
+			switch ((int)(_pulseWidth/62.5 * 10)) { // pulse width in 62.5 MHz counts
 
 			case 2:                             //pulse width = 0.256 microseconds
 				pulseWidthUs = 0.256;
@@ -429,7 +436,7 @@ int p7142hcrdn::filterSetup() {
 				gaussianFilterName = "ddc8_1_0";
 				break;
 			default:
-				std::cerr << "chip width specification of " << _pulse_width
+				std::cerr << "chip width specification of " << _pulseWidth
 						<< " is not recognized, filter will be configured for a "
 						<< pulseWidthUs << " uS pulse\n";
 				break;
@@ -471,7 +478,7 @@ int p7142hcrdn::filterSetup() {
 	} else {
 		BuiltinKaiser builtins;
 		std::string kaiserFilterName;
-		switch (_decimateType) {
+		switch (_ddcType) {
 		case DDC8DECIMATE: {
 			kaiserFilterName = "ddc8_5_0";
 			break;
@@ -527,7 +534,7 @@ bool p7142hcrdn::timerInit() {
 	int X, Y;
 	float prt_ms, prt2_ms;
 
-	switch (_decimateType) {
+	switch (_ddcType) {
 			case DDC8DECIMATE: {
 				prtClock = 62.5e6;
 				break;
@@ -537,7 +544,7 @@ bool p7142hcrdn::timerInit() {
 				break;
 			}
 	}
-	if (_stgr_prt == true) //dual prt
+	if (_staggeredPrt == true) //dual prt
 	{
 //		prt_ms = (float) _prt / 1e3;
 //		prt2_ms = (float) _prt2 / 1e3;
@@ -592,7 +599,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width * _gates;
+	_pp.value = _pulseWidth * _gates;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// For now configure all 8 Timers identically, later we will customize per application
@@ -612,7 +619,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 2
@@ -631,7 +638,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 3
@@ -650,7 +657,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 4_delay
@@ -669,7 +676,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 5
@@ -688,7 +695,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 6
@@ -707,7 +714,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// TIMER 7
@@ -726,7 +733,7 @@ bool p7142hcrdn::timerInit() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulse_width;
+	_pp.value = _pulseWidth;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 	// ALL TIMERS

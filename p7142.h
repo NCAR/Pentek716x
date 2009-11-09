@@ -48,7 +48,7 @@ namespace Pentek {
 			/// @param internalClock Set true if the internal clock should be
 			/// used instead of the front panel clock.
 			p7142dn(std::string devName,
-					int chanId, int bypassdivrate=1,
+					int chanId, int decimation=1,
 			        bool simulate=false, int simPauseMS=100,
 			        int simWaveLength=20000, bool internalClock=false);
 			/// Destructor
@@ -74,7 +74,7 @@ namespace Pentek {
 			/// The full device name for the downconverter
 			std::string _dnName;
 			/// The bypass divider decimation rate.
-			int _bypdiv;
+			int _decimation;
 			/// The down convertor file descriptor
 			int _dnFd;
 			/// The number of milliseconds to wait before returning

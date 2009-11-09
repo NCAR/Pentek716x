@@ -73,7 +73,7 @@ public:
 	p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 			int tsLength, int delay, int prt, int prt2, int pulse_width,
 			bool stgr_prt, std::string gaussianFile, std::string kaiserFile,
-			DDCDECIMATETYPE decimateType, int bypassdivrate = 1, bool simulate =
+			DDCDECIMATETYPE ddcType, int decimation = 1, bool simulate =
 					false, int simPauseMS = 100, bool internalClock = false);
 	/// Destructor
 	virtual ~p7142hcrdn();
@@ -82,7 +82,7 @@ public:
 	int fpgaRepoRevision();
 
 	/// @return The type of DDC instantiated in the firmware
-	DDCDECIMATETYPE ddcType();
+	DDCDECIMATETYPE ddc_type();
 
 protected:
 	/// Set the filter start bit, which starts the data flow. Applies only to channel 0
@@ -157,17 +157,17 @@ protected:
 	//// The time series length
 	int _tsLength;
 	/// radar PRT in 10 MHz counts
-	int _delay;
-	/// second PRT of staggered PRT in 10 MHz counts
 	int _prt;
-	/// delay to first gate in 10 MHz counts
+	/// second PRT of staggered PRT in 10 MHz counts
 	int _prt2;
 	/// radar pulse width in 10 MHz counts
-	int _pulse_width;
+	int _pulseWidth;
+	/// delay to first gate in 10 MHz counts
+	int _delay;
 	/// staggered PRT flag: 1 = stagger, 0 = uniform
-	bool _stgr_prt;
+	bool _staggeredPrt;
 	/// The type of downconverter instantiated in the firmware
-	DDCDECIMATETYPE _decimateType;
+	DDCDECIMATETYPE _ddcType;
 	/// The path to the file containing the gaussian filter definitions.
 	std::string _gaussianFile;
 	/// The path to the file containing the kaiser filter coefficients.
