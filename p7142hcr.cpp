@@ -484,7 +484,7 @@ int p7142hcrdn::filterSetup() {
 			break;
 		}
 		case DDC4DECIMATE: {
-			kaiserFilterName = "ddc4_5_0";
+			kaiserFilterName = "ddc4_4_0";
 			break;
 		}
 		}

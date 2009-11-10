@@ -23,6 +23,6 @@ unsigned int ddc4_k5[] = {
 /////////////////////////////////////////////////////////////////////////////
 BuiltinKaiser::BuiltinKaiser() {
 	init("ddc8_5_0", ddc8_k5, sizeof(ddc8_k5) / sizeof(unsigned int));
-	init("ddc4_5_0", ddc4_k5, sizeof(ddc4_k5) / sizeof(unsigned int));
+	init("ddc4_4_0", ddc4_k5, sizeof(ddc4_k5) / sizeof(unsigned int));
 }
 
