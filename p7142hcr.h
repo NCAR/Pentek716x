@@ -85,7 +85,6 @@ public:
 	/// @return The type of DDC instantiated in the firmware
 	DDCDECIMATETYPE ddc_type();
 
-protected:
 	/// Set the filter start bit, which starts the data flow. Applies only to channel 0
 	/// @todo Fix the start logic - really does not belong per channel
 	void startFilters();
@@ -93,6 +92,10 @@ protected:
 	/// Stop the filters
 	void stopFilters();
 
+	/// Starts the timers.
+	void startTimers();
+
+protected:
 	/// Configure the p7142hcrdn
 	/// @return True if the configuration was successful
 	bool config();
@@ -121,9 +124,6 @@ protected:
 	/// Configure the timers.
 	/// @return true if successful, false otherwise.
 	bool initTimers();
-
-	/// Starts the timers.
-	void startTimers();
 
 	/// Set the time of the first transmit pulse.
 	/// @param startTime The boost::posix_time::ptime of the first transmit
