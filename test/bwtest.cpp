@@ -68,17 +68,18 @@ int main(int argc, char** argv) {
 
 	if (argc < 5) {
 		std::cout << "usage: " << argv[0]
-				<< " <device root> <channel number (0-3)> <bypass decimation rate (1-4096)> <buffer factor> [<output file>]\n";
+				<< " <device root> <channel number (0-3)> <ddc type (ddc4|ddc8)> <bypass decimation rate (1-4096)> <buffer factor> [<output file>]\n";
 		exit(1);
 	}
 
 	std::string devRoot = argv[1];
 	int chanId = atoi(argv[2]);
-	int bypdiv = atoi(argv[3]);
-	int bufferSize = BASICSIZE * atoi(argv[4]);
+	std::string ddcname(argv[3]);
+	int bypdiv = atoi(argv[4]);
+	int bufferSize = BASICSIZE * atoi(argv[5]);
 	std::string outFile;
-	if (argc > 5)
-		 outFile = argv[5];
+	if (argc > 6)
+		 outFile = argv[6];
 
 	std::cout << "read buffer size is " << bufferSize << std::endl;
 
@@ -93,18 +94,31 @@ int main(int argc, char** argv) {
 	makeRealTime();
 
 	// default configuration
-	int gates = 500;
+	int gates = 100;
 	int delay = 0;
-	int prt = 2000; // 10 MHz counts
+	int prt = 4000; // 10 MHz counts
 	int prt2 = prt; // no staggered prt
-	int pulsewidth = 10; // 10 MHz counts
+	int pulsewidth = bypdiv/2; // 10 MHz counts
 	bool stgr_prt = false;
 	std::string gaussianFile = "";
 	std::string kaiserFile = "";
 
+	// decode the ddc type
+	Pentek::p7142hcrdn::DDCDECIMATETYPE ddctype;
+	if (!ddcname.compare("ddc4")) {
+		ddctype = Pentek::p7142hcrdn::DDC4DECIMATE;
+	} else {
+		if (!ddcname.compare("ddc8")) {
+			ddctype = Pentek::p7142hcrdn::DDC8DECIMATE;
+		} else {
+			std::cerr << "ddc type must be either ddc4 or ddc8" << "\n";
+			exit(1);
+		}
+	}
+
 	// create the downconvertor/// @todo The downconverter type needs to be specified in a command line switch
-	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, 256, 1, delay, prt, prt2,
-			pulsewidth, stgr_prt, false, gaussianFile, kaiserFile, Pentek::p7142hcrdn::DDC8DECIMATE, bypdiv);
+	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, 1, 256, delay, prt, prt2,
+			pulsewidth, stgr_prt, true, gaussianFile, kaiserFile, ddctype, bypdiv);
 
 	if (!downConverter.ok()) {
 		std::cerr << "cannot access " << downConverter.dnName() << "\n";
@@ -116,6 +130,9 @@ int main(int argc, char** argv) {
 	double total = 0;
 
 	double startTime = nowTime();
+
+	downConverter.startFilters();
+	downConverter.startTimers();
 
 	int lastMb = 0;
 
