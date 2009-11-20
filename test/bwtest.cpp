@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
 
 	// create the downconvertor/// @todo The downconverter type needs to be specified in a command line switch
 	Pentek::p7142hcrdn downConverter(devRoot, chanId, gates, 256, 1, delay, prt, prt2,
-			pulsewidth, stgr_prt, gaussianFile, kaiserFile, Pentek::p7142hcrdn::DDC8DECIMATE, bypdiv);
+			pulsewidth, stgr_prt, false, gaussianFile, kaiserFile, Pentek::p7142hcrdn::DDC8DECIMATE, bypdiv);
 
 	if (!downConverter.ok()) {
 		std::cerr << "cannot access " << downConverter.dnName() << "\n";

@@ -12,7 +12,6 @@
 #include <cstdio>
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
-#define USE_TIMER
 #define IOCTLSLEEPUS 100
 
 using namespace Pentek;
@@ -20,13 +19,13 @@ using namespace Pentek;
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		int tsLength, int delay, int prt, int prt2, int pulseWidth,
-		bool staggeredPrt, std::string gaussianFile, std::string kaiserFile,
+		bool staggeredPrt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
 		DDCDECIMATETYPE ddcType, int decimation, bool simulate,
 		int simPauseMS, bool internalClock) :
 	p7142dn(devName, chanId, decimation, simulate, simPauseMS, gates*tsLength/3, internalClock),
 			_gates(gates), _nsum(nsum), _tsLength(tsLength), _delay(delay),
 			_prt(prt), _prt2(prt2), _pulseWidth(pulseWidth),
-			_staggeredPrt(staggeredPrt), _ddcType(ddcType),
+			_staggeredPrt(staggeredPrt), _ddcType(ddcType), _freeRun(freeRun),
 			_gaussianFile(gaussianFile), _kaiserFile(kaiserFile)
 
 {
@@ -41,6 +40,7 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 	std::cout << "ts length:     " << _tsLength    << std::endl;
 	std::cout << "gates:         " << _gates       << std::endl;
 	std::cout << "nsum:          " << _nsum        << std::endl;
+	std::cout << "free run:      " << ((_freeRun) ? "true" : "false") << std::endl;
 
 
 	if (_simulate)
@@ -114,7 +114,10 @@ bool p7142hcrdn::config() {
 	bool filterError = filterSetup();
 
 	// initialize the internal timers
-	timerInit();
+	initTimers();
+
+	// set free run mode as appropriate
+	freeRunConfig();
 
 	if (filterError) {
 		return false;
@@ -122,8 +125,36 @@ bool p7142hcrdn::config() {
 
 	return true;
 }
-//////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////
+void p7142hcrdn::freeRunConfig() {
+
+	// set the free run bit as needed
+
+	// get the current state of transceiver control register
+	_pp.offset = TRANS_CNTRL;
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	usleep(IOCTLSLEEPUS);
+
+	if (_freeRun) {
+		// set free run
+		_pp.value = _pp.value | TRANS_FREE_RUN;
+	} else {
+		// clear free run
+		_pp.value = _pp.value & ~TRANS_FREE_RUN;
+	}
+
+	// write transceiver control register
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	usleep(IOCTLSLEEPUS);
+
+	ioctl(_ctrlFd, FIOREGGET, &_pp);
+	usleep(IOCTLSLEEPUS);
+
+	std::cout << "transceiver control register is " << _pp.value << std::endl;
+}
+
+//////////////////////////////////////////////////////////////////////
 int p7142hcrdn::fpgaRepoRevision() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
@@ -203,6 +234,8 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 	bool gaussianLoaded;
 
 	int attempt;
+
+	return 1;
 
 	// program kaiser coefficients
 
@@ -512,9 +545,8 @@ int p7142hcrdn::filterSetup() {
 
 /////////////////////////////////////////////////////////////////////////
 
-bool p7142hcrdn::timerInit() {
+bool p7142hcrdn::initTimers() {
 
-#ifdef USE_TIMER
 	//
 	//    This section initializes the timers.
 
@@ -768,16 +800,14 @@ bool p7142hcrdn::timerInit() {
 	_pp.offset = MT_WR;
 	_pp.value = WRITE_OFF;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
-#endif
+
 	return true;
 
 }
 
 /////////////////////////////////////////////////////////////////////////
 
-void p7142hcrdn::startInternalTimer() {
-#ifdef USE_TIMER
-
+void p7142hcrdn::startTimers() {
 	//
 	//    This start the internal timers.
 
@@ -802,9 +832,10 @@ void p7142hcrdn::startInternalTimer() {
 	_pp.value = WRITE_OFF;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
+	std::cout << "timers started" << std::endl;
+
 	// Get current system time as xmit start time
 	// setXmitStartTime(microsec_clock::universal_time());
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////

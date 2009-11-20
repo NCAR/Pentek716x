@@ -54,11 +54,12 @@ public:
 	/// @param nsum The number of coherent integrator sums
 	/// @param tsLength The number of pulses in one time series. Used to set interrupt buffer size, so
 	/// that we have reasonable responsiveness in the data stream.
-	/// @param delay the delay to the first gate in 10 MHz counts
-	/// @param prt the radar PRT in 10 MHz counts
-	/// @param prt2 the second PRT of a staggered PRT sequence, expressed in 10 MHz counts
-	/// @param pulse_width the radar pulse width in 10 MHz counts
+	/// @param Delay the delay to the first gate in 10 MHz counts
+	/// @param prt The radar PRT in 10 MHz counts
+	/// @param prt2 The second PRT of a staggered PRT sequence, expressed in 10 MHz counts
+	/// @param pulse_width The radar pulse width in 10 MHz counts
 	/// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
+	/// @param freeRun If true, the firmware will be configured to ignore the PRT gating.
 	/// @param gaussianFile Name of the file containing the Gaussian
 	///   filter parameters
 	/// @param kaiserFile Name of the file containing the Kaiser
@@ -72,7 +73,7 @@ public:
 	/// used instead of the front panel clock.
 	p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 			int tsLength, int delay, int prt, int prt2, int pulse_width,
-			bool stgr_prt, std::string gaussianFile, std::string kaiserFile,
+			bool stgr_prt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
 			DDCDECIMATETYPE ddcType, int decimation = 1, bool simulate =
 					false, int simPauseMS = 100, bool internalClock = false);
 	/// Destructor
@@ -119,10 +120,10 @@ protected:
 
 	/// Configure the timers.
 	/// @return true if successful, false otherwise.
-	bool timerInit();
+	bool initTimers();
 
 	/// Starts the timers.
-	void startInternalTimer();
+	void startTimers();
 
 	/// Set the time of the first transmit pulse.
 	/// @param startTime The boost::posix_time::ptime of the first transmit
@@ -150,6 +151,10 @@ protected:
 	/// blocks of data.
 	void setInterruptBufSize();
 
+	/// Set the free run control bit in the transceiver
+	/// control register, as specified by _freeRun
+	void freeRunConfig();
+
 	/// number of gates
 	int _gates;
 	/// number of coherent integrator sums
@@ -166,6 +171,8 @@ protected:
 	int _delay;
 	/// staggered PRT flag: 1 = stagger, 0 = uniform
 	bool _staggeredPrt;
+	/// free running mode. Causes the firmware to be configured to ignore the PRT gating.
+	bool _freeRun;
 	/// The type of downconverter instantiated in the firmware
 	DDCDECIMATETYPE _ddcType;
 	/// The path to the file containing the gaussian filter definitions.

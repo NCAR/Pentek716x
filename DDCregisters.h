@@ -1,4 +1,4 @@
-/**********************************************************************************************
+ /**********************************************************************************************
 
 Desc: Pentek 7142 HCR DDC Registers
 
@@ -20,18 +20,23 @@ Desc: Pentek 7142 HCR DDC Registers
 #define _1_6us 16
 
 /// Pentek DCM control register
-#define DCM_CONTROL    0x8020
+#define DCM_CONTROL    0x8020   ///< Pntek Gateflow defined register, used to reset the digital clock managers.
 
 /// GateFlow option 223 ttl_in register
-#define TTL_IN          0x8200
+#define TTL_IN          0x8200  ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL input via this register.
+
 /// GateFlow option 223 ttl_out1 register, 16 bits
-#define TTL_OUT1        0x8208
+#define TTL_OUT1        0x8208  ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL output via this register.
 
-/// Filter control bits
-#define DDC_START          0x0  ///< Allow the filter to run. Set in the filter ADDR register.
-#define DDC_STOP     (0x01<<12) ///< Force the filter to stop. Set in the filter ADDR register.
+// Transceiver control register
+#define TRANS_CNTRL     0x8E78  ///< Transceiver firmware control register
 
-//Kaiser Filter Registers
+// MultiTimer registers
+#define MT_ADDR         0x8E80  ///< Multi-timer address and control
+#define MT_DATA         0x8E88  ///< Multi-timer data
+#define MT_WR           0x8E90  ///< Multi-timer write strobes
+
+// Kaiser filter registers
 #define KAISER_ADDR     0x8E98  ///< Register 467 Kaiser filter coefficient address and control
 #define KAISER_DATA_LSW 0x8EA0  ///< Register 468 Kaiser filter coefficient data (LSW)
 #define KAISER_DATA_MSW 0x8EA8  ///< Register 469 Kaiser filter coefficient data (MSW)
@@ -39,7 +44,7 @@ Desc: Pentek 7142 HCR DDC Registers
 #define KAISER_READ_LSW 0x8EB8  ///< Register 471 Kaiser filter coefficient read (LSW)
 #define KAISER_READ_MSW 0x8EC0  ///< Register 472 Kaiser filter coefficient read (MSW)
 
-//Gaussian Filter Registers
+// Gaussian filter registers
 #define GUASSIAN_ADDR     0x8EC8  ///< Register 473 Gaussian filter coefficient address and control
 #define GUASSIAN_DATA_LSW 0x8ED0  ///< Register 474 Gaussian filter coefficient data (LSW)
 #define GUASSIAN_DATA_MSW 0x8ED8  ///< Register 475 Gaussian filter coefficient data (MSW)
@@ -47,11 +52,13 @@ Desc: Pentek 7142 HCR DDC Registers
 #define GUASSIAN_READ_LSW 0x8EE8  ///< Register 477 Gaussian filter coefficient read (LSW)
 #define GUASSIAN_READ_MSW 0x8EF0  ///< Register 478 Gaussian filter coefficient read (MSW)
 
+// Radar gates register
+#define RADAR_GATES       0x8EF8 ///< Register 479 The number of radar gates
 
-#define RADAR_GATES       0x8EF8 ///< Register 479The number of radar gates
-
+// Number of coherent integrations register
 #define CI_NSUM           0x8F00 ///< Register 480 The number of values for one coherent integrator sum
 
+// FPGA source code revision and DDC type register
 #define FPGA_REPO_REV     0x8F08 ///< Register 481 The fpga source code repository revision number
 
 //Clock Decimation Registers
@@ -66,10 +73,12 @@ Desc: Pentek 7142 HCR DDC Registers
 //  #define DPRT_ON  0x1
 //  #define DPRT_OFF 0x0
 
-//MultiTimer Registers
-#define MT_ADDR 0x8E80
-#define MT_DATA 0x8E88
-#define MT_WR   0x8E90
+// Transceiver control bits
+#define TRANS_FREE_RUN     0x1  ///< Bit mask to access the free-run enable bit in the transceiver control register
+
+// DDC Filter control bits
+#define DDC_START          0x0  ///< Allow the filter to run. Set in the filter ADDR register.
+#define DDC_STOP     (0x01<<12) ///< Force the filter to stop. Set in the filter ADDR register.
 
 //MultTimer Sub Registers
 #define WRITE_ON  0x3
