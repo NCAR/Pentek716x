@@ -10,7 +10,7 @@ qt4
 """)
 
 sources = Split("""
-bwtest.cpp
+capture.cpp
 dactest.cpp
 dacdump.cpp
 """)
