@@ -51,13 +51,13 @@ public:
 	/// /dev/pentek/p7140/0.
 	/// @param chanId The channel identifier (should be a zero based small integer)
 	/// @param gates The number of gates
-	/// @param nsum The number of coherent integrator sums
+	/// @param nsum The number of coherent integrator sums. If < 2, the coherent integrator will not be used.
 	/// @param tsLength The number of pulses in one time series. Used to set interrupt buffer size, so
 	/// that we have reasonable responsiveness in the data stream.
-	/// @param Delay the delay to the first gate in 10 MHz counts
-	/// @param prt The radar PRT in 10 MHz counts
+	/// @param Delay the delay to the first gate in ADC_CLK counts
+	/// @param prt The radar PRT in ADC_CLK counts
 	/// @param prt2 The second PRT of a staggered PRT sequence, expressed in 10 MHz counts
-	/// @param pulse_width The radar pulse width in 10 MHz counts
+	/// @param pulse_width The radar pulse width in ADC_CLK counts
 	/// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
 	/// @param freeRun If true, the firmware will be configured to ignore the PRT gating.
 	/// @param gaussianFile Name of the file containing the Gaussian
@@ -65,7 +65,7 @@ public:
 	/// @param kaiserFile Name of the file containing the Kaiser
 	///   filter parameters
 	/// @param decimateType The type of downconverter instantiated in the pentek firmware
-	/// @param bypassdivrate The bypass divider (decimation) rate
+	/// @param bypassdivrate The decimation rate
 	/// @param simulate Set true if we operate in simulation mode.
 	/// @param simPauseMS The number of milliseconds to wait before returning
 	/// simulated data when calling read();
