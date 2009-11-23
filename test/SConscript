@@ -2,6 +2,11 @@
 
 tools = Split("""
 pentek
+qtt_qtconfig
+boost_date_time
+boost_program_options
+doxygen
+qt4
 """)
 
 sources = Split("""
@@ -17,11 +22,11 @@ env = Environment(tools = ['default'] + tools)
 
 html = env.Apidocs(sources + headers, DOXYFILE_FILE = "Doxyfile")
 
-bwtest = env.Program('bwtest', 'bwtest.cpp')
+capture = env.Program('capture', 'capture.cpp')
 
 dactest = env.Program('dactest', 'dactest.cpp')
 
 dacdump = env.Program('dacdump', 'dacdump.cpp')
 
-Default(bwtest, dactest, dacdump, html)
+Default(capture, dactest, dacdump, html)
 
