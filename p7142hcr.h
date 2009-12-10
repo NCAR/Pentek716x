@@ -92,8 +92,9 @@ public:
 	/// Stop the filters
 	void stopFilters();
 
-	/// Starts the timers.
-	void startTimers();
+	/// Control the timers.
+	/// @param start Set true to start, set false to stop.
+	void timersStartStop(bool start);
 
 protected:
 	/// Configure the p7142hcrdn
@@ -154,6 +155,11 @@ protected:
 	/// Set the free run control bit in the transceiver
 	/// control register, as specified by _freeRun
 	void freeRunConfig();
+
+	/// Perform reset functions:
+	///
+	/// - clear the fifos
+	void reset();
 
 	/// number of gates
 	int _gates;

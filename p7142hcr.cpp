@@ -73,6 +73,9 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		exit(1);
 	}
 
+	// stop the timers
+	timersStartStop(false);
+
 	// configure DDC in FPGA
 	if (!config()) {
 		std::cout << "error initializing filters\n";
@@ -192,6 +195,7 @@ void p7142hcrdn::startFilters() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 	usleep(IOCTLSLEEPUS);
 
+	std::cout << "filters enabled on " << _dnName << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -806,8 +810,7 @@ bool p7142hcrdn::initTimers() {
 }
 
 /////////////////////////////////////////////////////////////////////////
-
-void p7142hcrdn::startTimers() {
+void p7142hcrdn::timersStartStop(bool start) {
 	//
 	//    This start the internal timers.
 
@@ -819,9 +822,28 @@ void p7142hcrdn::startTimers() {
 	_pp.value = WRITE_ON;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
+	// Control Register
+	_pp.offset = MT_ADDR;
+	_pp.value = CONTROL_REG | ALL_TIMERS;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	// Enable/Disable Timer
+	_pp.offset = MT_DATA;
+	if (start) {
+		_pp.value = TIMER_ON;
+	} else {
+		_pp.value = 0;
+	}
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
 	// Enable and Trigger All Timers
 
 	_pp.offset = MT_ADDR; // Address
+	if (start) {
+		_pp.value = ALL_TIMERS | ADDR_TRIG;
+	} else {
+		_pp.value = ALL_TIMERS;
+	}
 	_pp.value = ALL_TIMERS | ADDR_TRIG;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
@@ -832,7 +854,12 @@ void p7142hcrdn::startTimers() {
 	_pp.value = WRITE_OFF;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	std::cout << "timers started" << std::endl;
+	if (start) {
+		std::cout << "timers started" << std::endl;
+	} else {
+		std::cout << "timers stopped" << std::endl;
+		//exit (1);
+	}
 
 	// Get current system time as xmit start time
 	// setXmitStartTime(microsec_clock::universal_time());
@@ -955,7 +982,6 @@ void p7142hcrdn::fifoConfig() {
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
 }
-
 
 //////////////////////////////////////////////////////////////////////
 #ifdef TIME

@@ -177,10 +177,7 @@ p7142dn::read(char* buf, int bufsize) {
   }
 
   int n;
-  // the mutex doesn't cure the multi channel seg fault, so disable it.
-  //_readMutex.lock();
   n = ::read(_dnFd, buf, bufsize);
-  //_readMutex.unlock();
 
   if (n > 0)
 	  _bytesRead += n;
@@ -195,6 +192,20 @@ p7142dn::read(char* buf, int bufsize) {
 int
 p7142dn::fd() {
 	return _dnFd;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void p7142dn::flush() {
+	  // flush the device read buffers. This will clear the fifos,
+	  // which will probably contain data since we are not able yet
+	  // to disable the timers, and so the fifos may have been
+	  // filling. When we do implement true timer control, this
+	  // flush will probably not be needed.
+	  if (ioctl(_dnFd, FIOFLUSH, 0) == -1) {
+	    std::cerr << "unable to flush for " << _dnName << std::endl;
+	    perror("");
+	  }
+	  std::cout << "flush performed on " << _dnName << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

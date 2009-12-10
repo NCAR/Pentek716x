@@ -67,6 +67,8 @@ namespace Pentek {
 			std::string dnName();
 			/// @return The file descriptor.
 			int fd();
+			/// flush the I/O buffers and hardware fifos
+			void flush();
 
 		protected:
 			/// The channel identifier

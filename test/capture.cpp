@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
 	}
 
 	downConverter.startFilters();
-	downConverter.startTimers();
+	downConverter.timersStartStop(true);
 
 	// start the loop
 	int loopCount = 0;
