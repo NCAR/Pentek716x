@@ -15,6 +15,7 @@
 #define IOCTLSLEEPUS 100
 
 using namespace Pentek;
+using namespace boost::posix_time;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
@@ -29,6 +30,18 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 			_gaussianFile(gaussianFile), _kaiserFile(kaiserFile)
 
 {
+    if (_simulate) {
+        // p7142 class generates simulated data with no coherent integration
+        // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
+        if (_freeRun) {
+            std::cerr << "p7142hcrdn: freeRun ignored when simulating data\n" << std::endl;
+            _freeRun = false;
+        }
+        if (_nsum > 1) {
+            std::cerr << "p7142hcrdn: nsum ignored when simulating data\n" << std::endl;
+            _nsum = 1;
+        }
+    }
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142hcrdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
 	std::cout << "decimation:    " << _decimation      << std::endl;
 	std::cout << "pulse width:   " << _pulseWidth << std::endl;
@@ -863,6 +876,8 @@ void p7142hcrdn::timersStartStop(bool start) {
 
 	// Get current system time as xmit start time
 	// setXmitStartTime(microsec_clock::universal_time());
+	// @TODO put a real time here, rather than 1/1/2000 00:00:00 UTC
+	setXmitStartTime(ptime(boost::gregorian::date(2000, 1, 1), time_duration(0, 0, 0)));
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -984,9 +999,37 @@ void p7142hcrdn::fifoConfig() {
 }
 
 //////////////////////////////////////////////////////////////////////
-#ifdef TIME
 void p7142hcrdn::setXmitStartTime(ptime startTime) {
 	_xmitStartTime = startTime;
 }
-#endif
 
+//////////////////////////////////////////////////////////////////////
+ptime p7142hcrdn::timeOfPulse(unsigned long pulseNum) const {
+    // Figure out offset since transmitter start based on the pulse
+    // number and PRT(s).
+    double offsetSeconds;
+    if (_staggeredPrt) {
+        unsigned long prt1Count = pulseNum / 2 + pulseNum % 2;
+        unsigned long prt2Count = pulseNum / 2;
+        offsetSeconds =  prt1Count * (_prt * 1.0e-7) + 
+            prt2Count * (_prt2 * 1.0e-7);
+    } else {
+        offsetSeconds = pulseNum * (_prt * 1.0e-7);
+    }
+    // Translate offsetSeconds to a boost::posix_time::time_duration
+    double remainder = offsetSeconds;
+    int hours = remainder / 3600;
+    remainder -= (3600 * hours);
+    int minutes = remainder / 60;
+    remainder -= (60 * minutes);
+    int seconds = remainder;
+    remainder -= seconds;
+    int nanoseconds = 1.0e9 * remainder;
+    int fractionalSeconds = nanoseconds * 
+        (time_duration::ticks_per_second() / 1.0e9);
+    time_duration offset(hours, minutes, seconds, 
+            fractionalSeconds);
+    // Finally, add the offset to the _xmitStartTime to get the absolute
+    // pulse time
+    return(_xmitStartTime + offset);
+}

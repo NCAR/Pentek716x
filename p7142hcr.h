@@ -95,7 +95,26 @@ public:
 	/// Control the timers.
 	/// @param start Set true to start, set false to stop.
 	void timersStartStop(bool start);
-
+	
+    /// @return Time of first transmit pulse
+    boost::posix_time::ptime xmitStartTime() const {
+        return _xmitStartTime;
+    }
+    
+    /// @return The first PRT, in units of 10^-7 s (i.e., 10 MHz counts)
+    int prt() const {
+        return _prt;
+    }
+    
+    /// @return The second PRT, in units of 10^-7 s (i.e., 10 MHz counts), or
+    ///     zero if not running staggered PRT.
+    int prt2() const {
+        return(_staggeredPrt ? _prt2 : 0);
+    }
+    
+    /// @return Time of the given transmit pulse.
+    boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
+    
 protected:
 	/// Configure the p7142hcrdn
 	/// @return True if the configuration was successful
@@ -130,11 +149,6 @@ protected:
 	/// @param startTime The boost::posix_time::ptime of the first transmit
 	///    pulse.
 	void setXmitStartTime(boost::posix_time::ptime startTime);
-
-	/// Time of first transmit pulse
-	boost::posix_time::ptime xmitStartTime() {
-		return _xmitStartTime;
-	}
 
 	/// Read the ttl input lines from the fpga
 	/// @return The input line values.
@@ -187,7 +201,7 @@ protected:
 	std::string _kaiserFile;
 	/// Time of the first xmit pulse.
 	boost::posix_time::ptime _xmitStartTime;
-	/// peak-poke structure pointer
+	/// peek-poke structure pointer
 	ARG_PEEKPOKE _pp;
 
 };

@@ -84,6 +84,8 @@ namespace Pentek {
 			int _simPauseMS;
 			/// The wavelength for simulated data
 			int _simWaveLength;
+            /// The pulse number if we're simulating data
+            int _simPulseNum;
 			/// A singleton mutex to insure that read() is not called
 			/// simultaneously from different threads.
 			/// Doesn't fix the problem so comment it out
