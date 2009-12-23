@@ -89,6 +89,11 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 	// stop the timers
 	timersStartStop(false);
 
+	// flush the fifos. Note that a flush must not be issued
+	// after the timers have been configured, as this will zero
+	// the timer parameters.
+	flush();
+
 	// configure DDC in FPGA
 	if (!config()) {
 		std::cout << "error initializing filters\n";
@@ -571,6 +576,9 @@ bool p7142hcrdn::initTimers() {
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
+	std::cout << "delay is " << _delay << std::endl;
+	std::cout << "pulseWidth is " << _pulseWidth << std::endl;
+
 	// Internal Timing Setup
 
 	unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
@@ -791,6 +799,8 @@ bool p7142hcrdn::initTimers() {
 	_pp.value = PERIOD_REG | ALL_TIMERS;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
+	std::cout << "periodCount is " << periodCount << std::endl;
+
 	_pp.offset = MT_DATA; // Data
 	_pp.value = periodCount;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -804,14 +814,6 @@ bool p7142hcrdn::initTimers() {
 	_pp.value = PrtScheme;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	// Enable and Trigger All Timers
-
-	// Set Global Enable
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = PRT_REG | ALL_TIMERS | TIMER_EN;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	usleep(1000);
 
 	// Turn off Write Strobes	_delay
 	_pp.offset = MT_WR;
@@ -851,16 +853,27 @@ void p7142hcrdn::timersStartStop(bool start) {
 
 	// Enable and Trigger All Timers
 
+	// Enable and Trigger All Timers
+
+	// Set Global Enable
+	_pp.offset = MT_ADDR; // Address
+	_pp.value = GLOBAL_EN | ALL_TIMERS | PRT_REG;
+	ioctl(_ctrlFd, FIOREGSET, &_pp);
+
+	usleep(1000);
+
 	_pp.offset = MT_ADDR; // Address
 	if (start) {
 		_pp.value = ALL_TIMERS | ADDR_TRIG;
 	} else {
 		_pp.value = ALL_TIMERS;
 	}
-	_pp.value = ALL_TIMERS | ADDR_TRIG;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	usleep(1000);
+	if (start) {
+		_pp.value = ALL_TIMERS;
+		ioctl(_ctrlFd, FIOREGSET, &_pp);
+	}
 
 	// Turn off Write Strobes
 	_pp.offset = MT_WR;

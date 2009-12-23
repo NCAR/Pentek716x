@@ -225,6 +225,7 @@ void p7142dn::flush() {
 	    std::cerr << "unable to flush for " << _dnName << std::endl;
 	    perror("");
 	  }
+	  int n = 0;
 	  std::cout << "flush performed on " << _dnName << std::endl;
 }
 

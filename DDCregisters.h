@@ -108,7 +108,7 @@ Desc: Pentek 7142 HCR DDC Registers
 #define K_Ch2 (0x40<<4)
 #define K_Ch3 (0x80<<4)
 
-#define TIMER_EN  (0x1<<12)
+#define GLOBAL_EN  (0x1<<12)
 #define ADDR_TRIG (0x1<<15)
 
 #define TIMER_ON  (0x1<<0)
