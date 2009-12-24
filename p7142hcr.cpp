@@ -30,7 +30,12 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 			_gaussianFile(gaussianFile), _kaiserFile(kaiserFile)
 
 {
-    if (_simulate) {
+
+	_adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
+	_prf = (_adc_clock /2)/ _prt;
+
+
+	if (_simulate) {
         // p7142 class generates simulated data with no coherent integration
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
         if (_freeRun) {
@@ -43,17 +48,20 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
         }
     }
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142hcrdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
-	std::cout << "decimation:    " << _decimation      << std::endl;
-	std::cout << "pulse width:   " << _pulseWidth << std::endl;
-	std::cout << "prt:           " << _prt         << std::endl;
-	std::cout << "prt2:          " << _prt2        << std::endl;
-	std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false") << std::endl;
-	std::cout << "delay          " << _delay       << std::endl;
+	std::cout << "decimation:    " << _decimation      << " adc_clock counts"     << std::endl;
+	std::cout << "pulse width:   " << _pulseWidth      << " adc_clock/2 counts"   << std::endl;
+	std::cout << "prt:           " << _prt             << " adc_clock/2 counts"   << std::endl;
+	std::cout << "prt2:          " << _prt2            << " adc_clock/2 counts"   << std::endl;
+	std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
+	std::cout << "delay          " << _delay           << " adc clock/2 counts"   << std::endl;
 	std::cout << "clock source:  " << ((internalClock) ? "internal" : "external") << std::endl;
-	std::cout << "ts length:     " << _tsLength    << std::endl;
-	std::cout << "gates:         " << _gates       << std::endl;
-	std::cout << "nsum:          " << _nsum        << std::endl;
-	std::cout << "free run:      " << ((_freeRun) ? "true" : "false") << std::endl;
+	std::cout << "ts length:     " << _tsLength                                   << std::endl;
+	std::cout << "gates:         " << _gates                                      << std::endl;
+	std::cout << "nsum:          " << _nsum                                       << std::endl;
+	std::cout << "free run:      " << ((_freeRun) ? "true" : "false")             << std::endl;
+	std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
+	std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
+	std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
 
 
 	if (_simulate)
@@ -1024,7 +1032,7 @@ ptime p7142hcrdn::timeOfPulse(unsigned long pulseNum) const {
     if (_staggeredPrt) {
         unsigned long prt1Count = pulseNum / 2 + pulseNum % 2;
         unsigned long prt2Count = pulseNum / 2;
-        offsetSeconds =  prt1Count * (_prt * 1.0e-7) + 
+        offsetSeconds =  prt1Count * (_prt * 1.0e-7) +
             prt2Count * (_prt2 * 1.0e-7);
     } else {
         offsetSeconds = pulseNum * (_prt * 1.0e-7);
@@ -1038,11 +1046,34 @@ ptime p7142hcrdn::timeOfPulse(unsigned long pulseNum) const {
     int seconds = remainder;
     remainder -= seconds;
     int nanoseconds = 1.0e9 * remainder;
-    int fractionalSeconds = nanoseconds * 
+    int fractionalSeconds = nanoseconds *
         (time_duration::ticks_per_second() / 1.0e9);
-    time_duration offset(hours, minutes, seconds, 
+    time_duration offset(hours, minutes, seconds,
             fractionalSeconds);
     // Finally, add the offset to the _xmitStartTime to get the absolute
     // pulse time
     return(_xmitStartTime + offset);
+}
+
+//////////////////////////////////////////////////////////////////////
+int p7142hcrdn::dataRate() {
+	int rate;
+	if (_nsum < 2) {
+		// no coherent integration
+		// there is a four byte pulse tag at the beginning of each pulse; thus
+		// it looks like an extra gate in terms of data rate. There is a two byte
+		// I and a two byte Q (total 4 bytes) for each range gate.
+		rate = _prf * (_gates+1) * 4;
+	} else {
+		// coherent integration
+		// there is a 16 byte tag at the beginning of each pulse. Each pulse
+		// returns a set of even I's and Q's, and a set of odd I's and Q's. The
+		// even and odd pulses are separated by the prt, and so taken together they
+		// run at half the prf. Each I and Q for a gate is 32 bits (wider than the
+		// non-CI mode becasue they are sums of 16 bit numbers), so there are 8 bytes
+		// per gate for even and 8 bytes per gate for odd pulses.
+		rate = (_prf/2)*(16+_gates*8*2)/_nsum;
+	}
+	return (int) rate;
+
 }

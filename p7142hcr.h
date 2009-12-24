@@ -95,26 +95,29 @@ public:
 	/// Control the timers.
 	/// @param start Set true to start, set false to stop.
 	void timersStartStop(bool start);
-	
+
+	/// @return The data bandwidth in bytes per second
+	int dataRate();
+
     /// @return Time of first transmit pulse
     boost::posix_time::ptime xmitStartTime() const {
         return _xmitStartTime;
     }
-    
-    /// @return The first PRT, in units of 10^-7 s (i.e., 10 MHz counts)
+
+    /// @return The main PRT in ADC clock/2 counts
     int prt() const {
         return _prt;
     }
-    
-    /// @return The second PRT, in units of 10^-7 s (i.e., 10 MHz counts), or
+
+    /// @return The second PRT in ADC clock/2 counts, or
     ///     zero if not running staggered PRT.
     int prt2() const {
         return(_staggeredPrt ? _prt2 : 0);
     }
-    
+
     /// @return Time of the given transmit pulse.
     boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
-    
+
 protected:
 	/// Configure the p7142hcrdn
 	/// @return True if the configuration was successful
@@ -203,6 +206,10 @@ protected:
 	boost::posix_time::ptime _xmitStartTime;
 	/// peek-poke structure pointer
 	ARG_PEEKPOKE _pp;
+	/// The adc clock rate in Hz
+	double _adc_clock;
+	/// The prf in Hz
+	double _prf;
 
 };
 
