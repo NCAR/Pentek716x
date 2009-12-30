@@ -24,10 +24,11 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 		DDCDECIMATETYPE ddcType, int decimation, bool simulate,
 		int simPauseMS, bool internalClock) :
 	p7142dn(devName, chanId, decimation, simulate, simPauseMS, gates*tsLength/3, internalClock),
-			_gates(gates), _nsum(nsum), _tsLength(tsLength), _delay(delay),
+			_gates(gates), _nsum(nsum), _tsLength(tsLength),
 			_prt(prt), _prt2(prt2), _pulseWidth(pulseWidth),
-			_staggeredPrt(staggeredPrt), _ddcType(ddcType), _freeRun(freeRun),
-			_gaussianFile(gaussianFile), _kaiserFile(kaiserFile)
+			_delay(delay), _staggeredPrt(staggeredPrt), _freeRun(freeRun), 
+			_ddcType(ddcType), _gaussianFile(gaussianFile), 
+			_kaiserFile(kaiserFile), _simPulseNum(0)
 
 {
 
@@ -36,14 +37,18 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 
 
 	if (_simulate) {
-        // p7142 class generates simulated data with no coherent integration
+        // we generate simulated data with no coherent integration
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
         if (_freeRun) {
-            std::cerr << "p7142hcrdn: freeRun ignored when simulating data\n" << std::endl;
+            std::cerr << 
+                "p7142hcrdn: freeRun forced to false when simulating data\n" << 
+                std::endl;
             _freeRun = false;
         }
         if (_nsum > 1) {
-            std::cerr << "p7142hcrdn: nsum ignored when simulating data\n" << std::endl;
+            std::cerr << 
+                "p7142hcrdn: nsum is forced to one when simulating data\n" << 
+                std::endl;
             _nsum = 1;
         }
     }
@@ -1076,4 +1081,55 @@ int p7142hcrdn::dataRate() {
 	}
 	return (int) rate;
 
+}
+
+//////////////////////////////////////////////////////////////////////
+int
+p7142hcrdn::read(char* buf, int bufsize) {
+    // Unless we're simulating, we just use the superclass read
+    if (!_simulate)
+        return p7142dn::read(buf, bufsize);
+
+    // The rest is for generating simulated data.  We use p7142dn::read()
+    // to get the simulated Is and Qs, but we add tags for each time series
+    // sample, as we would see from HCR.
+    
+    // Code below assumes 32-bit ints and 16-bit shorts!
+    assert(sizeof(int) == 4);
+    assert(sizeof(short) == 2);
+    
+    // We expect a specific bufsize to hold _tsLength samples
+    // of _gates gates, 2-byte I and Q, and a 4-byte tag for
+    // each sample
+    assert(bufsize = (_tsLength * (4 * _gates + 4)));
+    
+    // Static buffer for simulated IQ data from p7142dn::read()
+    static char *iqData = 0;
+    int iqDataLen = _tsLength * 4 * _gates;
+    if (! iqData)
+        iqData = new char[iqDataLen];
+    // Get the simulated Is and Qs from ::read()
+    p7142dn::read(iqData, iqDataLen);
+    
+    // Build our tagged samples
+    char* bufp = buf;
+    for (int ts = 0; ts < _tsLength; ts++) {
+        // Create the tag for this sample.  Currently, this uses the
+        // profiler no-coherent-integration 32-bit tag (defined as of
+        // 2009-12-17):
+        //       bits 31:30  Channel number         0-3 (2 bits)
+        //       bits 29:00  Pulse sequence number  0-1073741823 (30 bits)
+        // This is packed as a little-endian order 4-byte word!
+        unsigned int channel = _chanId;
+        unsigned int tag = (channel << 30) | (_simPulseNum++ & 0x3fffffff);
+        memcpy(bufp, &tag, 4);  // copy the 4-byte tag to the head of bufp
+        bufp += 4;  // move past the 4-byte tag we just added
+        _bytesRead += 4;
+        // copy _gates Is and Qs for this sample
+        memcpy(bufp, iqData + ts * 4 * _gates, 4 * _gates);
+        bufp += 4 * _gates;
+    }
+    assert(bufp == (buf + bufsize));
+
+    return bufsize;
 }

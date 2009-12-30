@@ -30,8 +30,7 @@ p7142dn::p7142dn(std::string devName, int chanId, int decimation,
   _decimation(decimation),
   _dnFd(-1),
   _simPauseMS(simPauseMS),
-  _simWaveLength(simWaveLength),
-  _simPulseNum(0)
+  _simWaveLength(simWaveLength)
 {
   // create the read mutex
   //_readMutex.create();
@@ -44,6 +43,7 @@ p7142dn::p7142dn(std::string devName, int chanId, int decimation,
 
   if (_simulate) {
   	_dnName = "dnSimulate";
+  	_ok = true;
     return;
   }
 
@@ -169,26 +169,13 @@ p7142dn::read(char* buf, int bufsize) {
   if (_simulate) {
     short* sbuf = (short*)buf;
 
-    // Code below assumes 32-bit ints and 16-bit shorts!
-    assert(sizeof(int) == 4);
-    assert(sizeof(short) == 2);
-
-    // Create the tag for the sample.  Currently, this uses the
-    // profiler no-coherent-integration 32-bit tag (defined as of
-    // 2009-12-17):
-    //       bits 31:30  Channel number         0-3 (2 bits)
-    //       bits 29:00  Pulse sequence number  0-1073741823 (30 bits)
-    // This is packed as a little-endian order 4-byte word!
-    unsigned int channel = 0;
-    unsigned int tag = (channel << 30) | (_simPulseNum++ & 0x3fffffff);
-    memcpy(sbuf, &tag, 4);  // copy the 4-byte tag to the head of sbuf
-    sbuf += 2;  // move past the 4-byte tag
-    // bufsize should be nGates * 4 + 4 (4 bytes per gate + 4 byte tag)
-    int nGates = (bufsize - 4) / 4;
-    for (int g = 0; g < nGates; g++) {
-	  double fact = 1.0 + 0.1*(1.0*rand())/RAND_MAX;
-      *sbuf++ = (short)(10000.0 * sin(4.0*M_PI*g/_simWaveLength)*fact); // I
-      *sbuf++ = (short)(10000.0 * cos(4.0*M_PI*g/_simWaveLength)*fact); // Q
+    // 4 bytes per IQ pair
+    int nPairs = (bufsize - 4) / 4;
+    for (int p = 0; p < nPairs; p++) {
+	  double noise = 0.1 * ((2.0 * rand()) / RAND_MAX - 1.0);    // noise is +/-10% amplitude
+	  // Noisy sine wave, with wavelength of _simWaveLength gates
+      *sbuf++ = (short)(10000 * (sin((2 * p * M_PI) / _simWaveLength) + noise)); // I
+      *sbuf++ = (short)(10000 * (cos((2 * p * M_PI) / _simWaveLength) + noise)); // Q
     }
     _bytesRead += bufsize;
 
@@ -225,7 +212,7 @@ void p7142dn::flush() {
 	    std::cerr << "unable to flush for " << _dnName << std::endl;
 	    perror("");
 	  }
-	  int n = 0;
+
 	  std::cout << "flush performed on " << _dnName << std::endl;
 }
 

@@ -79,6 +79,14 @@ public:
 	/// Destructor
 	virtual ~p7142hcrdn();
 
+    /// Read bytes. If in simulated mode, a sine wave with wavelength
+    /// of _simWaveLength gates will be synthesized. It will have some 
+    /// random noise applied as well.
+    /// @param buf read bytes into this buffer
+    /// @param bufsize The number of bytes tor read.
+    /// @return The actual number of bytes read
+    virtual int read(char* buf, int bufsize);
+    
 	/// @return The FPGA firmware software repository revision number.
 	int fpgaRepoRevision();
 
@@ -95,28 +103,28 @@ public:
 	/// Control the timers.
 	/// @param start Set true to start, set false to stop.
 	void timersStartStop(bool start);
-
-	/// @return The data bandwidth in bytes per second
-	int dataRate();
-
+	
     /// @return Time of first transmit pulse
     boost::posix_time::ptime xmitStartTime() const {
         return _xmitStartTime;
     }
-
-    /// @return The main PRT in ADC clock/2 counts
+    
+    /// @return The first PRT, in units of 10^-7 s (i.e., 10 MHz counts)
     int prt() const {
         return _prt;
     }
-
-    /// @return The second PRT in ADC clock/2 counts, or
+    
+    /// @return The second PRT, in units of 10^-7 s (i.e., 10 MHz counts), or
     ///     zero if not running staggered PRT.
     int prt2() const {
         return(_staggeredPrt ? _prt2 : 0);
     }
-
+    
     /// @return Time of the given transmit pulse.
     boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
+    
+	/// @return The data bandwidth in bytes per second
+	int dataRate();
 
 protected:
 	/// Configure the p7142hcrdn
@@ -202,6 +210,8 @@ protected:
 	std::string _gaussianFile;
 	/// The path to the file containing the kaiser filter coefficients.
 	std::string _kaiserFile;
+    /// The pulse number if we're simulating data
+    int _simPulseNum;
 	/// Time of the first xmit pulse.
 	boost::posix_time::ptime _xmitStartTime;
 	/// peek-poke structure pointer

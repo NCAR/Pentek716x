@@ -53,8 +53,9 @@ namespace Pentek {
 			        int simWaveLength=20000, bool internalClock=false);
 			/// Destructor
 			virtual ~p7142dn();
-			/// Read bytes. If in simulated mode, a sin wave with wavelength
-			/// of _simWaveLength will be synthesized. It will have some random noise
+			/// Read bytes. If in simulated mode, a sine wave with wavelength
+			/// of _simWaveLength gates will be synthesized. It will have some 
+			/// random noise applied as well.
 			/// @param buf read bytes into this buffer
 			/// @param bufsize The number of bytes tor read.
 			/// @return The actual number of bytes read
@@ -84,8 +85,6 @@ namespace Pentek {
 			int _simPauseMS;
 			/// The wavelength for simulated data
 			int _simWaveLength;
-            /// The pulse number if we're simulating data
-            int _simPulseNum;
 			/// A singleton mutex to insure that read() is not called
 			/// simultaneously from different threads.
 			/// Doesn't fix the problem so comment it out
