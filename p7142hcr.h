@@ -218,8 +218,9 @@ protected:
 	ARG_PEEKPOKE _pp;
 	/// The adc clock rate in Hz
 	double _adc_clock;
-	/// The prf in Hz
+	/// The prf(s) in Hz
 	double _prf;
+    double _prf2;
 
 };
 

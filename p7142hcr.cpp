@@ -33,7 +33,8 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 {
 
 	_adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
-	_prf = (_adc_clock /2)/ _prt;
+	_prf = (_adc_clock / 2)/ _prt;
+    _prf2 = (_adc_clock / 2) / _prt2; 
 
 
 	if (_simulate) {
@@ -585,7 +586,6 @@ bool p7142hcrdn::initTimers() {
 	//
 	//    This section initializes the timers.
 
-	double prtClock; // Timer Input Clock Freq
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
@@ -601,19 +601,10 @@ bool p7142hcrdn::initTimers() {
 	// Note: _prt and _prt2 are expressed in ADC_Clk/2 MHz Counts!
 	//       for DDC4: 24 MHz; for DDC8: 62.5 MHz
 
+    double prtClock = _adc_clock / 2; // Timer Input Clock Freq
 	int X, Y;
 	float prt_ms, prt2_ms;
 
-	switch (_ddcType) {
-			case DDC8DECIMATE: {
-				prtClock = 62.5e6;
-				break;
-			}
-			case DDC4DECIMATE: {
-				prtClock = 24.0e6;
-				break;
-			}
-	}
 	if (_staggeredPrt == true) //dual prt
 	{
 //		prt_ms = (float) _prt / 1e3;
@@ -1037,10 +1028,9 @@ ptime p7142hcrdn::timeOfPulse(unsigned long pulseNum) const {
     if (_staggeredPrt) {
         unsigned long prt1Count = pulseNum / 2 + pulseNum % 2;
         unsigned long prt2Count = pulseNum / 2;
-        offsetSeconds =  prt1Count * (_prt * 1.0e-7) +
-            prt2Count * (_prt2 * 1.0e-7);
+        offsetSeconds =  prt1Count /_prf + prt2Count / _prf2;
     } else {
-        offsetSeconds = pulseNum * (_prt * 1.0e-7);
+        offsetSeconds = pulseNum / _prf;
     }
     // Translate offsetSeconds to a boost::posix_time::time_duration
     double remainder = offsetSeconds;
