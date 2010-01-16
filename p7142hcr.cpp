@@ -26,29 +26,29 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 	p7142dn(devName, chanId, decimation, simulate, simPauseMS, gates*tsLength/3, internalClock),
 			_gates(gates), _nsum(nsum), _tsLength(tsLength),
 			_prt(prt), _prt2(prt2), _pulseWidth(pulseWidth),
-			_delay(delay), _staggeredPrt(staggeredPrt), _freeRun(freeRun), 
-			_ddcType(ddcType), _gaussianFile(gaussianFile), 
+			_delay(delay), _staggeredPrt(staggeredPrt), _freeRun(freeRun),
+			_ddcType(ddcType), _gaussianFile(gaussianFile),
 			_kaiserFile(kaiserFile), _simPulseNum(0)
 
 {
 
 	_adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
 	_prf = (_adc_clock / 2)/ _prt;
-    _prf2 = (_adc_clock / 2) / _prt2; 
+    _prf2 = (_adc_clock / 2) / _prt2;
 
 
 	if (_simulate) {
         // we generate simulated data with no coherent integration
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
         if (_freeRun) {
-            std::cerr << 
-                "p7142hcrdn: freeRun forced to false when simulating data\n" << 
+            std::cerr <<
+                "p7142hcrdn: freeRun forced to false when simulating data\n" <<
                 std::endl;
             _freeRun = false;
         }
         if (_nsum > 1) {
-            std::cerr << 
-                "p7142hcrdn: nsum is forced to one when simulating data\n" << 
+            std::cerr <<
+                "p7142hcrdn: nsum is forced to one when simulating data\n" <<
                 std::endl;
             _nsum = 1;
         }
@@ -271,12 +271,11 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	int attempt;
 
-	return 1;
-
 	// program kaiser coefficients
 
 	int ddcSelect = _chanId << 14;
 	attempt = 0;
+
 	do {
 		kaiserLoaded = true;
 		for (unsigned int i = 0; i < kaiser.size(); i++) {
@@ -571,6 +570,7 @@ int p7142hcrdn::filterSetup() {
 			<< " MHz bandwidth\n";
 
 	// load the filter coefficients
+
 	if (!loadFilters(gaussian, kaiser)) {
 		std::cerr << "Unable to load filters\n";
 		return -1;
@@ -1083,16 +1083,16 @@ p7142hcrdn::read(char* buf, int bufsize) {
     // The rest is for generating simulated data.  We use p7142dn::read()
     // to get the simulated Is and Qs, but we add tags for each time series
     // sample, as we would see from HCR.
-    
+
     // Code below assumes 32-bit ints and 16-bit shorts!
     assert(sizeof(int) == 4);
     assert(sizeof(short) == 2);
-    
+
     // We expect a specific bufsize to hold _tsLength samples
     // of _gates gates, 2-byte I and Q, and a 4-byte tag for
     // each sample
     assert(bufsize = (_tsLength * (4 * _gates + 4)));
-    
+
     // Static buffer for simulated IQ data from p7142dn::read()
     static char *iqData = 0;
     int iqDataLen = _tsLength * 4 * _gates;
@@ -1100,7 +1100,7 @@ p7142hcrdn::read(char* buf, int bufsize) {
         iqData = new char[iqDataLen];
     // Get the simulated Is and Qs from ::read()
     p7142dn::read(iqData, iqDataLen);
-    
+
     // Build our tagged samples
     char* bufp = buf;
     for (int ts = 0; ts < _tsLength; ts++) {

@@ -10,7 +10,7 @@ FilterSpec::FilterSpec():
   _ok(true),
   _fileName("") {
 }
-  
+
 ///////////////////////////////////////////////////////////////////////////////
   FilterSpec::FilterSpec(std::string fileName):
     _ok(false),
@@ -58,7 +58,7 @@ FilterSpec::FilterSpec():
       this->push_back(value);
     }
       }
-    }      
+    }
   } while (!file.eof());
 
   if (this->size() > 0)
@@ -68,10 +68,10 @@ FilterSpec::FilterSpec():
 
 ///////////////////////////////////////////////////////////////////////////////
 FilterSpec::FilterSpec(std::vector<unsigned int> coefficients) {
-	
+
     for (unsigned int i = 0; i < coefficients.size(); i++)
 	    this->push_back(coefficients[i]);
-	
+//    dump();  // for diagnostics
 	_ok = true;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -85,7 +85,7 @@ FilterSpec::ok() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-std::string 
+std::string
 FilterSpec::name() {
   return _filterName;
 }
