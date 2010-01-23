@@ -27,16 +27,19 @@ void handler( int signal ) {
 int main(int argc, char** argv) {
 
 	if (argc < 6) {
-		std::cout << "usage: " << argv[0]
-				<< " <device root> <up converter name (e.g. 0C)> <sample rate Hz> <nco frequency Hz> <cm_mode>\n";
+		std::cout << "usage: " << argv[0] << "\n" << "\
+    <device root (e.g. /dev/pentek/0/)>\n\
+    <up converter name (e.g. 0C)>\n\
+    <sample rate Hz> <nco frequency Hz>\n\
+    <cm_mode 0-15 (The DAC CONFIG2 coarse mixer mode, see DAC5687 data sheet.)>\n";
 		exit(1);
 	}
 
 	std::string devRoot = argv[1];
-	std::string upName = argv[2];
-	double sampleRate = atof(argv[3]);
-	double ncoFreq = atof(argv[4]);
-	char mode = atoi(argv[5]);
+	std::string upName  = argv[2];
+	double sampleRate   = atof(argv[3]);
+	double ncoFreq      = atof(argv[4]);
+	char mode           = atoi(argv[5]);
 
 	// create the upconvertor
 	Pentek::p7142up upConverter(devRoot, upName, sampleRate, ncoFreq, mode);

@@ -96,11 +96,11 @@ namespace Pentek {
 		public:
 			/// Constructor
 			/// @param devName The top level device name (e.g.
-			/// /dev/pentek/p7140/0.
+			/// /dev/pentek/p7142/0.
 			/// @param upName The name of the downconvertor device, e.g. 0C
 			/// @param sampleClockHz The DAC sample clock in Hz
 			/// @param ncoFreqHz The NCO frequency in Hz
-		    /// @param mode The mode @todo details here
+		    /// @param mode The DAC CONFIG2 coarse mixer mode (See DAC5687 Data Sheet)
 			/// @param simulate Set true if we operate in simulation mode.
 			p7142up(std::string devName, std::string upName,
 				double sampleClockHz, double ncoFreqHz, char mode, bool simulate=false);
