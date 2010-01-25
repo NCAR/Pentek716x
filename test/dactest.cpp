@@ -30,7 +30,8 @@ int main(int argc, char** argv) {
 		std::cout << "usage: " << argv[0] << "\n" << "\
     <device root (e.g. /dev/pentek/0/)>\n\
     <up converter name (e.g. 0C)>\n\
-    <sample rate Hz> <nco frequency Hz>\n\
+    <sample rate Hz>\n\
+    <nco frequency Hz>\n\
     <cm_mode 0-15 (The DAC CONFIG2 coarse mixer mode, see DAC5687 data sheet.)>\n";
 		exit(1);
 	}
