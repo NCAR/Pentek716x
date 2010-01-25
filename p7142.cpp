@@ -343,6 +343,10 @@ p7142up::p7142up(std::string devName, std::string upName,
 
   std::cout << "DAC registers after configuration " << _upName << std::endl;
   dumpDACregs(_upFd);
+  
+  std::cout << "sample clock:     " << sampleClockHz << std::endl;
+  std::cout << "nco frequency:    " << ncoFreqHz << std::endl;
+  std::cout << "coarse mixer mode:" << (int)mode << std::endl;
 
   // close the upconverter, otherwise we won't be able to access the mem2 device
   close(_upFd);
@@ -513,3 +517,10 @@ p7142up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1,
 	nco_freq_3 = (freq >> 24) & 0xff;
 
 }
+////////////////////////////////////////////////////////////////////////////////////////
+std::string
+p7142up::upName() {
+	return _upName;
+}
+
+

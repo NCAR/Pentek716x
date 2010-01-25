@@ -114,6 +114,8 @@ namespace Pentek {
 			virtual void startDAC();
 			/// Stop the DAC output
 			virtual void stopDAC();
+			/// @return The device path
+			std::string upName();
 
 		protected:
 			/// Calculate the NCO frequency control bytes. It is dependent upon the
