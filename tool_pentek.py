@@ -1,13 +1,21 @@
 import os
 import sys
 
+import eol_scons
+
+# Any environment setting will be the default, but it can be overridden by
+# setting the configuration variable.
+PENTEK_ROOT = "/opt/Pentek/P7140driver-2.3/Linux"
 try:
     PENTEK_ROOT = os.environ['PENTEK_ROOT']
 except KeyError:
-    print "tool_pentek: environment variable PENTEK_ROOT must be set!"
-    sys.exit(1)
-    
-PENTEK_INCLUDE = os.path.join(PENTEK_ROOT, 'include')
+    pass
+
+variables = eol_scons.GlobalVariables()
+variables.AddVariables(PathVariable('PENTEK_ROOT', 'PENTEK_ROOT directory.', 
+                                    PENTEK_ROOT))
+
+PENTEK_INCLUDE = os.path.join('$PENTEK_ROOT', 'include')
 
 tools = Split("""
 doxygen
@@ -15,6 +23,7 @@ doxygen
 
 env = Environment(tools = ['default'] + tools)
 
+variables.Update(env)
 env.AppendUnique(CPPPATH   =[PENTEK_INCLUDE,])
 env.AppendUnique(CPPDEFINES=['PENTEK_LINUX',])
 
