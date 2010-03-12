@@ -274,8 +274,14 @@ p7142up::p7142up(std::string devName, std::string upName,
   // Enable PLL on DAC
   ioctl(_upFd, FIOPLLVDDSET, 1);
 
-  // Version: set FIR1 to low pass on DAC ChA and ChB, if operating at 48 or 125 MHz
-  char version = 0x0;
+  // Version: set FIR1 to low pass on DAC ChA and ChB, also disable DAC B, if operating at 48 or 125 MHz
+  char version =
+	  1 << 7 |				// DAC A sleep
+	  0 << 6 |				// DAC B operational
+	  0 << 5 |				// hplb, DAC B fir1
+	  0 << 4 ;				// hpla, DAC A fir1
+
+	  ;
   setDACreg(_upFd, 0x0, version);
 
   // Config 0:
@@ -293,6 +299,7 @@ p7142up::p7142up(std::string devName, std::string upName,
 	  _interpMode << 2  |    // interp
 	  0 << 1 |               // inv_pllock
 	  1 << 0;                // fifo_bypass
+
 
   else						 // Settings for 48 MHz Clock
 	  config0 =
@@ -319,7 +326,8 @@ p7142up::p7142up(std::string devName, std::string upName,
   setDACreg(_upFd, 0x04, config3);
 
   // Sync Control: Sync NCO, sync coarse mixer, disable FIFO sync
-  char sync_cntl = 0x40 | 0x20 | 0x6 << 2;
+ char sync_cntl = 0x40 | 0x20 | 0x6 << 2;
+
   setDACreg(_upFd, 0x05, sync_cntl);
 
   char nco_0;
@@ -343,7 +351,7 @@ p7142up::p7142up(std::string devName, std::string upName,
 
   std::cout << "DAC registers after configuration " << _upName << std::endl;
   dumpDACregs(_upFd);
-  
+
   std::cout << "sample clock:     " << sampleClockHz << std::endl;
   std::cout << "nco frequency:    " << ncoFreqHz << std::endl;
   std::cout << "coarse mixer mode:" << (int)mode << std::endl;
