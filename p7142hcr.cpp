@@ -870,6 +870,7 @@ void p7142hcrdn::timersStartStop(bool start) {
 	if (start) {
 		_pp.value = ALL_TIMERS | ADDR_TRIG;
 	} else {
+		std::cout << "timer stopped\n";
 		_pp.value = ALL_TIMERS;
 	}
 	ioctl(_ctrlFd, FIOREGSET, &_pp);

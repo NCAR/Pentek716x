@@ -154,6 +154,9 @@ namespace Pentek {
 			std::string _mem2Name;
 			/// The up convertor file descriptor
 			int _upFd;
+			/// The depth of mem2 in 4 byte words. mem2 will contain the 
+			/// DAC signal
+			long _mem2depth;
 	};
 }
 

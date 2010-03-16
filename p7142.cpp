@@ -208,12 +208,12 @@ void p7142dn::flush() {
 	  // to disable the timers, and so the fifos may have been
 	  // filling. When we do implement true timer control, this
 	  // flush will probably not be needed.
-	  if (ioctl(_dnFd, FIOFLUSH, 0) == -1) {
-	    std::cerr << "unable to flush for " << _dnName << std::endl;
-	    perror("");
-	  }
+  if (ioctl(_dnFd, FIOFLUSH, 0) == -1) {
+    std::cerr << "unable to flush for " << _dnName << std::endl;
+    perror("");
+  }
 
-	  std::cout << "flush performed on " << _dnName << std::endl;
+  std::cout << "flush performed on " << _dnName << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -227,7 +227,8 @@ p7142up::p7142up(std::string devName, std::string upName,
   _interpMode(2),
   _upName(upName),
   _mem2Name(""),
-  _upFd(-1)
+  _upFd(-1),
+  _mem2depth(0)
 {
 
   // verify that the card was found
@@ -238,6 +239,14 @@ p7142up::p7142up(std::string devName, std::string upName,
 
   if (_simulate)
     return;
+    
+	// open Pentek 7142 ctrl device
+	_ctrlFd = open(_devCtrl.c_str(), O_RDWR);
+	if (_ctrlFd < 0) {
+		std::cout << "unable to open Ctrl device\n";
+		return;
+	}
+
 
   // create the up device names
   _upName = _devName + "/up/" + _upName;
@@ -251,8 +260,8 @@ p7142up::p7142up(std::string devName, std::string upName,
     return;
   }
 
-  std::cout << "DAC registers after opening " << _upName << std::endl;
-  dumpDACregs(_upFd);
+  //std::cout << "DAC registers after opening " << _upName << std::endl;
+  //dumpDACregs(_upFd);
 
   long clockSource;
   clockSource = CLK_SRC_FRTPAN;
@@ -349,8 +358,8 @@ p7142up::p7142up(std::string devName, std::string upName,
   //  nco_freq = 0x20;
   setDACreg(_upFd, 0x0C, nco_3); // bits 24-31
 
-  std::cout << "DAC registers after configuration " << _upName << std::endl;
-  dumpDACregs(_upFd);
+  //std::cout << "DAC registers after configuration " << _upName << std::endl;
+  //dumpDACregs(_upFd);
 
   std::cout << "sample clock:     " << sampleClockHz << std::endl;
   std::cout << "nco frequency:    " << ncoFreqHz << std::endl;
@@ -369,8 +378,11 @@ p7142up::~p7142up() {
 	  std::cout << __FUNCTION__ << " closing upconverter" << std::endl;
       close (_upFd);
   }
+  
+  if (_ctrlFd >= 0) {
+  	close(_ctrlFd);
+  }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
@@ -428,7 +440,9 @@ p7142up::setDACreg(int fd, int reg, char val) {
 void
 p7142up::write(long* data, int n) {
 
-  long mem2depth = n;// memory depth in 4 byte words
+  // memory depth in 4 byte words
+  _mem2depth = n;
+  
   int memFd = open(_mem2Name.c_str(), O_WRONLY);
   if (memFd < 0) {
     std::cerr << "cannot access " << _mem2Name << "\n";
@@ -437,7 +451,7 @@ p7142up::write(long* data, int n) {
   }
 
   // set the memory bank depth
-  ioctl(memFd, FIODEPTHSET, mem2depth);
+  ioctl(memFd, FIODEPTHSET, _mem2depth);
 
   // It appears that you need to do the
   // following lseek to insure writing to
@@ -445,8 +459,8 @@ p7142up::write(long* data, int n) {
   lseek(memFd, 0, SEEK_SET);
 
   // write the baseband to memory bank 2
-  if (::write(memFd, (char*)(data), mem2depth*4)
-    != mem2depth*4) {
+  if (::write(memFd, (char*)(data), _mem2depth*4)
+    != _mem2depth*4) {
     std::cerr << "unable to fill pentek memory bank 2" << std::endl;
     perror("");
     exit(1);
@@ -460,13 +474,55 @@ p7142up::write(long* data, int n) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::startDAC() {
+	
+  // close the upconverter so that the memory counter stops running
+  if (_upFd != -1) {
+  	close(_upFd);
+  	_upFd = -1;
+  }
+  
+  _upFd = open(_upName.c_str(), O_RDONLY);
+  if (_upFd < 0) {
+    std::cerr << "unable to open " << _upName << " in startDAC()" << std::endl;
+  }
 
-  // keep the device open in order for the data flow to run
-  if (_upFd == -1)
-	_upFd = open(_upName.c_str(), O_RDWR);
-
+  // select the memory as dac data source
   long route = 1;
   ioctl(_upFd, FIOMEMROUTESET, route);
+
+  std::cout << "memrouteset performed on " << _upName << std::endl;
+  
+  // Clear bit 6 in the DDR Memory Control Register. It is mapped to 
+  // mem_dac_run in the MEMORY_APP (dram_dtl.vhd). When 
+  // mem_dac_run is set low, the memory counter is reset
+  // to MEM2_START_REG.
+  ARG_PEEKPOKE pp;
+  pp.offset = DDR_MEM_CONTROL;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  // set the DACM fifo reset line (bit 1)
+  pp.value = pp.value | 0x0000002;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+	
+  // Set the dacm fifo reset (bit 1)
+  pp.offset = DAC_FIFO_CONTROL;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  pp.value = pp.value & 0x000FFFD;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+
+  // Run the dacm fifo
+  pp.offset = DAC_FIFO_CONTROL;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  // Clear the dacm fifo reset (bit 2) so that the fifo can run
+  pp.value = pp.value & 0x000FFFD;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+
+  // Set bit 6 in the DDR Memory Control Registered. This will allow the 
+  // values in memory bank 2 to be loaded into the DACM fifo, where they will
+  // be gated out to the DAC by the tx gate.
+  pp.offset = DDR_MEM_CONTROL;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  pp.value = pp.value | 0x0000040;
+  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
 
 }
 

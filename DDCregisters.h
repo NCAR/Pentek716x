@@ -3,12 +3,6 @@
 Desc: Pentek 7142 HCR DDC Registers
 
 **********************************************************************************************/
-/// ADC FIFO Control Registers
-#define ADC_FIFO_CTRL_1 0x8C08  ///< ADC #1
-#define ADC_FIFO_CTRL_2 0x8C40  ///< ADC #2
-#define ADC_FIFO_CTRL_3 0x8C78  ///< ADC #3
-#define ADC_FIFO_CTRL_4 0x8CB0  ///< ADC #4
-
 /// PulseWidths for Decimation
 #define _0_2us 2
 #define _0_4us 4
@@ -19,8 +13,20 @@ Desc: Pentek 7142 HCR DDC Registers
 #define _1_4us 14
 #define _1_6us 16
 
+/// ADC FIFO Control Registers
+#define ADC_FIFO_CTRL_1 0x8C08  ///< ADC #1
+#define ADC_FIFO_CTRL_2 0x8C40  ///< ADC #2
+#define ADC_FIFO_CTRL_3 0x8C78  ///< ADC #3
+#define ADC_FIFO_CTRL_4 0x8CB0  ///< ADC #4
+
+/// The DAC FIFO Control Register
+#define DAC_FIFO_CONTROL 0x8410
+
+/// The DDR Memory Control Register
+#define DDR_MEM_CONTROL 0x8800
+
 /// Pentek DCM control register
-#define DCM_CONTROL    0x8020   ///< Pntek Gateflow defined register, used to reset the digital clock managers.
+#define DCM_CONTROL    0x8020   ///< Pentek Gateflow defined register, used to reset the digital clock managers.
 
 /// GateFlow option 223 ttl_in register
 #define TTL_IN          0x8200  ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL input via this register.
@@ -28,7 +34,7 @@ Desc: Pentek 7142 HCR DDC Registers
 /// GateFlow option 223 ttl_out1 register, 16 bits
 #define TTL_OUT1        0x8208  ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL output via this register.
 
-// Transceiver control register
+// FRAP Transceiver control register
 #define TRANS_CNTRL     0x8E78  ///< Transceiver firmware control register
 
 // MultiTimer registers
