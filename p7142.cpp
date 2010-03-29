@@ -387,6 +387,11 @@ p7142up::~p7142up() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::dumpDACregs(int fd) {
+    if (_simulate) {
+        std::cout << "No DAC registers: running in simulation mode." << std::endl;
+        return;
+    }
+    
 	for (int i = 0; i < 32; i++) {
 		// get value
 		char val = getDACreg(fd, i);
@@ -406,6 +411,8 @@ p7142up::dumpDACregs(int fd) {
 ////////////////////////////////////////////////////////////////////////////////////////
 char
 p7142up::getDACreg(int fd, int reg) {
+  if (_simulate)
+    return 0;
 
   ARG_PEEKPOKE pp;
   pp.offset = reg;
@@ -423,6 +430,8 @@ p7142up::getDACreg(int fd, int reg) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::setDACreg(int fd, int reg, char val) {
+  if (_simulate)
+      return;
 
   ARG_PEEKPOKE pp;
   pp.offset = reg;
@@ -439,6 +448,8 @@ p7142up::setDACreg(int fd, int reg, char val) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::write(long* data, int n) {
+  if (_simulate)
+      return;
 
   // memory depth in 4 byte words
   _mem2depth = n;
@@ -474,6 +485,8 @@ p7142up::write(long* data, int n) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::startDAC() {
+  if (_simulate)
+      return;
 	
   // close the upconverter so that the memory counter stops running
   if (_upFd != -1) {
@@ -548,7 +561,9 @@ p7142up::stopDAC() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1, char& nco_freq_2, char& nco_freq_3) {
-
+    if (_simulate)
+        return;
+    
 	double fNCO_CLK;
 
 	switch (_interpMode) {
