@@ -46,6 +46,18 @@ public:
 		DDC8DECIMATE, DDC4DECIMATE
 	};
 
+	/// Collects timer initialization values
+	struct TimerSetup {
+		/// The timer id (e.g. TIMER0)
+		int id;
+		/// The delay, timer clock counts 
+		int delay;
+		/// The width, in timer clock counts
+		int width;
+		TimerSetup(int Id, int Delay, int Width):
+			id(Id), delay(Delay), width(Width){}
+	};
+		
 	/// Constructor
 	/// @param devName The top level device name (e.g.
 	/// /dev/pentek/p7140/0.

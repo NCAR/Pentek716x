@@ -605,11 +605,8 @@ bool p7142hcrdn::initTimers() {
 	int X, Y;
 	float prt_ms, prt2_ms;
 
-	if (_staggeredPrt == true) //dual prt
-	{
-//		prt_ms = (float) _prt / 1e3;
-//		prt2_ms = (float) _prt2 / 1e3;
-
+	if (_staggeredPrt == true) {
+		// dual prt
 		prt_ms = (float) _prt / prtClock * 1e3;
 		prt2_ms = (float) _prt2 / prtClock * 1e3;
 
@@ -621,14 +618,15 @@ bool p7142hcrdn::initTimers() {
 		Y = (int) (X * prt2_ms / prt_ms);
 
 		PrtScheme = (Y << 4) | X;
-	} else //single prt
-	{
-//		periodCount = (int) ceil((_prt * prtClock / 10e6));
-
-// 		PRT must be integral multiple of pulsewidth !
+	} else {
+		//single prt
+		// 	PRT must be integral multiple of pulsewidth !
 		periodCount = _prt;
 		PrtScheme = 0x0000;
 	}
+
+	std::cout << "periodCount is " << periodCount << std::endl;
+	
 	// Control Register
 	_pp.offset = MT_ADDR;
 	_pp.value = CONTROL_REG | ALL_TIMERS;
@@ -644,166 +642,48 @@ bool p7142hcrdn::initTimers() {
 	_pp.value = WRITE_ON;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	// TIMER 0
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER0;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER0;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth * _gates;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// For now configure all 8 Timers identically, later we will customize per application
-	// TIMER 1
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER1;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER1;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// TIMER 2
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER2;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER2;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// TIMER 3
-	// Delay Register
-	_pp.offset = MT_ADDR; // A	_delayddress
-	_pp.value = DELAY_REG | TIMER3;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER3;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// TIMER 4_delay
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER4;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER4;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// TIMER 5
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER5;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER5;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// TIMER 6
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER6;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = (int) _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = WIDTH_REG | TIMER6;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// TIMER 7
-	// Delay Register
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = DELAY_REG | TIMER7;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _delay;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	// Pulse Width Register
-	_pp.offset = MT_ADDR; // Address_delay
-	_pp.value = WIDTH_REG | TIMER7;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	_pp.offset = MT_DATA; // Data
-	_pp.value = _pulseWidth;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
+	// Configure the timers
+	std::vector<TimerSetup> timers;
+	
+	// the sync pulse
+	timers.push_back(TimerSetup(TIMER0, 0,      4));
+	// the rx gate
+	timers.push_back(TimerSetup(TIMER1, _delay, _pulseWidth*_gates));
+	// the tx gate
+	timers.push_back(TimerSetup(TIMER2, _delay, _pulseWidth));
+	// general purpose timers
+	timers.push_back(TimerSetup(TIMER3, _delay, _pulseWidth));
+	timers.push_back(TimerSetup(TIMER4, _delay, _pulseWidth));
+	timers.push_back(TimerSetup(TIMER5, _delay, _pulseWidth));
+	timers.push_back(TimerSetup(TIMER6, _delay, _pulseWidth));
+	timers.push_back(TimerSetup(TIMER7, _delay, _pulseWidth));
+	
+	for (unsigned int i = 0; i < timers.size(); i++) {
+		// TIMER 1
+		// Delay Register
+		_pp.offset = MT_ADDR; // Address
+		_pp.value = DELAY_REG | timers[i].id;
+		ioctl(_ctrlFd, FIOREGSET, &_pp);
+	
+		_pp.offset = MT_DATA; // Data
+		_pp.value = timers[i].delay;
+		ioctl(_ctrlFd, FIOREGSET, &_pp);
+	
+		// Pulse Width Register
+		_pp.offset = MT_ADDR; // Address
+		_pp.value = WIDTH_REG | timers[i].id;
+		ioctl(_ctrlFd, FIOREGSET, &_pp);
+	
+		_pp.offset = MT_DATA; // Data
+		_pp.value = timers[i].width;
+		ioctl(_ctrlFd, FIOREGSET, &_pp);
+	}
 
 	// ALL TIMERS
 	// Period Register
 	_pp.offset = MT_ADDR; // Address
 	_pp.value = PERIOD_REG | ALL_TIMERS;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	std::cout << "periodCount is " << periodCount << std::endl;
 
 	_pp.offset = MT_DATA; // Data
 	_pp.value = periodCount;
@@ -817,7 +697,6 @@ bool p7142hcrdn::initTimers() {
 	_pp.offset = MT_DATA; // Mult PRT Valu Timer 0
 	_pp.value = PrtScheme;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
 
 	// Turn off Write Strobes	_delay
 	_pp.offset = MT_WR;
