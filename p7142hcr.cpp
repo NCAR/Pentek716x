@@ -652,7 +652,7 @@ bool p7142hcrdn::initTimers() {
 	// the tx gate
 	timers.push_back(TimerSetup(TIMER2, _delay, _pulseWidth));
 	// general purpose timers
-	timers.push_back(TimerSetup(TIMER3, _delay, _pulseWidth));
+	timers.push_back(TimerSetup(TIMER3, _delay+5, _pulseWidth+16));
 	timers.push_back(TimerSetup(TIMER4, _delay, _pulseWidth));
 	timers.push_back(TimerSetup(TIMER5, _delay, _pulseWidth));
 	timers.push_back(TimerSetup(TIMER6, _delay, _pulseWidth));
