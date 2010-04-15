@@ -115,6 +115,7 @@ Desc: Pentek 7142 HCR DDC Registers
 #define K_Ch3 (0x80<<4)
 
 #define GLOBAL_EN  (0x1<<12)
+#define GPS_EN	  (0x1<<13)
 #define ADDR_TRIG (0x1<<15)
 
 #define TIMER_ON  (0x1<<0)

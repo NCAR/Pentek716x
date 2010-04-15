@@ -626,7 +626,7 @@ bool p7142hcrdn::initTimers() {
 	}
 
 	std::cout << "periodCount is " << periodCount << std::endl;
-	
+
 	// Control Register
 	_pp.offset = MT_ADDR;
 	_pp.value = CONTROL_REG | ALL_TIMERS;
@@ -644,7 +644,7 @@ bool p7142hcrdn::initTimers() {
 
 	// Configure the timers
 	std::vector<TimerSetup> timers;
-	
+
 	// the sync pulse
 	timers.push_back(TimerSetup(TIMER0, 0,      4));
 	// the rx gate
@@ -657,23 +657,23 @@ bool p7142hcrdn::initTimers() {
 	timers.push_back(TimerSetup(TIMER5, _delay, _pulseWidth));
 	timers.push_back(TimerSetup(TIMER6, _delay, _pulseWidth));
 	timers.push_back(TimerSetup(TIMER7, _delay, _pulseWidth));
-	
+
 	for (unsigned int i = 0; i < timers.size(); i++) {
 		// TIMER 1
 		// Delay Register
 		_pp.offset = MT_ADDR; // Address
 		_pp.value = DELAY_REG | timers[i].id;
 		ioctl(_ctrlFd, FIOREGSET, &_pp);
-	
+
 		_pp.offset = MT_DATA; // Data
 		_pp.value = timers[i].delay;
 		ioctl(_ctrlFd, FIOREGSET, &_pp);
-	
+
 		// Pulse Width Register
 		_pp.offset = MT_ADDR; // Address
 		_pp.value = WIDTH_REG | timers[i].id;
 		ioctl(_ctrlFd, FIOREGSET, &_pp);
-	
+
 		_pp.offset = MT_DATA; // Data
 		_pp.value = timers[i].width;
 		ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -711,7 +711,7 @@ bool p7142hcrdn::initTimers() {
 void p7142hcrdn::timersStartStop(bool start) {
 	//
 	//    This start the internal timers.
-
+	bool INTERNAL_TRIG = true;
 	unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
 			| TIMER5 | TIMER6 | TIMER7;
 
@@ -734,20 +734,12 @@ void p7142hcrdn::timersStartStop(bool start) {
 	}
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
 
-	// Enable and Trigger All Timers
-
-	// Enable and Trigger All Timers
-
-	// Set Global Enable
-	_pp.offset = MT_ADDR; // Address
-	_pp.value = GLOBAL_EN | ALL_TIMERS | PRT_REG;
-	ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-	usleep(1000);
-
 	_pp.offset = MT_ADDR; // Address
 	if (start) {
-		_pp.value = ALL_TIMERS | ADDR_TRIG;
+		if (INTERNAL_TRIG)
+			_pp.value = ALL_TIMERS | ADDR_TRIG;  // internal trigger
+		else
+			_pp.value = ALL_TIMERS | GPS_EN;     // external trigger
 	} else {
 		std::cout << "timer stopped\n";
 		_pp.value = ALL_TIMERS;
