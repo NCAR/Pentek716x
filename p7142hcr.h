@@ -132,16 +132,27 @@ public:
         return(_staggeredPrt ? _prt2 : 0);
     }
     
-    static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
 
+    /// @return The receiver pulsewidth, in s
+    double rcvrPulseWidth() const {
+        return(_pulseWidth / _adc_clock);
+    }
+    
+    /// @return The receiver delay to first gate, in s
+    double rcvrDelay() const {
+        return(_delay / _adc_clock);
+    }
+    
+    static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
+    
     /// @return The gate spacing, in m
     double gateSpacing() const {
-        return(0.5 * SPEED_OF_LIGHT * _pulseWidth / _adc_clock);
+        return(0.5 * SPEED_OF_LIGHT * rcvrPulseWidth());
     }
     
     /// @return The range to the leading edge of the first gate, in m
     double rangeToFirstGate() const {
-        return(0.5 * SPEED_OF_LIGHT * _delay / _adc_clock);
+        return(0.5 * SPEED_OF_LIGHT * rcvrDelay());
     }
     
     /// @return Time of the given transmit pulse.
