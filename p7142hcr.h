@@ -152,7 +152,7 @@ public:
     
     /// @return The range to the leading edge of the first gate, in m
     double rangeToFirstGate() const {
-        return(0.5 * SPEED_OF_LIGHT * rcvrDelay());
+        return(0.5 * SPEED_OF_LIGHT * rcvrFirstGateDelay());
     }
     
     /// @return Time of the given transmit pulse.
