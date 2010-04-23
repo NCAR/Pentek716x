@@ -139,7 +139,7 @@ public:
     }
     
     /// @return The receiver delay to first gate, in s
-    double rcvrDelay() const {
+    double rcvrFirstGateDelay() const {
         return(_delay / _adc_clock);
     }
     
