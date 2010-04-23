@@ -56,10 +56,12 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142hcrdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
 	std::cout << "decimation:    " << _decimation      << " adc_clock counts"     << std::endl;
 	std::cout << "pulse width:   " << _pulseWidth      << " adc_clock/2 counts"   << std::endl;
+	std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
 	std::cout << "prt:           " << _prt             << " adc_clock/2 counts"   << std::endl;
 	std::cout << "prt2:          " << _prt2            << " adc_clock/2 counts"   << std::endl;
 	std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
-	std::cout << "delay          " << _delay           << " adc clock/2 counts"   << std::endl;
+	std::cout << "delay:         " << _delay           << " adc clock/2 counts"   << std::endl;
+	std::cout << "rng to gate0:  " << rangeToFirstGate() << " m"                  << std::endl;
 	std::cout << "clock source:  " << ((internalClock) ? "internal" : "external") << std::endl;
 	std::cout << "ts length:     " << _tsLength                                   << std::endl;
 	std::cout << "gates:         " << _gates                                      << std::endl;

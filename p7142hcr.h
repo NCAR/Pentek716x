@@ -132,6 +132,18 @@ public:
         return(_staggeredPrt ? _prt2 : 0);
     }
     
+    static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
+
+    /// @return The gate spacing, in m
+    double gateSpacing() const {
+        return(0.5 * SPEED_OF_LIGHT * _pulseWidth / _adc_clock);
+    }
+    
+    /// @return The range to the leading edge of the first gate, in m
+    double rangeToFirstGate() const {
+        return(0.5 * SPEED_OF_LIGHT * _delay / _adc_clock);
+    }
+    
     /// @return Time of the given transmit pulse.
     boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
     
@@ -204,13 +216,13 @@ protected:
 	int _nsum;
 	//// The time series length
 	int _tsLength;
-	/// radar PRT in 10 MHz counts
+	/// radar PRT in adc clock counts
 	int _prt;
-	/// second PRT of staggered PRT in 10 MHz counts
+	/// second PRT of staggered PRT in _adc_clock counts
 	int _prt2;
-	/// radar pulse width in 10 MHz counts
+	/// radar pulse width in adc clock counts
 	int _pulseWidth;
-	/// delay to first gate in 10 MHz counts
+	/// delay to first gate in adc clock counts
 	int _delay;
 	/// staggered PRT flag: 1 = stagger, 0 = uniform
 	bool _staggeredPrt;
