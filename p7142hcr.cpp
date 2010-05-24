@@ -766,9 +766,7 @@ void p7142hcrdn::timersStartStop(bool start) {
 	}
 
 	// Get current system time as xmit start time
-	// setXmitStartTime(microsec_clock::universal_time());
-	// @TODO put a real time here, rather than 1/1/2000 00:00:00 UTC
-	setXmitStartTime(ptime(boost::gregorian::date(2000, 1, 1), time_duration(0, 0, 0)));
+	setXmitStartTime(microsec_clock::universal_time());
 }
 
 //////////////////////////////////////////////////////////////////////
