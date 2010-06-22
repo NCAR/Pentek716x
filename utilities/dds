@@ -1,0 +1,90 @@
+#!/bin/bash
+# 
+# dds	This starts, stops, status and restarts the DDS DCPSInfoRepo server.
+#
+
+# location of DDS configuration files. This should link to the location of
+# the actual configuration files.
+DDS_CONF=/opt/ddsconf
+
+# locations of ACE, TAO and DDS. These must be changed when
+# these components are updated.
+TAO_ROOT=/opt/local/ACE+TAO-1.6a/ACE_wrappers/TAO
+ACE_ROOT=/opt/local/ACE+TAO-1.6a/ACE_wrappers
+DDS_ROOT=/opt/local/OpenDDS-2.0/DDS
+
+# Make sure needed directories exist
+if !( [[ -d "$DDS_CONF" && -d "$DDS_ROOT" && -d "$ACE_ROOT" && -d "$TAO_ROOT" ]] ); then
+  echo "Location of DDS_ROOT, ACE_ROOT, TAO_ROOT or DDS_CONF are not valid!"
+  exit 1
+fi
+
+prog=dds
+
+options="-NOBITS \
+   -DCPSConfigFile $DDS_CONF/DDSClient.ini \
+   -DCPSInfoRepo iiop://dcpsrepo:50000/DCPSInfoRepo \
+   -ORBSvcConf $DDS_CONF/ORBSvc.conf \
+   -ORBListenEndpoints iiop://dcpsrepo:50000 \
+   -d $DDS_CONF/DDSDomainIds.conf &"
+
+RETVAL=0
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Check that we're a priviledged user
+if !( [ `id -u` = 0 ] ); then
+    echo "Must be root."
+    exit 4
+fi 
+
+usage ()
+{
+    echo "Usage: service $prog {start|stop|status|restart}"
+    RETVAL=1
+}
+
+
+start ()
+{
+    pgrep DCPSInfoRepo > /dev/nul
+    ret=$?
+    if [ $ret = "0" ]; then
+	echo 'DCPSInforepo is already running.'
+        exit 0
+    fi
+    echo -n $"Starting $prog: "
+    cd /tmp
+    (LD_LIBRARY_PATH=$DDS_ROOT/lib:$ACE_ROOT/lib:$LD_LIBRARY_PATH $DDS_ROOT/bin/DCPSInfoRepo ${options} \
+       >> /var/log/DCPSInforepo.log 2>&1 &)
+    ret=$?
+    echo_success
+    echo
+    return $ret
+}
+
+stop ()
+{
+        echo -n $"Stopping $prog: "
+        killproc DCPSInfoRepo
+        RETVAL=$?
+        echo
+	return $RETVAL
+}
+
+restart ()
+{
+    stop
+    start
+}
+
+case "$1" in
+    start) start; RETVAL=$? ;;
+    stop) stop; RETVAL=$? ;;
+    status) status DCPSInfoRepo; RETVAL=$? ;;
+    restart) restart; RETVAL=$? ;;
+    *) usage ; RETVAL=2 ;;
+esac
+
+exit $RETVAL
