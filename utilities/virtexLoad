@@ -1,0 +1,45 @@
+#! /bin/sh
+
+if [ "x$1" == "x" ]; then
+   echo "usage: $0 <mcs file>"
+   exit 1
+fi 
+
+mcsfile=$1
+vload=`which virtexload7140`
+pctrldev=/dev/pentek/p7140/0/ctrl
+procdev=/proc/pentek/ptk714X/0
+
+oldRevDate=`cat $procdev | grep "FPGA Revision Date"`
+
+echo -n "removing ptk7140..."
+/sbin/rmmod ptk7140
+sleep 3
+echo "."
+
+echo -n "installing ptk7140..."
+#/sbin/modprobe ptk7140 p7140_pciburst=2048 p7140_bufsize=262144 p7140_ibufsize=131072
+#/sbin/modprobe ptk7140 p7140_pciburst=32 p7140_bufsize=4096 p7140_ibufsize=2048
+/sbin/modprobe ptk7140 
+echo "."
+sleep 1
+
+echo "loading fpga"
+$vload $pctrldev $mcsfile
+
+echo -n "removing ptk7140..."
+/sbin/rmmod ptk7140
+sleep 3
+echo "."
+
+echo -n "installing ptk7140..."
+#/sbin/modprobe ptk7140 p7140_pciburst=2048 p7140_bufsize=262144 p7140_ibufsize=131072
+#/sbin/modprobe ptk7140 p7140_pciburst=32 p7140_bufsize=4096 p7140_ibufsize=2048
+/sbin/modprobe ptk7140 
+echo "."
+
+newRevDate=`cat $procdev | grep "FPGA Revision Date"`
+
+echo "Original "$oldRevDate 
+echo "     New "$newRevDate
+
