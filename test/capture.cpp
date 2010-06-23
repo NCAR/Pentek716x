@@ -12,7 +12,7 @@
 // For configuration management
 #include <QtConfig.h>
 
-#include "p7142hcr.h"
+#include "p7142sd3c.h"
 
 #define BASICSIZE   1024
 
@@ -210,12 +210,12 @@ int main(int argc, char** argv) {
 	// try to change scheduling to real-time
 	makeRealTime();
 
-	Pentek::p7142hcrdn::DDCDECIMATETYPE ddcType = Pentek::p7142hcrdn::DDC8DECIMATE;
+	Pentek::p7142sd3cdn::DDCDECIMATETYPE ddcType = Pentek::p7142sd3cdn::DDC8DECIMATE;
 	if (_ddcType == 4) {
-		ddcType = Pentek::p7142hcrdn::DDC4DECIMATE;
+		ddcType = Pentek::p7142sd3cdn::DDC4DECIMATE;
 	}
 	// create the downconvertor
-	Pentek::p7142hcrdn downConverter(
+	Pentek::p7142sd3cdn downConverter(
 			_devRoot,
 			_chanId,
 			_gates,

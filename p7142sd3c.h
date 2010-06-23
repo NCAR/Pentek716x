@@ -1,12 +1,12 @@
 /*
- * p7172hcr.h
+ * p7172sd3c.h
  *
  *  Created on: Jan 26, 2009
- *      Author: hcr
+ *      Author: sd3c
  */
 
-#ifndef P7172HCR_H_
-#define P7172HCR_H_
+#ifndef P7172SD3C_H_
+#define P7172SD3C_H_
 
 #include "p7142.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -25,9 +25,9 @@
 
 namespace Pentek {
 
-/// A p7142 downconvertor adapted for specific use with the HCR firmware.
+/// A p7142 downconvertor adapted for specific use with the SD3C firmware.
 ///
-/// <b>The HCR firmware</b>
+/// <b>The SD3C firmware</b>
 /// This firmware contains identical user blocks on all 4 ADC channels. The user blocks
 /// contain downconvertors implemented with the csac filters. The csac filters
 /// have a guassian and a kaiser filter in series. The filter coefficients are
@@ -39,7 +39,7 @@ namespace Pentek {
 /// I and Q values, along with beam tags. In coherent integration mode, the data
 /// are delivered as 32 bit sums, for I and Q, for even and odd pulses. Beam tags
 /// are also included in this mode.
-class p7142hcrdn: public p7142dn {
+class p7142sd3cdn: public p7142dn {
 public:
 	///The type of downconverter that is instantiated in the pentek firmware.
 	enum DDCDECIMATETYPE {
@@ -83,13 +83,13 @@ public:
 	/// simulated data when calling read();
 	/// @param internalClock Set true if the internal clock should be
 	/// used instead of the front panel clock.
-	p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
+	p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 			int tsLength, int delay, int prt, int prt2, int pulse_width,
 			bool stgr_prt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
 			DDCDECIMATETYPE ddcType, int decimation = 1, bool simulate =
 					false, int simPauseMS = 100, bool internalClock = false);
 	/// Destructor
-	virtual ~p7142hcrdn();
+	virtual ~p7142sd3cdn();
 
     /// Read bytes. If in simulated mode, a sine wave with wavelength
     /// of _simWaveLength gates will be synthesized. It will have some 
@@ -162,7 +162,7 @@ public:
 	int dataRate();
 
 protected:
-	/// Configure the p7142hcrdn
+	/// Configure the p7142sd3cdn
 	/// @return True if the configuration was successful
 	bool config();
 
@@ -261,4 +261,4 @@ protected:
 
 }
 
-#endif /* P7172HCR_H_ */
+#endif /* P7172SD3C_H_ */

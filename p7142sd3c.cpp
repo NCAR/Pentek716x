@@ -1,11 +1,11 @@
 /*
- * p7142hcr.cpp
+ * p7142sd3c.cpp
  *
  *  Created on: Jan 26, 2009
  *      Author: martinc
  */
 
-#include "p7142hcr.h"
+#include "p7142sd3c.h"
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <iostream>
@@ -18,7 +18,7 @@ using namespace Pentek;
 using namespace boost::posix_time;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
+p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 		int tsLength, int delay, int prt, int prt2, int pulseWidth,
 		bool staggeredPrt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
 		DDCDECIMATETYPE ddcType, int decimation, bool simulate,
@@ -42,18 +42,18 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
         if (_freeRun) {
             std::cerr <<
-                "p7142hcrdn: freeRun forced to false when simulating data\n" <<
+                "p7142sd3cdn: freeRun forced to false when simulating data\n" <<
                 std::endl;
             _freeRun = false;
         }
         if (_nsum > 1) {
             std::cerr <<
-                "p7142hcrdn: nsum is forced to one when simulating data\n" <<
+                "p7142sd3cdn: nsum is forced to one when simulating data\n" <<
                 std::endl;
             _nsum = 1;
         }
     }
-	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142hcrdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
+	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142sd3cdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
 	std::cout << "decimation:    " << _decimation      << " adc_clock counts"     << std::endl;
 	std::cout << "pulse width:   " << _pulseWidth      << " adc_clock/2 counts"   << std::endl;
 	std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
@@ -118,12 +118,12 @@ p7142hcrdn::p7142hcrdn(std::string devName, int chanId, int gates, int nsum,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142hcrdn::~p7142hcrdn() {
+p7142sd3cdn::~p7142sd3cdn() {
 	close(_ctrlFd);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-bool p7142hcrdn::config() {
+bool p7142sd3cdn::config() {
 
 	// reset the FPGA clock managers. Necessary since some of our
 	// new DCMs in the firmware use the CLKFX output, which won't
@@ -164,7 +164,7 @@ bool p7142hcrdn::config() {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::freeRunConfig() {
+void p7142sd3cdn::freeRunConfig() {
 
 	// set the free run bit as needed
 
@@ -192,7 +192,7 @@ void p7142hcrdn::freeRunConfig() {
 }
 
 //////////////////////////////////////////////////////////////////////
-int p7142hcrdn::fpgaRepoRevision() {
+int p7142sd3cdn::fpgaRepoRevision() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	return _pp.value & 0x7fff;
@@ -200,7 +200,7 @@ int p7142hcrdn::fpgaRepoRevision() {
 }
 
 //////////////////////////////////////////////////////////////////////
-p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddc_type() {
+p7142sd3cdn::DDCDECIMATETYPE p7142sd3cdn::ddc_type() {
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	DDCDECIMATETYPE ddctype = DDC4DECIMATE;
@@ -218,7 +218,7 @@ p7142hcrdn::DDCDECIMATETYPE p7142hcrdn::ddc_type() {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::startFilters() {
+void p7142sd3cdn::startFilters() {
 
 	// Start the DDC  -- do we really want to do this here???
 	/// @todo Note that this sets the start bit on channel 0. Doesn't
@@ -233,7 +233,7 @@ void p7142hcrdn::startFilters() {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::stopFilters() {
+void p7142sd3cdn::stopFilters() {
 
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
@@ -248,7 +248,7 @@ void p7142hcrdn::stopFilters() {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::setGates(int gates) {
+void p7142sd3cdn::setGates(int gates) {
 	_pp.offset = RADAR_GATES;
 	_pp.value = gates;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -257,7 +257,7 @@ void p7142hcrdn::setGates(int gates) {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::setNsum(int nsum) {
+void p7142sd3cdn::setNsum(int nsum) {
 	_pp.offset = CI_NSUM;
 	_pp.value = nsum;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -266,7 +266,7 @@ void p7142hcrdn::setNsum(int nsum) {
 }
 
 //////////////////////////////////////////////////////////////////////
-bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
+bool p7142sd3cdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	bool kaiserLoaded;
 	bool gaussianLoaded;
@@ -451,7 +451,7 @@ bool p7142hcrdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 }
 ////////////////////////////////////////////////////////////////////////
 
-int p7142hcrdn::filterSetup() {
+int p7142sd3cdn::filterSetup() {
 
 	// get the gaussian filter coefficients.
 	FilterSpec gaussian;
@@ -583,7 +583,7 @@ int p7142hcrdn::filterSetup() {
 
 /////////////////////////////////////////////////////////////////////////
 
-bool p7142hcrdn::initTimers() {
+bool p7142sd3cdn::initTimers() {
 
 	//
 	//    This section initializes the timers.
@@ -710,7 +710,7 @@ bool p7142hcrdn::initTimers() {
 }
 
 /////////////////////////////////////////////////////////////////////////
-void p7142hcrdn::timersStartStop(bool start) {
+void p7142sd3cdn::timersStartStop(bool start) {
 	//
 	//    This start the internal timers.
 	bool INTERNAL_TRIG = true;
@@ -770,7 +770,7 @@ void p7142hcrdn::timersStartStop(bool start) {
 }
 
 //////////////////////////////////////////////////////////////////////
-unsigned short int p7142hcrdn::TTLIn() {
+unsigned short int p7142sd3cdn::TTLIn() {
 
 	_pp.offset = TTL_IN;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
@@ -779,7 +779,7 @@ unsigned short int p7142hcrdn::TTLIn() {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::TTLOut(unsigned short int data) {
+void p7142sd3cdn::TTLOut(unsigned short int data) {
 	_pp.value = data;
 
 	_pp.offset = TTL_OUT1;
@@ -788,7 +788,7 @@ void p7142hcrdn::TTLOut(unsigned short int data) {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::setInterruptBufSize() {
+void p7142sd3cdn::setInterruptBufSize() {
 
 	// how many bytes are there in each time series?
 	int tsBlockSize;
@@ -828,7 +828,7 @@ void p7142hcrdn::setInterruptBufSize() {
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142hcrdn::resetDCM(int fd) {
+p7142sd3cdn::resetDCM(int fd) {
 	_pp.offset = DCM_CONTROL;
 
 	// read the dcm control register
@@ -854,7 +854,7 @@ p7142hcrdn::resetDCM(int fd) {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::fifoConfig() {
+void p7142sd3cdn::fifoConfig() {
 	// The fifos need to be configured for
 	// the given channel that we are using.
 
@@ -888,12 +888,12 @@ void p7142hcrdn::fifoConfig() {
 }
 
 //////////////////////////////////////////////////////////////////////
-void p7142hcrdn::setXmitStartTime(ptime startTime) {
+void p7142sd3cdn::setXmitStartTime(ptime startTime) {
 	_xmitStartTime = startTime;
 }
 
 //////////////////////////////////////////////////////////////////////
-ptime p7142hcrdn::timeOfPulse(unsigned long pulseNum) const {
+ptime p7142sd3cdn::timeOfPulse(unsigned long pulseNum) const {
     // Figure out offset since transmitter start based on the pulse
     // number and PRT(s).
     double offsetSeconds;
@@ -923,7 +923,7 @@ ptime p7142hcrdn::timeOfPulse(unsigned long pulseNum) const {
 }
 
 //////////////////////////////////////////////////////////////////////
-int p7142hcrdn::dataRate() {
+int p7142sd3cdn::dataRate() {
 	int rate;
 	if (_nsum < 2) {
 		// no coherent integration
@@ -947,14 +947,14 @@ int p7142hcrdn::dataRate() {
 
 //////////////////////////////////////////////////////////////////////
 int
-p7142hcrdn::read(char* buf, int bufsize) {
+p7142sd3cdn::read(char* buf, int bufsize) {
     // Unless we're simulating, we just use the superclass read
     if (!_simulate)
         return p7142dn::read(buf, bufsize);
 
     // The rest is for generating simulated data.  We use p7142dn::read()
     // to get the simulated Is and Qs, but we add tags for each time series
-    // sample, as we would see from HCR.
+    // sample, as we would see from SD3C.
 
     // Code below assumes 32-bit ints and 16-bit shorts!
     assert(sizeof(int) == 4);

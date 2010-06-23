@@ -11,7 +11,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "p7142hcr.h"
+#include "p7142sd3c.h"
 
 #define BASICSIZE   1024
 
