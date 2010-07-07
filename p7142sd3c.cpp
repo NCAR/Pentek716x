@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <iostream>
+#include <cmath>
 #include <cstdio>
 #include "BuiltinGaussian.h"
 #include "BuiltinKaiser.h"
@@ -33,10 +34,39 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 {
 
 	_adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
-	_prf = (_adc_clock / 2)/ _prt;
+	_prf = (_adc_clock / 2) / _prt;
     _prf2 = (_adc_clock / 2) / _prt2;
+    _init();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////
+p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
+        int tsLength, double delay, double prt, double prt2, double pulseWidth,
+        bool staggeredPrt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
+        bool simulate, int simPauseMS, bool internalClock) :
+    p7142dn(devName, chanId, 1, simulate, simPauseMS, gates*tsLength/3, internalClock),
+            _gates(gates), _nsum(nsum), _tsLength(tsLength),
+            _staggeredPrt(staggeredPrt), _freeRun(freeRun),
+            _gaussianFile(gaussianFile), _kaiserFile(kaiserFile), _simPulseNum(0)
 
+{
+    // Query the firmware to get DDC type
+    _ddcType = ddc_type();
+    // Set the ADC clock rate based on DDC type
+    _adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
+    // Convert prt, prt2, pulseWidth, and delay into our local representation, 
+    // which is in units of (ADC clock counts / 2)
+    _prt = lround(prt * _adc_clock / 2);
+    _prt2 = lround(prt2 * _adc_clock / 2);
+    _pulseWidth = lround(pulseWidth * _adc_clock / 2);
+    _delay = lround(delay * _adc_clock / 2);
+    _prf = 1.0 / prt;
+    _prf2 = 1.0 / prt2;
+    _init();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void p7142sd3cdn::_init() {
 	if (_simulate) {
         // we generate simulated data with no coherent integration
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
@@ -62,7 +92,7 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 	std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
 	std::cout << "delay:         " << _delay           << " adc clock/2 counts"   << std::endl;
 	std::cout << "rng to gate0:  " << rangeToFirstGate() << " m"                  << std::endl;
-	std::cout << "clock source:  " << ((internalClock) ? "internal" : "external") << std::endl;
+	std::cout << "clock source:  " << (usingInternalClock() ? "internal" : "external") << std::endl;
 	std::cout << "ts length:     " << _tsLength                                   << std::endl;
 	std::cout << "gates:         " << _gates                                      << std::endl;
 	std::cout << "nsum:          " << _nsum                                       << std::endl;
@@ -96,7 +126,7 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 	}
 
 	// verify that the correct down converter was selected.
-	if (ddc_type() != ddcType) {
+	if (ddc_type() != _ddcType) {
 		std::cerr << "The firmware DDC type (ddc4 or ddc8) does not match the specified type. Program will terminate."
 		<< std::endl;
 		exit(1);

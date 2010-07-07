@@ -58,7 +58,7 @@ public:
 			id(Id), delay(Delay), width(Width){}
 	};
 		
-	/// Constructor
+	/// Constructor using times expressed in clock counts.
 	/// @param devName The top level device name (e.g.
 	/// /dev/pentek/p7140/0.
 	/// @param chanId The channel identifier (should be a zero based small integer)
@@ -68,7 +68,7 @@ public:
 	/// that we have reasonable responsiveness in the data stream.
 	/// @param Delay the delay to the first gate in ADC_CLK counts
 	/// @param prt The radar PRT in ADC_CLK counts
-	/// @param prt2 The second PRT of a staggered PRT sequence, expressed in 10 MHz counts
+	/// @param prt2 The second PRT of a staggered PRT sequence, expressed in ADC_CLK counts
 	/// @param pulse_width The radar pulse width in ADC_CLK counts
 	/// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
 	/// @param freeRun If true, the firmware will be configured to ignore the PRT gating.
@@ -77,7 +77,7 @@ public:
 	/// @param kaiserFile Name of the file containing the Kaiser
 	///   filter parameters
 	/// @param decimateType The type of downconverter instantiated in the pentek firmware
-	/// @param bypassdivrate The decimation rate
+	/// @param decimation The decimation rate
 	/// @param simulate Set true if we operate in simulation mode.
 	/// @param simPauseMS The number of milliseconds to wait before returning
 	/// simulated data when calling read();
@@ -86,8 +86,37 @@ public:
 	p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 			int tsLength, int delay, int prt, int prt2, int pulse_width,
 			bool stgr_prt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
-			DDCDECIMATETYPE ddcType, int decimation = 1, bool simulate =
-					false, int simPauseMS = 100, bool internalClock = false);
+			DDCDECIMATETYPE ddcType, int decimation = 1, bool simulate = false, 
+			int simPauseMS = 100, bool internalClock = false);
+	
+    /// Constructor using times expressed in seconds.
+    /// @param devName The top level device name (e.g.
+    /// /dev/pentek/p7140/0.
+    /// @param chanId The channel identifier (should be a zero based small integer)
+    /// @param gates The number of gates
+    /// @param nsum The number of coherent integrator sums. If < 2, the coherent integrator will not be used.
+    /// @param tsLength The number of pulses in one time series. Used to set interrupt buffer size, so
+    /// that we have reasonable responsiveness in the data stream.
+    /// @param delay the delay to the first gate in seconds
+    /// @param prt The radar PRT in seconds
+    /// @param prt2 The second PRT of a staggered PRT sequence in seconds
+    /// @param pulse_width The radar pulse width in seconds
+    /// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
+    /// @param freeRun If true, the firmware will be configured to ignore the PRT gating.
+    /// @param gaussianFile Name of the file containing the Gaussian
+    ///   filter parameters
+    /// @param kaiserFile Name of the file containing the Kaiser
+    ///   filter parameters
+    /// @param simulate Set true if we operate in simulation mode.
+    /// @param simPauseMS The number of milliseconds to wait before returning
+    /// simulated data when calling read();
+    /// @param internalClock Set true if the internal clock should be
+    /// used instead of the front panel clock.
+    p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
+            int tsLength, double delay, double prt, double prt2, double pulse_width,
+            bool stgr_prt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
+            bool simulate = false, int simPauseMS = 100, bool internalClock = false);
+    
 	/// Destructor
 	virtual ~p7142sd3cdn();
 
@@ -160,6 +189,11 @@ public:
     
 	/// @return The data bandwidth in bytes per second
 	int dataRate();
+	
+	/// @return The ADC clock frequency in Hz.
+	double adcFrequency() const {
+	    return _adc_clock;
+	}
 
 protected:
 	/// Configure the p7142sd3cdn
@@ -256,6 +290,9 @@ protected:
 	/// The prf(s) in Hz
 	double _prf;
     double _prf2;
+private:
+    /// Complete instantiation after members have been set up.
+    void _init();
 
 };
 
