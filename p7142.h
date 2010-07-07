@@ -70,6 +70,8 @@ namespace Pentek {
 			int fd();
 			/// flush the I/O buffers and hardware fifos
 			void flush();
+            /// Are we using the card's internal clock?
+            bool usingInternalClock();
 
 		protected:
 			/// The channel identifier

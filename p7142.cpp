@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#include <cerrno>
 #include <cstring>  // for memcpy
 
 using namespace Pentek;
@@ -214,6 +215,17 @@ void p7142dn::flush() {
   }
 
   std::cout << "flush performed on " << _dnName << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+bool
+p7142dn::usingInternalClock() {
+    int clockSource;
+    if (ioctl(_dnFd, FIOCLKSRCGET, &clockSource) == -1) {
+        std::cerr << __FUNCTION__ << ": ioctl error on FIOCLKSRCGET: " <<
+                strerror(errno);
+    }
+    return(clockSource == CLK_SRC_INTERN);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
