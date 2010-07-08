@@ -164,12 +164,12 @@ public:
 
     /// @return The receiver pulsewidth, in s
     double rcvrPulseWidth() const {
-        return(_pulseWidth / _adc_clock);
+        return(_pulseWidth / (_adc_clock / 2));
     }
     
     /// @return The receiver delay to first gate, in s
     double rcvrFirstGateDelay() const {
-        return(_delay / _adc_clock);
+        return(_delay / (_adc_clock / 2));
     }
     
     static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
@@ -261,13 +261,13 @@ protected:
 	int _nsum;
 	//// The time series length
 	int _tsLength;
-	/// radar PRT in adc clock counts
+	/// radar PRT in _adc_clock/2 counts
 	int _prt;
-	/// second PRT of staggered PRT in _adc_clock counts
+	/// second PRT of staggered PRT in _adc_clock/2 counts
 	int _prt2;
-	/// radar pulse width in adc clock counts
+	/// radar pulse width in _adc_clock/2 counts
 	int _pulseWidth;
-	/// delay to first gate in adc clock counts
+	/// delay to first gate in _adc_clock/2 counts
 	int _delay;
 	/// staggered PRT flag: 1 = stagger, 0 = uniform
 	bool _staggeredPrt;
