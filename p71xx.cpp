@@ -12,6 +12,7 @@ using namespace Pentek;
 p71xx::p71xx(std::string devName, bool simulate):
 _ok(true),
 _devName(devName),
+_ctrlFd(-1),
 _simulate(simulate),
 _bytesRead(0L)
 {
