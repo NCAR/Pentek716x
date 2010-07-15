@@ -150,12 +150,12 @@ public:
         return _xmitStartTime;
     }
     
-    /// @return The first PRT, in units of 10^-7 s (i.e., 10 MHz counts)
+    /// @return The first PRT, in units of (2 / adcFrequency())
     int prt() const {
         return _prt;
     }
     
-    /// @return The second PRT, in units of 10^-7 s (i.e., 10 MHz counts), or
+    /// @return The second PRT, in units of (2 / adcFrequency()), or
     ///     zero if not running staggered PRT.
     int prt2() const {
         return(_staggeredPrt ? _prt2 : 0);
