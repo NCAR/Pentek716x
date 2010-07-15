@@ -216,8 +216,8 @@ void p7142dn::flush() {
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
 p7142dn::usingInternalClock() const {
-    int clockSource;
-    if (ioctl(_dnFd, FIOCLKSRCGET, &clockSource) == -1) {
+    int clockSource = ioctl(_dnFd, FIOCLKSRCGET, 0);
+    if (clockSource == -1) {
         std::cerr << __FUNCTION__ << ": ioctl error on FIOCLKSRCGET: " <<
                 strerror(errno);
     }
@@ -228,12 +228,11 @@ p7142dn::usingInternalClock() const {
 int
 p7142dn::decimation() const {
     // get the decimation rate
-    int decimation;
-    if (ioctl(_dnFd, FIOBYPDIVGET, &decimation) == -1) {
-      std::cerr << "unable to get the bypass decimation rate for "
+    int decimation = ioctl(_dnFd, FIOBYPDIVGET, 0);
+    if (decimation == -1) {
+      std::cerr << "Unable to get the bypass decimation rate for "
             << _dnName << std::endl;
-      perror("");
-      return -1;
+      perror(__FUNCTION__);
     }
     return decimation;
 }
@@ -245,7 +244,7 @@ p7142dn::setDecimation(int decimation) const {
     if (ioctl(_dnFd, FIOBYPDIVSET, decimation) == -1) {
       std::cerr << "unable to set the bypass decimation rate for "
             << _dnName << " to " << decimation << std::endl;
-      perror("");
+      perror(__FUNCTION__);
       return false;
     }
     return true;
