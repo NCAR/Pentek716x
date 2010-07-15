@@ -50,6 +50,8 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
             _gaussianFile(gaussianFile), _kaiserFile(kaiserFile), _simPulseNum(0)
 
 {
+    // We have to open the control device before we query the DDC type
+    _openControlDevice();
     // Query the firmware to get DDC type
     _ddcType = ddc_type();
     // Set the ADC clock rate based on DDC type
@@ -109,12 +111,9 @@ void p7142sd3cdn::_init() {
 	_pp.page = 2; // PCIBAR 2
 	_pp.mask = 0;
 
-	// open Pentek 7142 ctrl device
-	_ctrlFd = open(_devCtrl.c_str(), O_RDWR);
-	if (_ctrlFd < 0) {
-		std::cout << "unable to open Ctrl device\n";
-		return;
-	}
+	// open Pentek 7142 ctrl device if it isn't open yet
+	if (_ctrlFd < 0)
+		_openControlDevice();
 
 	// check the fpga firmware revision
 	std::cout << "FPGA revision: " << fpgaRepoRevision()
@@ -150,6 +149,16 @@ void p7142sd3cdn::_init() {
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142sd3cdn::~p7142sd3cdn() {
 	close(_ctrlFd);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::_openControlDevice() {
+	_ctrlFd = open(_devCtrl.c_str(), O_RDWR);
+	if (_ctrlFd < 0) {
+		std::cout << "unable to open Pentek ctrl device" << std::endl;
+		exit(1);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
