@@ -73,13 +73,13 @@ namespace Pentek {
             /// Are we using the card's internal clock?
             bool usingInternalClock() const;
             /// Get the current bypass divider decimation factor
-            int decimation() const;
+            int bypassDivider() const;
             /**
              * Set the bypass divider decimation factor
-             * @param decimation the desired bypass divider decimation factor
+             * @param bypassdiv the desired bypass divider decimation factor
              * @return true if decimation is set successfully
              */
-            bool setDecimation(int decimation) const;
+            bool setBypassDivider(int bypassdiv) const;
 
 		protected:
 			/// The channel identifier

@@ -83,8 +83,8 @@ p7142dn::p7142dn(std::string devName, int chanId, int decimation,
       return;
     }
 
-  // set the decimation rate
-  if (! setDecimation(decimation)) {
+  // set the bypass divider
+  if (! setBypassDivider(decimation)) {
       _ok = false;
       return;
   }
@@ -216,8 +216,8 @@ void p7142dn::flush() {
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
 p7142dn::usingInternalClock() const {
-    int clockSource = ioctl(_dnFd, FIOCLKSRCGET, 0);
-    if (clockSource == -1) {
+    int clockSource;
+    if ((clockSource = ioctl(_dnFd, FIOCLKSRCGET, 0)) == -1) {
         std::cerr << __FUNCTION__ << ": ioctl error on FIOCLKSRCGET: " <<
                 strerror(errno);
     }
@@ -226,24 +226,24 @@ p7142dn::usingInternalClock() const {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 int
-p7142dn::decimation() const {
-    // get the decimation rate
-    int decimation = ioctl(_dnFd, FIOBYPDIVGET, 0);
-    if (decimation == -1) {
-      std::cerr << "Unable to get the bypass decimation rate for "
+p7142dn::bypassDivider() const {
+    // get the bypass divider
+    int bypassdiv;
+    if ((bypassdiv = ioctl(_dnFd, FIOBYPDIVGET, 0)) == -1) {
+      std::cerr << "Unable to get the bypass divider for "
             << _dnName << std::endl;
       perror(__FUNCTION__);
     }
-    return decimation;
+    return bypassdiv;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
-p7142dn::setDecimation(int decimation) const {
-    // set the decimation rate
-    if (ioctl(_dnFd, FIOBYPDIVSET, decimation) == -1) {
-      std::cerr << "unable to set the bypass decimation rate for "
-            << _dnName << " to " << decimation << std::endl;
+p7142dn::setBypassDivider(int bypassdiv) const {
+    // set the bypass divider
+    if (ioctl(_dnFd, FIOBYPDIVSET, bypassdiv) == -1) {
+      std::cerr << "unable to set the bypass divider for "
+            << _dnName << " to " << bypassdiv << std::endl;
       perror(__FUNCTION__);
       return false;
     }
