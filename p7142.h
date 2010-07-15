@@ -71,15 +71,21 @@ namespace Pentek {
 			/// flush the I/O buffers and hardware fifos
 			void flush();
             /// Are we using the card's internal clock?
-            bool usingInternalClock();
+            bool usingInternalClock() const;
+            /// Get the current bypass divider decimation factor
+            int decimation() const;
+            /**
+             * Set the bypass divider decimation factor
+             * @param decimation the desired bypass divider decimation factor
+             * @return true if decimation is set successfully
+             */
+            bool setDecimation(int decimation) const;
 
 		protected:
 			/// The channel identifier
 			int _chanId;
 			/// The full device name for the downconverter
 			std::string _dnName;
-			/// The bypass divider decimation rate.
-			int _decimation;
 			/// The down convertor file descriptor
 			int _dnFd;
 			/// The number of milliseconds to wait before returning

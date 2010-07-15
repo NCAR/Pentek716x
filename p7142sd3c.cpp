@@ -86,7 +86,7 @@ void p7142sd3cdn::_init() {
         }
     }
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142sd3cdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
-	std::cout << "decimation:    " << _decimation      << " adc_clock counts"     << std::endl;
+	std::cout << "decimation:    " << decimation()      << " adc_clock counts"     << std::endl;
 	std::cout << "pulse width:   " << _pulseWidth      << " adc_clock/2 counts"   << std::endl;
 	std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
 	std::cout << "prt:           " << _prt             << " adc_clock/2 counts"   << std::endl;

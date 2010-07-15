@@ -28,7 +28,6 @@ p7142dn::p7142dn(std::string devName, int chanId, int decimation,
 		 bool internalClock):
   p7142(devName, simulate),
   _chanId(chanId),
-  _decimation(decimation),
   _dnFd(-1),
   _simPauseMS(simPauseMS),
   _simWaveLength(simWaveLength)
@@ -85,12 +84,9 @@ p7142dn::p7142dn(std::string devName, int chanId, int decimation,
     }
 
   // set the decimation rate
-  if (ioctl(_dnFd, FIOBYPDIVSET, _decimation) == -1) {
-    std::cerr << "unable to set the bypass decimation rate for "
-	      << _dnName << " to " << _decimation << std::endl;
-    perror("");
-    _ok = false;
-    return;
+  if (! setDecimation(decimation)) {
+      _ok = false;
+      return;
   }
 
   // flush the device read buffers
@@ -219,13 +215,40 @@ void p7142dn::flush() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
-p7142dn::usingInternalClock() {
+p7142dn::usingInternalClock() const {
     int clockSource;
     if (ioctl(_dnFd, FIOCLKSRCGET, &clockSource) == -1) {
         std::cerr << __FUNCTION__ << ": ioctl error on FIOCLKSRCGET: " <<
                 strerror(errno);
     }
     return(clockSource == CLK_SRC_INTERN);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+int
+p7142dn::decimation() const {
+    // get the decimation rate
+    int decimation;
+    if (ioctl(_dnFd, FIOBYPDIVGET, &decimation) == -1) {
+      std::cerr << "unable to get the bypass decimation rate for "
+            << _dnName << std::endl;
+      perror("");
+      return -1;
+    }
+    return decimation;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+bool
+p7142dn::setDecimation(int decimation) const {
+    // set the decimation rate
+    if (ioctl(_dnFd, FIOBYPDIVSET, decimation) == -1) {
+      std::cerr << "unable to set the bypass decimation rate for "
+            << _dnName << " to " << decimation << std::endl;
+      perror("");
+      return false;
+    }
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
