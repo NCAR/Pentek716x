@@ -50,10 +50,14 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
             _gaussianFile(gaussianFile), _kaiserFile(kaiserFile), _simPulseNum(0)
 
 {
-    // We have to open the control device before we query the DDC type
-    _openControlDevice();
-    // Query the firmware to get DDC type
-    _ddcType = ddc_type();
+    if (! _simulate) {
+        // Query the firmware to get DDC type
+        _openControlDevice();
+        _ddcType = ddc_type();   
+    } else {
+        _ddcType = DDC8DECIMATE;
+    }
+
     // Set the ADC clock rate based on DDC type
     _adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
     // Convert prt, prt2, pulseWidth, and delay into our local representation, 
