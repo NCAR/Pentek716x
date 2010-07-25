@@ -1004,9 +1004,9 @@ p7142sd3cdn::read(char* buf, int bufsize) {
     assert(sizeof(short) == 2);
 
     // We expect a specific bufsize to hold _tsLength samples
-    // of _gates gates, 2-byte I and Q, and a 4-byte tag for
-    // each sample
-    assert(bufsize = (_tsLength * (4 * _gates + 4)));
+    // of _gates gates, 2-byte I and Q, a 4 byte sync word, and 
+    // a 4-byte tag for each sample
+    assert(bufsize = (_tsLength * (4 * _gates + 4 + 4)));
 
     // Static buffer for simulated IQ data from p7142dn::read()
     static char *iqData = 0;
@@ -1019,6 +1019,9 @@ p7142sd3cdn::read(char* buf, int bufsize) {
     // Build our tagged samples
     char* bufp = buf;
     for (int ts = 0; ts < _tsLength; ts++) {
+    	// add the sync word
+    	((unsigned int*)bufp)[0] = SD3C_SYNCWORD;
+    	bufp += 4;
         // Create the tag for this sample.  Currently, this uses the
         // profiler no-coherent-integration 32-bit tag (defined as of
         // 2009-12-17):

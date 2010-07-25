@@ -41,10 +41,13 @@ namespace Pentek {
 /// are also included in this mode.
 class p7142sd3cdn: public p7142dn {
 public:
-	///The type of downconverter that is instantiated in the pentek firmware.
+	/// The type of downconverter that is instantiated in the pentek firmware.
 	enum DDCDECIMATETYPE {
 		DDC8DECIMATE, DDC4DECIMATE
 	};
+	
+	/// The SD3C synchronization word value.
+	#define SD3C_SYNCWORD 0xAAAAAAAA
 
 	/// Collects timer initialization values
 	struct TimerSetup {
