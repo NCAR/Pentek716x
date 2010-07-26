@@ -33,6 +33,10 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
 
 {
 
+    // set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
+    _pp.page = 2; // PCIBAR 2
+    _pp.mask = 0;
+
 	_adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
 	_prf = (_adc_clock / 2) / _prt;
     _prf2 = (_adc_clock / 2) / _prt2;
@@ -50,6 +54,10 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
             _gaussianFile(gaussianFile), _kaiserFile(kaiserFile), _simPulseNum(0)
 
 {
+    // set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
+    _pp.page = 2; // PCIBAR 2
+    _pp.mask = 0;
+    
     if (! _simulate) {
         // Query the firmware to get DDC type
         _openControlDevice();
@@ -110,10 +118,6 @@ void p7142sd3cdn::_init() {
 
 	if (_simulate)
 		return;
-
-	// set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
-	_pp.page = 2; // PCIBAR 2
-	_pp.mask = 0;
 
 	// open Pentek 7142 ctrl device if it isn't open yet
 	if (_ctrlFd < 0)
@@ -245,7 +249,8 @@ int p7142sd3cdn::fpgaRepoRevision() {
 //////////////////////////////////////////////////////////////////////
 p7142sd3cdn::DDCDECIMATETYPE p7142sd3cdn::ddc_type() {
 	_pp.offset = FPGA_REPO_REV;
-	ioctl(_ctrlFd, FIOREGGET, &_pp);
+    ioctl(_ctrlFd, FIOREGGET, &_pp);
+    
 	DDCDECIMATETYPE ddctype = DDC4DECIMATE;
 	switch (_pp.value & 0x8000) {
 	case 0x8000:
