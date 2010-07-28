@@ -25,10 +25,10 @@ int _chanId;                     ///< The channel device number (0-3)
 int _gates;                      ///< The number of gates
 int _nsum;                       ///< The number of sums
 int _tsLength;                   ///< The time series length
-int _delay;				     	 ///< delay in ADC_Clk/2 counts (24 MHz for ddc4, 62.5 MHz for ddc8)
-int _prt;                        ///< prt in ADC_Clk/2 counts (24 MHz for ddc4, 62.5 MHz for ddc8)
-int _prt2;                       ///< prt2 in ADC_Clk/2 counts, if == prt, then no staggered prt
-int _pulseWidth;                 ///< pulsewidth in ADC_Clk/2 counts (24 MHz for ddc4, 62.5 MHz for ddc8)
+double _delay;				     ///< delay in seconds
+double _prt;                     ///< prt in seconds
+double _prt2=0.0;                ///< prt2 in seconds
+double _pulseWidth;              ///< pulsewidth in seconds
 bool _stgrPrt = false;           ///< set true for staggered prt
 std::string _gaussianFile = "";  ///< gaussian filter coefficient file
 std::string _kaiserFile = "";    ///< kaiser filter coefficient file
@@ -52,8 +52,8 @@ void getConfigParams()
 	_devRoot       = config.getString("Device/DeviceRoot",  "/dev/pentek/p7142/0");
 	_ddcType       = config.getInt("Device/DdcType",        8);
 	_gates         = config.getInt("Radar/Gates",           400);
-	_prt		   = config.getInt("Radar/PRT", 			12544); // 5 Hz
-	_pulseWidth    = config.getInt("Radar/PulseWidth", 		64);    // 1 uS
+	_prt		   = config.getDouble("Radar/PRT", 			0.2); // 5 Hz
+	_pulseWidth    = config.getDouble("Radar/PulseWidth", 	0.000001);    // 1 uS
 	_nsum          = config.getInt("Radar/Nsum",            1);
 	_tsLength      = config.getInt("Radar/TsLength",        256);
 	_freeRun       = config.getBool("Radar/FreeRunning",    false);
@@ -80,8 +80,8 @@ void parseOptions(int argc,
 	("devRoot", po::value<std::string>(&_devRoot),     "Device root (e.g. /dev/pentek/0)")
 	("channel", po::value<int>(&_chanId),              "Channel number (0-3)")
 	("gates",  po::value<int>(&_gates),                "Number of gates")
-	("prt",  po::value<int>(&_prt),                    "PRT in ADC_Clk/2 counts")
-	("pulseWidth",  po::value<int>(&_pulseWidth),      "Pulse width in ADC_Clk/2 counts")
+	("prt",  po::value<double>(&_prt),                 "PRT in seconds")
+	("pulseWidth",  po::value<double>(&_pulseWidth),   "Pulse width seconds")
 	("nsum",  po::value<int>(&_nsum),                  "Number of coherent integrator sums")
 	("ddc",  po::value<int>(&_ddcType),                "DDC type (8 or 4; must match pentek firmware)")
 	("freeRun",                                        "Free running mode, PRT gating is disabled")
@@ -122,11 +122,6 @@ void argumentCheck() {
 
 	if (_gates < 1 || _gates > 511) {
 		std::cerr << "gates must be greater than 0 and less than 512." << std::endl;
-		exit(1);
-	}
-
-	if (_prt % _pulseWidth) {
-		std::cerr << "PRT must be an integral number of pulse widths." << std::endl;
 		exit(1);
 	}
 
@@ -229,8 +224,6 @@ int main(int argc, char** argv) {
 			_freeRun,
 			_gaussianFile,
 			_kaiserFile,
-			ddcType,
-			2*_pulseWidth,
 			false,
 			0,
 			_internalClock);

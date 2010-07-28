@@ -20,31 +20,6 @@ using namespace boost::posix_time;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
-		int tsLength, int delay, int prt, int prt2, int pulseWidth,
-		bool staggeredPrt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
-		DDCDECIMATETYPE ddcType, int decimation, bool simulate,
-		int simPauseMS, bool internalClock) :
-	p7142dn(devName, chanId, decimation, simulate, simPauseMS, gates*tsLength/3, internalClock),
-			_gates(gates), _nsum(nsum), _tsLength(tsLength),
-			_prt(prt), _prt2(prt2), _pulseWidth(pulseWidth),
-			_delay(delay), _staggeredPrt(staggeredPrt), _freeRun(freeRun),
-			_ddcType(ddcType), _gaussianFile(gaussianFile),
-			_kaiserFile(kaiserFile), _simPulseNum(0)
-
-{
-
-    // set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
-    _pp.page = 2; // PCIBAR 2
-    _pp.mask = 0;
-
-	_adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
-	_prf = (_adc_clock / 2) / _prt;
-    _prf2 = (_adc_clock / 2) / _prt2;
-    _init();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
         int tsLength, double delay, double prt, double prt2, double pulseWidth,
         bool staggeredPrt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
         bool simulate, int simPauseMS, bool internalClock) :
