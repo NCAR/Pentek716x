@@ -205,7 +205,13 @@ int main(int argc, char** argv) {
 	// try to change scheduling to real-time
 	makeRealTime();
 
-	Pentek::p7142sd3cdn::DDCDECIMATETYPE ddcType = Pentek::p7142sd3cdn::DDC8DECIMATE;
+    std::vector<double> delays;
+    std::vector<double> widths;
+    for (int i = 0; i < 5; i++) {
+        delays.push_back(0.0);  
+        widths.push_back(0.0);
+    }
+    	Pentek::p7142sd3cdn::DDCDECIMATETYPE ddcType = Pentek::p7142sd3cdn::DDC8DECIMATE;
 	if (_ddcType == 4) {
 		ddcType = Pentek::p7142sd3cdn::DDC4DECIMATE;
 	}
@@ -216,11 +222,14 @@ int main(int argc, char** argv) {
 			_gates,
 			_nsum,
 			_tsLength,
+            0,
 			0,
 			_prt,
 			_prt2,
 			_pulseWidth,
 			_stgrPrt,
+            delays,
+            widths,
 			_freeRun,
 			_gaussianFile,
 			_kaiserFile,

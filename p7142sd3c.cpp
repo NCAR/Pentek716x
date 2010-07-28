@@ -19,16 +19,45 @@ using namespace Pentek;
 using namespace boost::posix_time;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
-        int tsLength, double delay, double prt, double prt2, double pulseWidth,
-        bool staggeredPrt, bool freeRun, std::string gaussianFile, std::string kaiserFile,
-        bool simulate, int simPauseMS, bool internalClock) :
-    p7142dn(devName, chanId, 1, simulate, simPauseMS, gates*tsLength/3, internalClock),
-            _gates(gates), _nsum(nsum), _tsLength(tsLength),
-            _staggeredPrt(staggeredPrt), _freeRun(freeRun),
-            _gaussianFile(gaussianFile), _kaiserFile(kaiserFile), _simPulseNum(0)
-
+p7142sd3cdn::p7142sd3cdn(
+    std::string devName, 
+    int chanId, 
+    int gates, 
+    int nsum,
+    int tsLength, 
+    double rx_delay, 
+    double tx_delay, 
+    double prt, 
+    double prt2, 
+    double pulseWidth,
+    bool staggeredPrt, 
+    std::vector<double> timer_delays,
+    std::vector<double> timer_widths,
+    bool freeRun, 
+    std::string gaussianFile, 
+    std::string kaiserFile,
+    bool simulate, 
+    int simPauseMS, 
+    bool internalClock) :
+    p7142dn(
+        devName, 
+        chanId, 
+        1, 
+        simulate, 
+        simPauseMS, 
+        gates*tsLength/3, 
+        internalClock),
+        _gates(gates), 
+        _nsum(nsum), 
+        _tsLength(tsLength),
+        _staggeredPrt(staggeredPrt), 
+        _freeRun(freeRun),
+        _gaussianFile(gaussianFile), 
+        _kaiserFile(kaiserFile), 
+        _simPulseNum(0)
 {
+    assert(timer_delays.size() == 5 && timer_widths.size() == 5);
+    
     // set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
     _pp.page = 2; // PCIBAR 2
     _pp.mask = 0;
@@ -47,10 +76,31 @@ p7142sd3cdn::p7142sd3cdn(std::string devName, int chanId, int gates, int nsum,
     // which is in units of (ADC clock counts / 2)
     _prt = lround(prt * _adc_clock / 2);
     _prt2 = lround(prt2 * _adc_clock / 2);
-    _pulseWidth = lround(pulseWidth * _adc_clock / 2);
-    _delay = lround(delay * _adc_clock / 2);
     _prf = 1.0 / prt;
     _prf2 = 1.0 / prt2;
+    
+    int rxDelayCounts    = lround(rx_delay   * _adc_clock / 2);
+    int pulseWidthCounts = lround(pulseWidth * _adc_clock / 2);
+    int txDelayCounts    = lround(tx_delay   * _adc_clock / 2);
+
+    // sync pulse timer
+    _timer_delays.push_back(0);
+    _timer_widths.push_back(4);
+    
+    // rx gate timer
+    _timer_delays.push_back(rxDelayCounts);
+    _timer_widths.push_back(pulseWidthCounts*_gates);
+    
+    // tx pulse pulse timer
+    _timer_delays.push_back(txDelayCounts);
+    _timer_widths.push_back(pulseWidthCounts);
+    
+    // the 5 general purpose timers
+    for (int i = 0; i < 5; i++) {
+        _timer_delays.push_back(lround(timer_delays[i] * _adc_clock / 2));
+        _timer_widths.push_back(lround(timer_widths[i] * _adc_clock / 2));
+    }
+    
     _init();
 }
 
@@ -74,12 +124,14 @@ void p7142sd3cdn::_init() {
     }
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142sd3cdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
 	std::cout << "decimation:    " << bypassDivider()  << std::endl;
-	std::cout << "pulse width:   " << _pulseWidth      << " adc_clock/2 counts"   << std::endl;
+    std::cout << "rx delay:      " << _timer_delays[1] << " adc_clock/2 counts"  << std::endl; 
+    std::cout << "rx gate width: " << _timer_widths[1] << " adc_clock/2 counts"   << std::endl;
+    std::cout << "tx delay:      " << _timer_delays[2] << " adc_clock/2 counts"  << std::endl;
+    std::cout << "tx pulse width:" << _timer_widths[2] << " adc_clock/2 counts"   << std::endl;
 	std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
-	std::cout << "prt:           " << _prt             << " adc_clock/2 counts"   << std::endl;
+    std::cout << "prt:           " << _prt             << " adc_clock/2 counts"   << std::endl;
 	std::cout << "prt2:          " << _prt2            << " adc_clock/2 counts"   << std::endl;
 	std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
-	std::cout << "delay:         " << _delay           << " adc clock/2 counts"   << std::endl;
 	std::cout << "rng to gate0:  " << rangeToFirstGate() << " m"                  << std::endl;
 	std::cout << "clock source:  " << (usingInternalClock() ? "internal" : "external") << std::endl;
 	std::cout << "ts length:     " << _tsLength                                   << std::endl;
@@ -498,7 +550,7 @@ int p7142sd3cdn::filterSetup() {
 		// Choose the correct builtin Gaussian filter coefficient set.
 		switch (_ddcType) {
 		case DDC8DECIMATE: {
-			switch ((int)(_pulseWidth/62.5 * 10)) { // pulse width in 62.5 MHz counts
+			switch ((int)(_timer_widths[2]/62.5 * 10)) { // pulse width in 62.5 MHz counts
 
 			case 2:                             //pulse width = 0.256 microseconds
 				pulseWidthUs = 0.256;
@@ -529,9 +581,9 @@ int p7142sd3cdn::filterSetup() {
 				gaussianFilterName = "ddc8_1_0";
 				break;
 			default:
-				std::cerr << "chip width specification of " << _pulseWidth
-						<< " is not recognized, filter will be configured for a "
-						<< pulseWidthUs << " uS pulse\n";
+				std::cerr << "chip width specification of " << _timer_widths[2]
+						  << " is not recognized, filter will be configured for a "
+						  << pulseWidthUs << " uS pulse\n";
 				break;
 			}
 			break;
@@ -614,8 +666,9 @@ bool p7142sd3cdn::initTimers() {
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
-	std::cout << "delay is " << _delay << std::endl;
-	std::cout << "pulseWidth is " << _pulseWidth << std::endl;
+    std::cout << "rx delay is   " << _timer_delays[1] << std::endl;
+    std::cout << "tx delay is   " << _timer_delays[2] << std::endl;
+	std::cout << "pulseWidth is " << _timer_widths[2] << std::endl;
 
 	// Internal Timing Setup
 
@@ -669,22 +722,25 @@ bool p7142sd3cdn::initTimers() {
 
 	// Configure the timers
 	std::vector<TimerSetup> timers;
-
-	// the sync pulse
-	timers.push_back(TimerSetup(TIMER0, 0,      4));
-	// the rx gate
-	timers.push_back(TimerSetup(TIMER1, _delay, _pulseWidth*_gates));
-	// the tx gate
-	timers.push_back(TimerSetup(TIMER2, _delay, _pulseWidth));
-	// general purpose timers
-	timers.push_back(TimerSetup(TIMER3, _delay+5, _pulseWidth+16));
-	timers.push_back(TimerSetup(TIMER4, _delay, _pulseWidth));
-	timers.push_back(TimerSetup(TIMER5, _delay, _pulseWidth));
-	timers.push_back(TimerSetup(TIMER6, _delay, _pulseWidth));
-	timers.push_back(TimerSetup(TIMER7, _delay, _pulseWidth));
+    
+    // the sync pulse
+    timers.push_back(TimerSetup(TIMER0, _timer_delays[0], _timer_widths[0]));
+    // the rx gate
+    timers.push_back(TimerSetup(TIMER1, _timer_delays[1], _timer_widths[1]));
+    // the tx pulse
+    timers.push_back(TimerSetup(TIMER2, _timer_delays[2], _timer_widths[2]));
+    // 1st general purpose timer
+    timers.push_back(TimerSetup(TIMER3, _timer_delays[3], _timer_widths[3]));
+    // 2nd general purpose timer
+    timers.push_back(TimerSetup(TIMER4, _timer_delays[4], _timer_widths[4]));
+    // 3rd general purpose timer
+    timers.push_back(TimerSetup(TIMER5, _timer_delays[5], _timer_widths[5]));
+    // 4th general purpose timer
+    timers.push_back(TimerSetup(TIMER6, _timer_delays[6], _timer_widths[6]));
+    // 5th general purpose timer
+    timers.push_back(TimerSetup(TIMER7, _timer_delays[7], _timer_widths[7]));
 
 	for (unsigned int i = 0; i < timers.size(); i++) {
-		// TIMER 1
 		// Delay Register
 		_pp.offset = MT_ADDR; // Address
 		_pp.value = DELAY_REG | timers[i].id;

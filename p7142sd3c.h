@@ -71,11 +71,14 @@ public:
     /// @param nsum The number of coherent integrator sums. If < 2, the coherent integrator will not be used.
     /// @param tsLength The number of pulses in one time series. Used to set interrupt buffer size, so
     /// that we have reasonable responsiveness in the data stream.
-    /// @param delay the delay to the first gate in seconds
+    /// @param rx_delay the delay to the first rx gate in seconds
+    /// @param tx_delay the delay for the tx pulse in seconds
     /// @param prt The radar PRT in seconds
     /// @param prt2 The second PRT of a staggered PRT sequence in seconds
     /// @param pulse_width The radar pulse width in seconds
     /// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
+    /// @param timer_delays A vector containing delays for the 5 general purpose times, in seconds
+    /// @param timer_widths A vector containing widths for the 5 general purpose times, in seconds
     /// @param freeRun If true, the firmware will be configured to ignore the PRT gating.
     /// @param gaussianFile Name of the file containing the Gaussian
     ///   filter parameters
@@ -91,12 +94,15 @@ public:
         int chanId, 
         int gates, 
         int nsum,
-        int tsLength, 
-        double delay, 
+        int tsLength,
+        double rx_delay, 
+        double tx_delay, 
         double prt, 
         double prt2, 
         double pulse_width,
         bool stgr_prt, 
+        std::vector<double> timer_delays,
+        std::vector<double> timer_widths,
         bool freeRun, 
         std::string gaussianFile, 
         std::string kaiserFile,
@@ -151,12 +157,12 @@ public:
 
     /// @return The receiver pulsewidth, in s
     double rcvrPulseWidth() const {
-        return(_pulseWidth / (_adc_clock / 2));
+        return(_timer_widths[2] / (_adc_clock / 2));
     }
     
     /// @return The receiver delay to first gate, in s
     double rcvrFirstGateDelay() const {
-        return(_delay / (_adc_clock / 2));
+        return(_timer_delays[1] / (_adc_clock / 2));
     }
     
     static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
@@ -253,9 +259,11 @@ protected:
 	/// second PRT of staggered PRT in _adc_clock/2 counts
 	int _prt2;
 	/// radar pulse width in _adc_clock/2 counts
-	int _pulseWidth;
-	/// delay to first gate in _adc_clock/2 counts
-	int _delay;
+	//int _pulseWidth;
+    /// receiver delay to first gate in _adc_clock/2 counts
+    //int _rx_delay;
+    /// transmit pulse delay  in _adc_clock/2 counts
+    //int _tx_delay;
 	/// staggered PRT flag: 1 = stagger, 0 = uniform
 	bool _staggeredPrt;
 	/// free running mode. Causes the firmware to be configured to ignore the PRT gating.
@@ -277,6 +285,16 @@ protected:
 	/// The prf(s) in Hz
 	double _prf;
     double _prf2;
+    /// The timer delay counts, in adc_clock/2 counts, for all 8 timers. The first
+    /// three entries are derived calculated in this class, the remaining 
+    /// 5 are specified by the caller via the 'delays' parameter in the 
+    /// constructor.
+    std::vector<int> _timer_delays;
+    /// The timer width counts, in adc_clock/2 counts, for all 8 timers. The first
+    /// three entries are derived calculated in this class, the remaining 
+    /// 5 are specified by the caller via the 'widths' parameter in the 
+    /// constructor.
+    std::vector<int> _timer_widths;
 private:
     /// Complete instantiation after members have been set up.
     void _init();
