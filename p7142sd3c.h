@@ -47,7 +47,7 @@ public:
 	};
 	
 	/// The SD3C synchronization word value.
-	#define SD3C_SYNCWORD 0xAAAAAAAA
+	static const unsigned int SD3C_SYNCWORD = 0xAAAAAAAA;
 
 	/// Collects timer initialization values
 	struct TimerSetup {
