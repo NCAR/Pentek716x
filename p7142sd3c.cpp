@@ -39,14 +39,13 @@ p7142sd3cdn::p7142sd3cdn(
     bool simulate, 
     int simPauseMS, 
     bool internalClock) :
-    p7142dn(
-        devName, 
-        chanId, 
-        1, 
-        simulate, 
-        simPauseMS, 
-        gates*tsLength/3, 
-        internalClock),
+        p7142dn(devName, 
+                chanId, 
+                1, 
+                simulate, 
+                simPauseMS, 
+                gates*tsLength/3, 
+                internalClock),
         _gates(gates), 
         _nsum(nsum), 
         _tsLength(tsLength),
@@ -62,13 +61,11 @@ p7142sd3cdn::p7142sd3cdn(
     _pp.page = 2; // PCIBAR 2
     _pp.mask = 0;
     
-    if (! _simulate) {
-        // Query the firmware to get DDC type
-        _openControlDevice();
-        _ddcType = ddc_type();   
-    } else {
-        _ddcType = DDC8DECIMATE;
-    }
+    // Open the control device before we call any methods which access the card
+    _openControlDevice();
+    
+    // Query the firmware to get DDC type
+    _ddcType = ddc_type();
 
     // Set the ADC clock rate based on DDC type
     _adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
@@ -100,13 +97,8 @@ p7142sd3cdn::p7142sd3cdn(
         _timer_delays.push_back(lround(timer_delays[i] * _adc_clock / 2));
         _timer_widths.push_back(lround(timer_widths[i] * _adc_clock / 2));
     }
-    
-    _init();
-}
 
-////////////////////////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::_init() {
-	if (_simulate) {
+    if (_simulate) {
         // we generate simulated data with no coherent integration
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
         if (_freeRun) {
@@ -149,10 +141,6 @@ void p7142sd3cdn::_init() {
 	if (_simulate)
 		return;
 
-	// open Pentek 7142 ctrl device if it isn't open yet
-	if (_ctrlFd < 0)
-		_openControlDevice();
-
 	if (fpgaRepoRevision() == 0) {
 		std::cerr << "**** Warning: The FPGA firmware revision number is zero. Was the correct firmware loaded?"
 		<< std::endl;
@@ -165,12 +153,12 @@ void p7142sd3cdn::_init() {
 		exit(1);
 	}
 
-    /// HCR Pentek firmware requires that bypass divider value be set to
+    /// The SD3C Pentek firmware requires that bypass divider value be set to
     /// 2 * (pulse width in adc_frequency counts).
     setBypassDivider(2 * _timer_widths[2]);
 	std::cout << "bypass decim:  " << bypassDivider()  << std::endl;
     
-	// check the fpga firmware revision
+	// Note the fpga firmware revision
 	std::cout << "FPGA revision: " << fpgaRepoRevision()
 			<< std::endl;
 
@@ -197,6 +185,9 @@ p7142sd3cdn::~p7142sd3cdn() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cdn::_openControlDevice() {
+    if (_simulate)
+        return;
+    
 	_ctrlFd = open(_devCtrl.c_str(), O_RDWR);
 	if (_ctrlFd < 0) {
 		std::cout << "unable to open Pentek ctrl device" << std::endl;
@@ -247,6 +238,8 @@ bool p7142sd3cdn::config() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::freeRunConfig() {
+    if (_simulate)
+        return;
 
 	// set the free run bit as needed
 
@@ -275,6 +268,9 @@ void p7142sd3cdn::freeRunConfig() {
 
 //////////////////////////////////////////////////////////////////////
 int p7142sd3cdn::fpgaRepoRevision() {
+    if (_simulate)
+        return 0;
+    
 	_pp.offset = FPGA_REPO_REV;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
 	return _pp.value & 0x7fff;
@@ -283,6 +279,9 @@ int p7142sd3cdn::fpgaRepoRevision() {
 
 //////////////////////////////////////////////////////////////////////
 p7142sd3cdn::DDCDECIMATETYPE p7142sd3cdn::ddc_type() {
+    if (_simulate)
+        return DDC8DECIMATE;
+    
 	_pp.offset = FPGA_REPO_REV;
     ioctl(_ctrlFd, FIOREGGET, &_pp);
     
@@ -317,6 +316,8 @@ void p7142sd3cdn::startFilters() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::stopFilters() {
+    if (_simulate)
+        return;
 
 	// stop the filters if they are running.
 	_pp.offset = KAISER_ADDR;
@@ -332,6 +333,9 @@ void p7142sd3cdn::stopFilters() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::setGates(int gates) {
+    if (_simulate)
+        return;
+    
 	_pp.offset = RADAR_GATES;
 	_pp.value = gates;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -341,6 +345,9 @@ void p7142sd3cdn::setGates(int gates) {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::setNsum(int nsum) {
+    if (_simulate)
+        return;
+    
 	_pp.offset = CI_NSUM;
 	_pp.value = nsum;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -350,6 +357,8 @@ void p7142sd3cdn::setNsum(int nsum) {
 
 //////////////////////////////////////////////////////////////////////
 bool p7142sd3cdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
+    if (_simulate)
+        return true;
 
 	bool kaiserLoaded;
 	bool gaussianLoaded;
@@ -667,6 +676,8 @@ int p7142sd3cdn::filterSetup() {
 /////////////////////////////////////////////////////////////////////////
 
 bool p7142sd3cdn::initTimers() {
+    if (_simulate)
+        return true;
 
 	//
 	//    This section initializes the timers.
@@ -795,6 +806,8 @@ bool p7142sd3cdn::initTimers() {
 
 /////////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::timersStartStop(bool start) {
+    if (_simulate)
+        return;
 	//
 	//    This start the internal timers.
 	bool INTERNAL_TRIG = true;
@@ -855,6 +868,8 @@ void p7142sd3cdn::timersStartStop(bool start) {
 
 //////////////////////////////////////////////////////////////////////
 unsigned short int p7142sd3cdn::TTLIn() {
+    if (_simulate)
+        return 0;
 
 	_pp.offset = TTL_IN;
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
@@ -864,7 +879,10 @@ unsigned short int p7142sd3cdn::TTLIn() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::TTLOut(unsigned short int data) {
-	_pp.value = data;
+    if (_simulate)
+        return;
+
+    _pp.value = data;
 
 	_pp.offset = TTL_OUT1;
 	ioctl(_ctrlFd, FIOREGSET, &_pp);
@@ -913,7 +931,10 @@ void p7142sd3cdn::setInterruptBufSize() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cdn::resetDCM(int fd) {
-	_pp.offset = DCM_CONTROL;
+    if (_simulate)
+        return;
+
+    _pp.offset = DCM_CONTROL;
 
 	// read the dcm control register
 	ioctl(_ctrlFd, FIOREGGET, &_pp);
@@ -939,7 +960,10 @@ p7142sd3cdn::resetDCM(int fd) {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cdn::fifoConfig() {
-	// The fifos need to be configured for
+    if (_simulate)
+        return;
+
+    // The fifos need to be configured for
 	// the given channel that we are using.
 
 	// find the fifo configuration register

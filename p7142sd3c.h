@@ -296,8 +296,6 @@ protected:
     /// constructor.
     std::vector<int> _timer_widths;
 private:
-    /// Complete instantiation after members have been set up.
-    void _init();
     /// Open the control device.
     void _openControlDevice();
 
