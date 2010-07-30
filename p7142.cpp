@@ -205,6 +205,9 @@ void p7142dn::flush() {
 	  // to disable the timers, and so the fifos may have been
 	  // filling. When we do implement true timer control, this
 	  // flush will probably not be needed.
+  if (_simulate)
+      return;
+  
   if (ioctl(_dnFd, FIOFLUSH, 0) == -1) {
     std::cerr << "unable to flush for " << _dnName << std::endl;
     perror("");
@@ -216,6 +219,9 @@ void p7142dn::flush() {
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
 p7142dn::usingInternalClock() const {
+    if (_simulate)
+        return(false);
+    
     int clockSource;
     if ((clockSource = ioctl(_dnFd, FIOCLKSRCGET, 0)) == -1) {
         std::cerr << __FUNCTION__ << ": ioctl error on FIOCLKSRCGET: " <<
@@ -227,6 +233,9 @@ p7142dn::usingInternalClock() const {
 ////////////////////////////////////////////////////////////////////////////////////////
 int
 p7142dn::bypassDivider() const {
+    if (_simulate)
+        return(0);
+    
     // get the bypass divider
     int bypassdiv;
     if ((bypassdiv = ioctl(_dnFd, FIOBYPDIVGET, 0)) == -1) {
@@ -240,6 +249,9 @@ p7142dn::bypassDivider() const {
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
 p7142dn::setBypassDivider(int bypassdiv) const {
+    if (_simulate)
+        return;
+    
     // set the bypass divider
     if (ioctl(_dnFd, FIOBYPDIVSET, bypassdiv) == -1) {
       std::cerr << "unable to set the bypass divider for "
@@ -576,6 +588,8 @@ p7142up::startDAC() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142up::stopDAC() {
+  if (_simulate)
+      return;
 
   if (_upFd != -1) {
 
