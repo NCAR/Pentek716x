@@ -250,7 +250,7 @@ p7142dn::bypassDivider() const {
 bool
 p7142dn::setBypassDivider(int bypassdiv) const {
     if (_simulate)
-        return;
+        return true;
     
     // set the bypass divider
     if (ioctl(_dnFd, FIOBYPDIVSET, bypassdiv) == -1) {
