@@ -122,8 +122,8 @@ void p7142sd3cdn::_init() {
             _nsum = 1;
         }
     }
+    
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142sd3cdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
-	std::cout << "decimation:    " << bypassDivider()  << std::endl;
     std::cout << "rx delay:      " << _timer_delays[1] << " adc_clock/2 counts"  << std::endl; 
     std::cout << "rx gate width: " << _timer_widths[1] << " adc_clock/2 counts"   << std::endl;
     std::cout << "tx delay:      " << _timer_delays[2] << " adc_clock/2 counts"  << std::endl;
@@ -141,7 +141,10 @@ void p7142sd3cdn::_init() {
 	std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
 	std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
 	std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
-
+	for (int i = 0; i < 8; i++) {
+		std::cout << "timer " << i << " delay: " << _timer_delays[i] << " adc_clock/2 counts"  << std::endl;
+		std::cout << "timer " << i << " width: " << _timer_widths[i] << " adc_clock/2 counts"  << std::endl;
+	}
 
 	if (_simulate)
 		return;
@@ -149,10 +152,6 @@ void p7142sd3cdn::_init() {
 	// open Pentek 7142 ctrl device if it isn't open yet
 	if (_ctrlFd < 0)
 		_openControlDevice();
-
-	// check the fpga firmware revision
-	std::cout << "FPGA revision: " << fpgaRepoRevision()
-			<< std::endl;
 
 	if (fpgaRepoRevision() == 0) {
 		std::cerr << "**** Warning: The FPGA firmware revision number is zero. Was the correct firmware loaded?"
@@ -165,6 +164,15 @@ void p7142sd3cdn::_init() {
 		<< std::endl;
 		exit(1);
 	}
+
+    /// HCR Pentek firmware requires that bypass divider value be set to
+    /// 2 * (pulse width in adc_frequency counts).
+    setBypassDivider(2 * _timer_widths[2]);
+	std::cout << "bypass decim:  " << bypassDivider()  << std::endl;
+    
+	// check the fpga firmware revision
+	std::cout << "FPGA revision: " << fpgaRepoRevision()
+			<< std::endl;
 
 	// stop the timers
 	timersStartStop(false);
@@ -427,9 +435,9 @@ bool p7142sd3cdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	if (kaiserLoaded) {
 		std::cout << kaiser.size()
-				<< " Kaiser filter coefficients succesfully loaded\n";
+				<< " Kaiser filter coefficients succesfully loaded" << std::endl;
 	} else {
-		std::cout << "Unable to load the Kaiser filter coefficients\n";
+		std::cout << "Unable to load the Kaiser filter coefficients" << std::endl;
 	}
 
 	// program gaussian coefficients
@@ -513,13 +521,13 @@ bool p7142sd3cdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
 	if (gaussianLoaded) {
 		std::cout << gaussian.size()
-				<< " Gaussian filter coefficients succesfully loaded\n";
+				<< " Gaussian filter coefficients succesfully loaded" << std::endl;
 	} else {
-		std::cout << "Unable to load the Gaussian filter coefficients\n";
+		std::cout << "Unable to load the Gaussian filter coefficients" << std::endl;
 	}
 
 	// return to decimal output
-	std::cout << std::dec << std::endl;
+	std::cout << std::dec;
 
 	return kaiserLoaded && gaussianLoaded;
 
@@ -666,10 +674,6 @@ bool p7142sd3cdn::initTimers() {
 	int periodCount; // Period Count for all Timers
 	int PrtScheme; // PRT Scheme for all Timers
 
-    std::cout << "rx delay is   " << _timer_delays[1] << std::endl;
-    std::cout << "tx delay is   " << _timer_delays[2] << std::endl;
-	std::cout << "pulseWidth is " << _timer_widths[2] << std::endl;
-
 	// Internal Timing Setup
 
 	unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
@@ -741,6 +745,7 @@ bool p7142sd3cdn::initTimers() {
     timers.push_back(TimerSetup(TIMER7, _timer_delays[7], _timer_widths[7]));
 
 	for (unsigned int i = 0; i < timers.size(); i++) {
+		
 		// Delay Register
 		_pp.offset = MT_ADDR; // Address
 		_pp.value = DELAY_REG | timers[i].id;
@@ -1028,8 +1033,9 @@ int p7142sd3cdn::dataRate() {
 int
 p7142sd3cdn::read(char* buf, int bufsize) {
     // Unless we're simulating, we just use the superclass read
-    if (!_simulate)
+    if (!_simulate) {
         return p7142dn::read(buf, bufsize);
+    }
 
     // The rest is for generating simulated data.  We use p7142dn::read()
     // to get the simulated Is and Qs, but we add tags for each time series
