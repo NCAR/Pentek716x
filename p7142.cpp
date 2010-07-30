@@ -545,31 +545,31 @@ p7142up::startDAC() {
   // to MEM2_START_REG.
   ARG_PEEKPOKE pp;
   pp.offset = DDR_MEM_CONTROL;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGGET, &pp);
   // set the DACM fifo reset line (bit 1)
   pp.value = pp.value | 0x0000002;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGSET, &pp);
 	
   // Set the dacm fifo reset (bit 1)
   pp.offset = DAC_FIFO_CONTROL;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGGET, &pp);
   pp.value = pp.value & 0x000FFFD;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGSET, &pp);
 
   // Run the dacm fifo
   pp.offset = DAC_FIFO_CONTROL;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGGET, &pp);
   // Clear the dacm fifo reset (bit 2) so that the fifo can run
   pp.value = pp.value & 0x000FFFD;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGSET, &pp);
 
   // Set bit 6 in the DDR Memory Control Registered. This will allow the 
   // values in memory bank 2 to be loaded into the DACM fifo, where they will
   // be gated out to the DAC by the tx gate.
   pp.offset = DDR_MEM_CONTROL;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGGET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGGET, &pp);
   pp.value = pp.value | 0x0000040;
-  std::cout << "ioctl return: " << ioctl(_ctrlFd, FIOREGSET, &pp) << std::endl;
+  ioctl(_ctrlFd, FIOREGSET, &pp);
 
 }
 
