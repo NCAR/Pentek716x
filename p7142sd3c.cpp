@@ -1107,3 +1107,15 @@ p7142sd3cdn::read(char* buf, int bufsize) {
 
     return bufsize;
 }
+
+//////////////////////////////////////////////////////////////////////////////////
+int
+p7142sd3cdn::indexOfNextSync(const char* buf, int buflen) {
+    uint32_t testword;
+    for (int offset = 0; offset <= buflen - 4; offset++) {
+        memcpy(&testword, buf + offset, 4);
+        if (testword == SD3C_SYNCWORD)
+            return offset;
+    }
+    return -1;
+}

@@ -47,7 +47,7 @@ public:
 	};
 	
 	/// The SD3C synchronization word value.
-	static const unsigned int SD3C_SYNCWORD = 0xAAAAAAAA;
+	static const uint32_t SD3C_SYNCWORD = 0xAAAAAAAA;
 
 	/// Collects timer initialization values
 	struct TimerSetup {
@@ -247,6 +247,15 @@ protected:
 	///
 	/// - clear the fifos
 	void reset();
+	
+	/// Search through the given buffer and return the index of the next
+	/// occurrence of SD3C_SYNCWORD. If the sync word is not found, return
+	/// -1.
+	/// @param buf the byte buffer to search
+	/// @param buflen the number of bytes in the buffer
+	/// @return the index of the next occurrence of SD3C_SYNCWORD, or
+	/// -1 if the sync word is not found.
+	static int indexOfNextSync(const char* buf, int buflen);
 
 	/// number of gates
 	int _gates;
