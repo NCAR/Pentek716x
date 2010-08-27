@@ -86,7 +86,8 @@ public:
     ///   filter parameters
     /// @param simulate Set true if we operate in simulation mode.
     /// @param simPauseMS The number of milliseconds to wait before returning
-    /// simulated data when calling read();
+    /// simulated data when calling read()
+	/// @param simWaveLength The wavelength of the simulated data, in sample counts
     /// @param internalClock Set true if the internal clock should be
     /// used instead of the front panel clock.
     p7142sd3cdn(
@@ -108,7 +109,7 @@ public:
         std::string kaiserFile,
         bool simulate = false, 
         int simPauseMS = 100, 
-        int wimWaveLength = 5000,
+        int simWaveLength = 5000,
         bool internalClock = false);
     
 	/// Destructor
