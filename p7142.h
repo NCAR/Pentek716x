@@ -50,7 +50,7 @@ namespace Pentek {
 			p7142dn(std::string devName,
 					int chanId, int decimation=1,
 			        bool simulate=false, int simPauseMS=100,
-			        int simWaveLength=20000, bool internalClock=false);
+			        int simWaveLength=5000, bool internalClock=false);
 			/// Destructor
 			virtual ~p7142dn();
 			/// Read bytes. If in simulated mode, a sine wave with wavelength

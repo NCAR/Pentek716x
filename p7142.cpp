@@ -166,13 +166,20 @@ p7142dn::read(char* buf, int bufsize) {
   if (_simulate) {
     short* sbuf = (short*)buf;
 
+    static int angleCount = 0;
     // 4 bytes per IQ pair
-    int nPairs = (bufsize - 4) / 4;
+    int nPairs = (bufsize) / 4;
     for (int p = 0; p < nPairs; p++) {
 	  double noise = 0.1 * ((2.0 * rand()) / RAND_MAX - 1.0);    // noise is +/-10% amplitude
 	  // Noisy sine wave, with wavelength of _simWaveLength gates
-      *sbuf++ = (short)(10000 * (sin((2 * p * M_PI) / _simWaveLength) + noise)); // I
-      *sbuf++ = (short)(10000 * (cos((2 * p * M_PI) / _simWaveLength) + noise)); // Q
+	  // The wavelength varies across the range
+	  if (angleCount == _simWaveLength) {
+		  angleCount = 0;
+	  }
+	  double angle = ((double)angleCount)/ _simWaveLength;
+	  angleCount++;
+      *sbuf++ = (short)(10000 * (sin((2 * angle * M_PI)) + noise)); // I
+      *sbuf++ = (short)(10000 * (cos((2 * angle * M_PI)) + noise)); // Q
     }
     _bytesRead += bufsize;
 
@@ -180,6 +187,7 @@ p7142dn::read(char* buf, int bufsize) {
     return bufsize;
   }
 
+  // not in simulation mode; do a proper read from the device
   int n;
   n = ::read(_dnFd, buf, bufsize);
 

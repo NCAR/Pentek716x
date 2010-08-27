@@ -108,6 +108,7 @@ public:
         std::string kaiserFile,
         bool simulate = false, 
         int simPauseMS = 100, 
+        int wimWaveLength = 5000,
         bool internalClock = false);
     
 	/// Destructor
