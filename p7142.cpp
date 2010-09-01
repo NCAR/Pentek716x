@@ -23,14 +23,20 @@ p7142::~p7142() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142dn::p7142dn(std::string devName, int chanId, int decimation,
-		 bool simulate, int simPauseMS, int simWaveLength,
-		 bool internalClock):
+p7142dn::p7142dn(
+		std::string devName,
+		int chanId,
+		int decimation,
+		bool simulate,
+		int simWaveLength,
+	    bool sim4bytes,
+		bool internalClock):
   p7142(devName, simulate),
   _chanId(chanId),
   _dnFd(-1),
-  _simPauseMS(simPauseMS),
-  _simWaveLength(simWaveLength)
+  _simWaveLength(simWaveLength),
+  _angleCount(0),
+  _sim4bytes(sim4bytes)
 {
   // create the read mutex
   //_readMutex.create();
@@ -160,44 +166,62 @@ p7142dn::read(char* buf, int bufsize) {
 
   if (!_ok)
     return -1;
+  if (!_simulate) {
+	  // not in simulation mode; do a proper read from the device
+	  int n;
+	  n = ::read(_dnFd, buf, bufsize);
 
-  // if in simulation mode, create some random values
-  // and return a full buffer.
-  if (_simulate) {
-    short* sbuf = (short*)buf;
+	  if (n > 0)
+		  _bytesRead += n;
 
-    static int angleCount = 0;
-    // 4 bytes per IQ pair
-    int nPairs = (bufsize) / 4;
-    for (int p = 0; p < nPairs; p++) {
-	  double noise = 0.1 * ((2.0 * rand()) / RAND_MAX - 1.0);    // noise is +/-10% amplitude
-	  // Noisy sine wave, with wavelength of _simWaveLength gates
-	  // The wavelength varies across the range
-	  if (angleCount == _simWaveLength) {
-		  angleCount = 0;
-	  }
-	  double angle = ((double)angleCount)/ _simWaveLength;
-	  angleCount++;
-      *sbuf++ = (short)(10000 * (sin((2 * angle * M_PI)) + noise)); // I
-      *sbuf++ = (short)(10000 * (cos((2 * angle * M_PI)) + noise)); // Q
-    }
-    _bytesRead += bufsize;
+	  if (n < 0)
+		_ok = false;
 
-    usleep(_simPauseMS*1000);
-    return bufsize;
+	  return n;
   }
 
-  // not in simulation mode; do a proper read from the device
-  int n;
-  n = ::read(_dnFd, buf, bufsize);
+  // In simulation mode, create some random values
+  // and return a full buffer.
 
-  if (n > 0)
-	  _bytesRead += n;
+  // there is a bug in this code. It assumes that bufsize
+  // is an integral number of I/Q pairs. For the time being,
+  // detect if this is not true and just abort.
+  /// @todo Fix read function to return an arbitrary number of bytes
+  /// when in simulation mode
+  assert ((bufsize % 4) == 0);
 
-  if (n < 0)
-    _ok = false;
+  short* sbuf = (short*)buf;
+  int*   ibuf = (int*)buf;
 
-  return n;
+  // 4  or 8 bytes per IQ pair
+  int nPairs;
+  if (_sim4bytes) {
+	  nPairs = (bufsize) / 8;
+  } else {
+	  nPairs = (bufsize) / 4;
+  }
+  for (int p = 0; p < nPairs; p++) {
+    double noise = 0.1 * ((2.0 * rand()) / RAND_MAX - 1.0);    // noise is +/-10% amplitude
+    // Noisy sine wave, with wavelength of _simWaveLength gates
+    // The wavelength varies across the range
+    if (_angleCount == _simWaveLength) {
+    	_angleCount = 0;
+    }
+
+    double angle = ((double)_angleCount++)/ _simWaveLength;
+    double I = 10000 * (sin((2 * angle * M_PI)) + noise);
+    double Q = 10000 * (cos((2 * angle * M_PI)) + noise);
+    if (_sim4bytes) {
+		*ibuf++ = (short) I; // I
+		*ibuf++ = (short) Q; // Q
+    } else {
+		*sbuf++ = (short) I; // I
+		*sbuf++ = (short) Q; // Q
+    }
+  }
+  _bytesRead += bufsize;
+
+  return bufsize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

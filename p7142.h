@@ -30,7 +30,7 @@ namespace Pentek {
 };
 
 	/// A p7142 downconvertor.
-	/// This class will use the /dn/*B downconversion channels. The
+	/// This class reads the /dn/*B downconversion channels. The
 	/// channel number is specified in the channel id parameter to
 	/// the constructor.
 	class p7142dn: public p7142 {
@@ -41,16 +41,18 @@ namespace Pentek {
 			/// @param chanId The channel identifier (used to select /dn/*B)
 			/// @param bypassdivrate The byopass divider (decimation) rate
 			/// @param simulate Set true if we operate in simulation mode.
-			/// @param simPauseMS The number of milliseconds to wait before returning
-			/// simulated data when calling read();
 			/// @param simWaveLength The wave length, in timeseries points, for the
 			/// simulated data. See read().
+		    /// @param sim4bytes Create 4 byte instead of 2 byte integers when
+		    /// in simulation mode. This simulates the output of the coherent integrator.
 			/// @param internalClock Set true if the internal clock should be
 			/// used instead of the front panel clock.
 			p7142dn(std::string devName,
 					int chanId, int decimation=1,
-			        bool simulate=false, int simPauseMS=100,
-			        int simWaveLength=5000, bool internalClock=false);
+			        bool simulate=false,
+			        int simWaveLength=5000,
+			        bool sim4bytes=false,
+			        bool internalClock=false);
 			/// Destructor
 			virtual ~p7142dn();
 			/// Read bytes. If in simulated mode, a sine wave with wavelength
@@ -88,15 +90,12 @@ namespace Pentek {
 			std::string _dnName;
 			/// The down convertor file descriptor
 			int _dnFd;
-			/// The number of milliseconds to wait before returning
-			/// simulated data when calling read();
-			int _simPauseMS;
 			/// The wavelength for simulated data
 			int _simWaveLength;
-			/// A singleton mutex to insure that read() is not called
-			/// simultaneously from different threads.
-			/// Doesn't fix the problem so comment it out
-			/// SingleMutex _readMutex;
+			/// The counter for keeping track of the current phase during simulation
+		    unsigned int _angleCount;
+		    ///True if simulation is supposed to produce 4 byte integers
+		    bool _sim4bytes;
 	};
 
 	/// A p7142 upconvertor
@@ -165,6 +164,7 @@ namespace Pentek {
 			/// The depth of mem2 in 4 byte words. mem2 will contain the 
 			/// DAC signal
 			long _mem2depth;
+
 	};
 }
 

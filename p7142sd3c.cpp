@@ -37,14 +37,13 @@ p7142sd3cdn::p7142sd3cdn(
     std::string gaussianFile, 
     std::string kaiserFile,
     bool simulate, 
-    int simPauseMS, 
+    double simPauseMS,
     int simWaveLength,
     bool internalClock) :
         p7142dn(devName, 
                 chanId, 
                 1, 
                 simulate, 
-                simPauseMS, 
                 simWaveLength,
                 internalClock),
         _gates(gates), 
@@ -53,11 +52,28 @@ p7142sd3cdn::p7142sd3cdn(
         _staggeredPrt(staggeredPrt), 
         _freeRun(freeRun),
         _gaussianFile(gaussianFile), 
-        _kaiserFile(kaiserFile), 
-        _simPulseNum(0)
+        _kaiserFile(kaiserFile),
+        _simPauseMS(simPauseMS),
+        _simPulseNum(0),
+        _simWaitCounter(0),
+        _lastPulse(0),
+        _droppedPulses(0),
+        _syncErrors(0),
+        _firstBeam(true)
 {
     assert(timer_delays.size() == 5 && timer_widths.size() == 5);
     
+    // determine the operating mode
+    if (_freeRun) {
+    	_mode = FR;
+    } else {
+    	if (_nsum > 1) {
+    		_mode = CI;
+    	} else {
+    		_mode = PT;
+    	}
+    }
+
     // set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
     _pp.page = 2; // PCIBAR 2
     _pp.mask = 0;
@@ -102,12 +118,6 @@ p7142sd3cdn::p7142sd3cdn(
     if (_simulate) {
         // we generate simulated data with no coherent integration
         // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
-        if (_freeRun) {
-            std::cerr <<
-                "p7142sd3cdn: freeRun forced to false when simulating data\n" <<
-                std::endl;
-            _freeRun = false;
-        }
         if (_nsum > 1) {
             std::cerr <<
                 "p7142sd3cdn: nsum is forced to one when simulating data\n" <<
@@ -116,6 +126,9 @@ p7142sd3cdn::p7142sd3cdn(
         }
     }
     
+    // initialize the buffering scheme.
+    initBuffer();
+
 	std::cout << "downconverter: " << ((_ddcType == Pentek::p7142sd3cdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
     std::cout << "rx delay:      " << _timer_delays[1] << " adc_clock/2 counts"  << std::endl; 
     std::cout << "rx gate width: " << _timer_widths[1] << " adc_clock/2 counts"   << std::endl;
@@ -134,6 +147,7 @@ p7142sd3cdn::p7142sd3cdn(
 	std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
 	std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
 	std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
+	std::cout << "sim usleep     " << _simPauseMS*1000 << "us"                    <<std::endl;
 	for (int i = 0; i < 8; i++) {
 		std::cout << "timer " << i << " delay: " << _timer_delays[i] << " adc_clock/2 counts"  << std::endl;
 		std::cout << "timer " << i << " width: " << _timer_widths[i] << " adc_clock/2 counts"  << std::endl;
@@ -181,6 +195,7 @@ p7142sd3cdn::p7142sd3cdn(
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142sd3cdn::~p7142sd3cdn() {
 	close(_ctrlFd);
+	delete [] _buf;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -1054,69 +1069,357 @@ int p7142sd3cdn::dataRate() {
 
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+//
+// ******    Buffer management and data handling in the following section    *****
+//
+//////////////////////////////////////////////////////////////////////////////////
+
 //////////////////////////////////////////////////////////////////////
 int
-p7142sd3cdn::read(char* buf, int bufsize) {
+p7142sd3cdn::read(char* buf, int n) {
     // Unless we're simulating, we just use the superclass read
     if (!_simulate) {
-        return p7142dn::read(buf, bufsize);
+        return p7142dn::read(buf, n);
     }
 
-    // The rest is for generating simulated data.  We use p7142dn::read()
-    // to get the simulated Is and Qs, but we add tags for each time series
-    // sample, as we would see from SD3C.
+    // ************ simulation mode *************
 
-    // Code below assumes 32-bit ints and 16-bit shorts!
-    assert(sizeof(int) == 4);
-    assert(sizeof(short) == 2);
+    // Generate simulated data
+    makeSimData(n);
 
-    // We expect a specific bufsize to hold _tsLength samples
-    // of _gates gates, 2-byte I and Q, a 4 byte sync word, and 
-    // a 4-byte tag for each sample
-    assert(bufsize = (_tsLength * (4 * _gates + 4 + 4)));
-
-    // Static buffer for simulated IQ data from p7142dn::read()
-    static char *iqData = 0;
-    int iqDataLen = _tsLength * 4 * _gates;
-    if (! iqData)
-        iqData = new char[iqDataLen];
-    // Get the simulated Is and Qs from ::read()
-    p7142dn::read(iqData, iqDataLen);
-
-    // Build our tagged samples
-    char* bufp = buf;
-    for (int ts = 0; ts < _tsLength; ts++) {
-    	// add the sync word
-    	((unsigned int*)bufp)[0] = SD3C_SYNCWORD;
-    	bufp += 4;
-        // Create the tag for this sample.  Currently, this uses the
-        // profiler no-coherent-integration 32-bit tag (defined as of
-        // 2009-12-17):
-        //       bits 31:30  Channel number         0-3 (2 bits)
-        //       bits 29:00  Pulse sequence number  0-1073741823 (30 bits)
-        // This is packed as a little-endian order 4-byte word!
-        unsigned int channel = _chanId;
-        unsigned int tag = (channel << 30) | (_simPulseNum++ & 0x3fffffff);
-        memcpy(bufp, &tag, 4);  // copy the 4-byte tag to the head of bufp
-        bufp += 4;  // move past the 4-byte tag we just added
-        _bytesRead += 4;
-        // copy _gates Is and Qs for this sample
-        memcpy(bufp, iqData + ts * 4 * _gates, 4 * _gates);
-        bufp += 4 * _gates;
+    // copy to user buffer
+    for (int i = 0; i < n; i++) {
+    	buf[i] = _simFifo[0];
+    	_simFifo.pop_front();
     }
-    assert(bufp == (buf + bufsize));
 
-    return bufsize;
+    return n;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
+char*
+p7142sd3cdn::getBeam(unsigned int& pulsenum) {
+
+	// perform the simulation wait if necessary
+	if (_simulate) {
+		simWait();
+	}
+
+	if (_nsum <= 1) {
+		if (_freeRun) {
+			// free run mode
+			pulsenum = 0;
+			return frBeam();
+		} else {
+			// pulse tagger mode
+			return ptBeamDecoded(pulsenum);
+		}
+	} else {
+		// coherent integration mode
+		return ciBeam(pulsenum);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 int
-p7142sd3cdn::indexOfNextSync(const char* buf, int buflen) {
-    uint32_t testword;
-    for (int offset = 0; offset <= buflen - 4; offset++) {
-        memcpy(&testword, buf + offset, 4);
-        if (testword == SD3C_SYNCWORD)
-            return offset;
-    }
-    return -1;
+p7142sd3cdn::beamLength() {
+	return _beamLength;
 }
+
+//////////////////////////////////////////////////////////////////////////////////
+char*
+p7142sd3cdn::ptBeamDecoded(unsigned int& pulseNum) {
+
+	// get the beam
+	char* buf = ptBeam();
+
+	// unpack the channel number and pulse sequence number.
+	// Unpack the 4-byte channel id/pulse number
+	unsigned int chan;
+	_unpackChannelAndPulse(buf, chan, pulseNum);
+	if (int(chan) != _chanId) {
+		std::cerr << "p7142sd3cdnThread for channel " << _chanId <<
+				" got data for channel " << chan << "!" << std::endl;
+		abort();
+	}
+
+	// Initialize _lastPulse if this is the first pulse we've seen
+	if (_firstBeam) {
+		_lastPulse = pulseNum - 1;
+		_firstBeam = false;
+	}
+
+	// How many pulses since the last one we saw?
+	int delta = pulseNum - _lastPulse;
+	if (delta < (-MAX_PULSE_NUM / 2))
+		delta += (MAX_PULSE_NUM + 1); // pulse number wrapped
+
+	if (delta == 0) {
+		std::cerr << "Channel " << _chanId << ": got repeat of pulse " <<
+				pulseNum << "!" << std::endl;
+		abort();
+	} else if (delta != 1) {
+		std::cerr << _lastPulse << "->" << pulseNum << ": ";
+		if (delta < 0) {
+			std::cerr << "Channel " << _chanId << " went BACKWARD " <<
+				-delta << " pulses" << std::endl;
+		} else {
+			std::cerr << "Channel " << _chanId << " dropped " <<
+				delta - 1 << " pulses" << std::endl;
+		}
+	}
+	_droppedPulses += (delta - 1);
+	_lastPulse = pulseNum;
+
+	return buf+4;
+}
+//////////////////////////////////////////////////////////////////////////////////
+char*
+p7142sd3cdn::ptBeam() {
+
+	while(1) {
+		if (_firstBeam) {
+			// skip over the first 4 bytes, assuming that
+			// they are a good sync word. _firstBeam will
+			// be set false by
+			read(_buf, 4);
+		}
+		// read pulse tag and one beam into buf
+		read(_buf, _beamLength+4);
+
+		// read the next sync word
+		char syncbuf[4];
+		read(syncbuf, 4);
+		uint32_t sync;
+		sync = *((uint32_t*)syncbuf);
+
+		if (sync == SD3C_SYNCWORD) {
+			return _buf;
+		} else {
+			_syncErrors++;
+			// scan byte by byte for sync word
+			int s = 0;
+			while(1) {
+				memmove(syncbuf, syncbuf+1,3);
+				read(syncbuf+3, 1);
+				sync = *((uint32_t*)syncbuf);
+				if (sync == SD3C_SYNCWORD) {
+					break;
+				}
+			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+char*
+p7142sd3cdn::ciBeam(unsigned int& pulseNum) {
+	while(1) {
+		if (_firstBeam) {
+			// skip over the first 16 bytes, assuming that
+			// they are a good tag word. _firstBeam will
+			// be set false by
+			read(_buf, 16);
+		}
+		// read one beam into buf
+		read(_buf, _beamLength);
+
+		// read the next tag word
+		char tagbuf[16];
+		read(tagbuf, 16);
+
+		if (ciCheckTag(tagbuf, pulseNum)) {
+			return _buf;
+		} else {
+			_syncErrors++;
+			// scan byte by byte for the
+			int s = 0;
+			while(1) {
+				memmove(tagbuf, tagbuf+1,15);
+				read(tagbuf+15, 1);
+				// check for synchronization
+				if (ciCheckTag(tagbuf, pulseNum)) {
+					break;
+				}
+			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+char*
+p7142sd3cdn::frBeam() {
+	read(_buf, _beamLength);
+	return _buf;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+bool
+p7142sd3cdn::ciCheckTag(char* p, unsigned int& pulseNum) {
+	pulseNum = 123456;
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::initBuffer() {
+
+	// note that _beamLength is only the length of the
+	// IQ data (in bytes)
+
+	if (_nsum <= 1) {
+	      if (_freeRun) {
+	    	  // free run mode has:
+	    	  //   16 bit I and Q pairs
+	    	  _beamLength = _gates * 2 * 2;
+	      } else {
+	      // pulse tag mode has:
+	      //    4-byte sync word and a 4 byte pulse tag
+	      //    followed by 16 bit I and Q pairs
+	    	  _beamLength = _gates * 2 * 2;
+	      }
+	  } else {
+	      // coherent integration mode has:
+	      //   4 4-byte tags followed by
+		  //   even 32 bit I and Q pairs followed by
+		  //   odd  32 bit I and Q pairs,
+	      // for all gates. Is and Qs are 4 byte integers.
+    	  _beamLength = _gates * 2 * 2 * 4;
+	  }
+
+	// allocate the buffer to hold one beam of IQ data
+	_buf = new char[_beamLength];
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::makeSimData(int n) {
+
+	while(_simFifo.size() < (unsigned int)n) {
+		switch(_mode) {
+		case FR:{
+			// ************* free run mode ***************
+			for (int i = 0; i < _beamLength/4; i++) {
+				uint32_t iq;
+				char* p = (char*)&iq;
+				p7142dn::read(p, 4);
+				for (int j = 0; j < 4; j++) {
+					_simFifo.push_back(p[j]);
+				}
+			}
+			break;
+		}
+		case PT: {
+			// ********** pulse tag mode **************
+			// Add sync word
+			static uint32_t syncword = SD3C_SYNCWORD;
+			for (int i = 0; i < 4; i++) {
+				_simFifo.push_back(((char*)&syncword)[i]);
+			}
+			// Add the pulse tag for this sample:
+			//       bits 31:30  Channel number         0-3 (2 bits)
+			//       bits 29:00  Pulse sequence number  0-1073741823 (30 bits)
+			// This is packed as a little-endian order 4-byte word
+			unsigned int channel = _chanId;
+			uint32_t tag = (channel << 30) | (_simPulseNum++ & 0x3fffffff);
+			char* p = (char*)&tag;
+			for (int i = 0; i < 4; i++) {
+				_simFifo.push_back(p[i]);
+			}
+			// Add IQ data. Occasionally drop some data
+			bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
+			int nPairs = _beamLength/4;
+			if (doBadSync) {
+				nPairs = (int)(((1.0 * rand())/RAND_MAX) * nPairs);
+			}
+			for (int i = 0; i < nPairs; i++) {
+				uint32_t iq;
+				char* p = (char*)&iq;
+				p7142dn::read(p, 4);
+				for (int j = 0; j < 4; j++) {
+					_simFifo.push_back(p[j]);
+				}
+			}
+			break;
+		}
+		case CI: {
+			/// Add the coherent integration tag for this sample:
+			/// @todo Actually synthesize the correct tags
+			uint32_t tag = 1;
+			char* p = (char*)&tag;
+			for (int j = 0; j < 4; j++) {
+				for (int i = 0; i < 4; i++) {
+					_simFifo.push_back(p[i]);
+				}
+			}
+
+			// Add IQ data.
+			int nPairs = _beamLength/8;
+			for (int i = 0; i < nPairs; i++) {
+				char iq[8];
+				// first i
+				p7142dn::read(iq, 8);
+				for (int j = 0; j < 8; j++) {
+					_simFifo.push_back(iq[j]);
+				}
+			}
+			break;
+		}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::simWait() {
+	// because the usleep overhead is large, sleep every 100 calls
+	if (!(_simWaitCounter++ % 100)) {
+		usleep((int)(100*_simPauseMS*1000));
+	}
+}
+//////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::_unpackChannelAndPulse(const char* buf, unsigned int & chan,
+        unsigned int & pulseNum) {
+    // Channel number is the upper two bits of the channel/pulse num word, which
+    // is stored in little-endian byte order
+    const unsigned char *ubuf = (const unsigned char*)buf;
+    chan = (ubuf[3] >> 6) & 0x3;
+
+    // Pulse number is the lower 30 bits of the channel/pulse num word, which is
+    // stored in little-endian byte order
+    pulseNum = (ubuf[3] & 0x3f) << 24 | ubuf[2] << 16 | ubuf[1] << 8 | ubuf[0];
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+unsigned long
+p7142sd3cdn::droppedPulses() {
+	unsigned long retval = _droppedPulses;
+	return retval;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+unsigned long
+p7142sd3cdn::syncErrors() {
+	unsigned long retval = _syncErrors;
+	return retval;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::dumpSimFifo(std::string label, int n) {
+	std::cout << label <<  " _simFifo length: " << _simFifo.size() << std::endl;
+	std::cout << std::hex;
+	for (int i = 0; i < n && i < _simFifo.size(); i++) {
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)_simFifo[i] << " ";
+		if (!((i+1) % 40)) {
+			std::cout << std::endl;
+		}
+	}
+	std::cout << std::dec << std::endl;;
+}
+
+
+
