@@ -45,6 +45,7 @@ p7142sd3cdn::p7142sd3cdn(
                 1, 
                 simulate, 
                 simWaveLength,
+                nsum > 1,
                 internalClock),
         _gates(gates), 
         _nsum(nsum), 
@@ -59,10 +60,15 @@ p7142sd3cdn::p7142sd3cdn(
         _lastPulse(0),
         _droppedPulses(0),
         _syncErrors(0),
+        _firstRawBeam(true),
         _firstBeam(true)
 {
     assert(timer_delays.size() == 5 && timer_widths.size() == 5);
     
+    // sanity check
+    if (_nsum < 1) {
+    	_nsum = 1;
+    }
     // determine the operating mode
     if (_freeRun) {
     	_mode = FR;
@@ -79,7 +85,7 @@ p7142sd3cdn::p7142sd3cdn(
     _pp.mask = 0;
     
     // Open the control device before we call any methods which access the card
-    _openControlDevice();
+    openControlDevice();
     
     // Query the firmware to get DDC type
     _ddcType = ddc_type();
@@ -115,17 +121,6 @@ p7142sd3cdn::p7142sd3cdn(
         _timer_widths.push_back(lround(timer_widths[i] * _adc_clock / 2));
     }
 
-    if (_simulate) {
-        // we generate simulated data with no coherent integration
-        // (i.e., nsum == 1) and with pulse tagging (i.e., freeRun == false).
-        if (_nsum > 1) {
-            std::cerr <<
-                "p7142sd3cdn: nsum is forced to one when simulating data\n" <<
-                std::endl;
-            _nsum = 1;
-        }
-    }
-    
     // initialize the buffering scheme.
     initBuffer();
 
@@ -196,11 +191,12 @@ p7142sd3cdn::p7142sd3cdn(
 p7142sd3cdn::~p7142sd3cdn() {
 	close(_ctrlFd);
 	delete [] _buf;
+	delete [] _ciBuf;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142sd3cdn::_openControlDevice() {
+p7142sd3cdn::openControlDevice() {
     if (_simulate)
         return;
     
@@ -929,7 +925,7 @@ void p7142sd3cdn::setInterruptBufSize() {
 	if (tsFreq <= 20) {
 		intBlocks = 1;
 	} else {
-		intBlocks = (tsFreq / 20) + 1;
+		intBlocks = (int)(tsFreq / 20) + 1;
 	}
 
 	int bufferSize = tsBlockSize * intBlocks;
@@ -1030,15 +1026,15 @@ ptime p7142sd3cdn::timeOfPulse(unsigned long pulseNum) const {
     }
     // Translate offsetSeconds to a boost::posix_time::time_duration
     double remainder = offsetSeconds;
-    int hours = remainder / 3600;
+    int hours = (int)(remainder / 3600);
     remainder -= (3600 * hours);
-    int minutes = remainder / 60;
+    int minutes = (int)(remainder / 60);
     remainder -= (60 * minutes);
-    int seconds = remainder;
+    int seconds = (int)remainder;
     remainder -= seconds;
-    int nanoseconds = 1.0e9 * remainder;
-    int fractionalSeconds = nanoseconds *
-        (time_duration::ticks_per_second() / 1.0e9);
+    int nanoseconds = (int)(1.0e9 * remainder);
+    int fractionalSeconds = (int)(nanoseconds *
+        (time_duration::ticks_per_second() / 1.0e9));
     time_duration offset(hours, minutes, seconds,
             fractionalSeconds);
     // Finally, add the offset to the _xmitStartTime to get the absolute
@@ -1048,25 +1044,33 @@ ptime p7142sd3cdn::timeOfPulse(unsigned long pulseNum) const {
 
 //////////////////////////////////////////////////////////////////////
 int p7142sd3cdn::dataRate() {
-	int rate;
-	if (_nsum < 2) {
-		// no coherent integration
-		// there is a four byte pulse tag at the beginning of each pulse; thus
-		// it looks like an extra gate in terms of data rate. There is a two byte
-		// I and a two byte Q (total 4 bytes) for each range gate.
-		rate = _prf * (_gates+1) * 4;
-	} else {
+	int rate = 0;
+
+	switch (_mode) {
+	case FR:
+		// two bytes of I and two bytes of Q for each range gate
+		rate = _gates*4;
+		break;
+	case PT:
+		// pulse tagger
+		// there is a four byte sync word and a four byte pulse tag
+		// at the beginning of each pulse. There are two bytes for each
+		// I and each Q for each range gate.
+		rate = (int)(_prf * (4 + 4 + _gates*4));
+		break;
+	case CI:
 		// coherent integration
 		// there is a 16 byte tag at the beginning of each pulse. Each pulse
 		// returns a set of even I's and Q's, and a set of odd I's and Q's. The
 		// even and odd pulses are separated by the prt, and so taken together they
 		// run at half the prf. Each I and Q for a gate is 32 bits (wider than the
-		// non-CI mode becasue they are sums of 16 bit numbers), so there are 8 bytes
+		// non-CI mode because they are sums of 16 bit numbers), so there are 8 bytes
 		// per gate for even and 8 bytes per gate for odd pulses.
-		rate = (_prf/2)*(16+_gates*8*2)/_nsum;
+		rate = (int)((_prf/2)*(16+_gates*8*2)/_nsum);
+		break;
 	}
-	return (int) rate;
 
+	return rate;
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -1080,7 +1084,9 @@ int
 p7142sd3cdn::read(char* buf, int n) {
     // Unless we're simulating, we just use the superclass read
     if (!_simulate) {
-        return p7142dn::read(buf, n);
+    	int r =  p7142dn::read(buf, n);
+    	assert(r == n);
+    	return r;
     }
 
     // ************ simulation mode *************
@@ -1088,7 +1094,7 @@ p7142sd3cdn::read(char* buf, int n) {
     // Generate simulated data
     makeSimData(n);
 
-    // copy to user buffer
+	// copy to user buffer
     for (int i = 0; i < n; i++) {
     	buf[i] = _simFifo[0];
     	_simFifo.pop_front();
@@ -1118,7 +1124,7 @@ p7142sd3cdn::getBeam(unsigned int& pulsenum) {
 		}
 	} else {
 		// coherent integration mode
-		return ciBeam(pulsenum);
+		return ciBeamDecoded(pulsenum);
 	}
 }
 
@@ -1133,12 +1139,13 @@ char*
 p7142sd3cdn::ptBeamDecoded(unsigned int& pulseNum) {
 
 	// get the beam
-	char* buf = ptBeam();
+	char pulseTag[4];
+	char* buf = ptBeam(pulseTag);
 
 	// unpack the channel number and pulse sequence number.
 	// Unpack the 4-byte channel id/pulse number
 	unsigned int chan;
-	_unpackChannelAndPulse(buf, chan, pulseNum);
+	unpackPtChannelAndPulse(pulseTag, chan, pulseNum);
 	if (int(chan) != _chanId) {
 		std::cerr << "p7142sd3cdnThread for channel " << _chanId <<
 				" got data for channel " << chan << "!" << std::endl;
@@ -1147,14 +1154,29 @@ p7142sd3cdn::ptBeamDecoded(unsigned int& pulseNum) {
 
 	// Initialize _lastPulse if this is the first pulse we've seen
 	if (_firstBeam) {
-		_lastPulse = pulseNum - 1;
+		if (pulseNum == 0){
+			_lastPulse = MAX_PT_PULSE_NUM;
+		} else {
+			_lastPulse = pulseNum - 1;
+		}
 		_firstBeam = false;
 	}
 
 	// How many pulses since the last one we saw?
 	int delta = pulseNum - _lastPulse;
-	if (delta < (-MAX_PULSE_NUM / 2))
-		delta += (MAX_PULSE_NUM + 1); // pulse number wrapped
+	if (delta < (-MAX_PT_PULSE_NUM / 2)) {
+		// if the new pulse number is zero, assume that it
+		// was a legitimate wrap. Unfortunately this won't catch
+		// errors where the zero pulse is skipped, or a pulse comes in
+		// that erroneously has zero for a pulse tag. Perhaps there
+		// is a better algorithm for this.
+		if (pulseNum == 0) {
+			delta = MAX_PT_PULSE_NUM - _lastPulse + 1;
+			std::cout << "Pulse number rollover" << std::endl;
+		} else {
+			delta += MAX_PT_PULSE_NUM + 1;
+		}
+	}
 
 	if (delta == 0) {
 		std::cerr << "Channel " << _chanId << ": got repeat of pulse " <<
@@ -1173,25 +1195,34 @@ p7142sd3cdn::ptBeamDecoded(unsigned int& pulseNum) {
 	_droppedPulses += (delta - 1);
 	_lastPulse = pulseNum;
 
-	return buf+4;
+	return buf;
 }
 //////////////////////////////////////////////////////////////////////////////////
 char*
-p7142sd3cdn::ptBeam() {
+p7142sd3cdn::ptBeam(char* pulseTag) {
 
+	int r;
 	while(1) {
-		if (_firstBeam) {
+		if (_firstRawBeam) {
 			// skip over the first 4 bytes, assuming that
-			// they are a good sync word. _firstBeam will
-			// be set false by
-			read(_buf, 4);
+			// they are a good sync word.
+			r = read(_buf, 4);
+	    	assert(r == 4);
+			_firstRawBeam = false;
 		}
-		// read pulse tag and one beam into buf
-		read(_buf, _beamLength+4);
+
+		// read pulse number
+		r = read(pulseTag, 4);
+		assert(r == 4);
+
+		// read one beam into buf
+		r = read(_buf, _beamLength);
+		assert(r == (_beamLength));
 
 		// read the next sync word
 		char syncbuf[4];
-		read(syncbuf, 4);
+		r = read(syncbuf, 4);
+		assert(r == 4);
 		uint32_t sync;
 		sync = *((uint32_t*)syncbuf);
 
@@ -1200,10 +1231,10 @@ p7142sd3cdn::ptBeam() {
 		} else {
 			_syncErrors++;
 			// scan byte by byte for sync word
-			int s = 0;
 			while(1) {
 				memmove(syncbuf, syncbuf+1,3);
-				read(syncbuf+3, 1);
+				r = read(syncbuf+3, 1);
+				assert(r == 1);
 				sync = *((uint32_t*)syncbuf);
 				if (sync == SD3C_SYNCWORD) {
 					break;
@@ -1215,30 +1246,92 @@ p7142sd3cdn::ptBeam() {
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
+p7142sd3cdn::ciBeamDecoded(unsigned int& pulseNum) {
+
+	// get the beam
+	char* buf = ciBeam(pulseNum);
+
+	// Initialize _lastPulse if this is the first pulse we've seen
+	if (_firstBeam) {
+		if (pulseNum == 0){
+			_lastPulse = MAX_CI_PULSE_NUM;
+		} else {
+			_lastPulse = pulseNum - 1;
+		}
+		_firstBeam = false;
+	}
+
+	// How many pulses since the last one we saw?
+	int delta = pulseNum - _lastPulse;
+	if (delta < (-MAX_CI_PULSE_NUM / 2)) {
+		// if the new pulse number is zero, assume that it
+		// was a legitimate wrap. Unfortunately this won't catch
+		// errors where the zero pulse is skipped, or a pulse comes in
+		// that erroneously has zero for a pulse tag. Perhaps there
+		// is a better algorithm for this.
+		if (pulseNum == 0) {
+			delta = MAX_CI_PULSE_NUM - _lastPulse + 1;
+			std::cout << "Pulse number rollover" << std::endl;
+		} else {
+			delta += MAX_CI_PULSE_NUM + 1;
+		}
+	}
+
+	if (delta == 0) {
+		std::cerr << "Channel " << _chanId << ": got repeat of pulse " <<
+				pulseNum << "!" << std::endl;
+		abort();
+	} else if (delta != 1) {
+		std::cerr << _lastPulse << "->" << pulseNum << ": ";
+		if (delta < 0) {
+			std::cerr << "Channel " << _chanId << " went BACKWARD " <<
+				-delta << " pulses" << std::endl;
+		} else {
+			std::cerr << "Channel " << _chanId << " dropped " <<
+				delta - 1 << " pulses" << std::endl;
+		}
+	}
+	_droppedPulses += (delta - 1);
+	_lastPulse = pulseNum;
+
+	return buf;
+}
+//////////////////////////////////////////////////////////////////////////////////
+char*
 p7142sd3cdn::ciBeam(unsigned int& pulseNum) {
+	int r;
+
 	while(1) {
-		if (_firstBeam) {
+		if (_firstRawBeam) {
 			// skip over the first 16 bytes, assuming that
-			// they are a good tag word. _firstBeam will
-			// be set false by
-			read(_buf, 16);
+			// they are a good tag word.
+			r = read(_buf, 16);
+			assert(r == 16);
+			_firstRawBeam = false;
 		}
 		// read one beam into buf
-		read(_buf, _beamLength);
+		r = read(_buf, _beamLength);
+		assert(r == _beamLength);
+
+		// decode the coherent integrator even and odd beams
+		// into a single beam. Data are read from _buf and
+		// and written to _ciBuf.
+		ciDecode();
 
 		// read the next tag word
 		char tagbuf[16];
-		read(tagbuf, 16);
+		r = read(tagbuf, 16);
+		assert(r == 16);
 
 		if (ciCheckTag(tagbuf, pulseNum)) {
-			return _buf;
+			return _ciBuf;
 		} else {
 			_syncErrors++;
 			// scan byte by byte for the
-			int s = 0;
 			while(1) {
 				memmove(tagbuf, tagbuf+1,15);
-				read(tagbuf+15, 1);
+				r = read(tagbuf+15, 1);
+				assert(r == 1);
 				// check for synchronization
 				if (ciCheckTag(tagbuf, pulseNum)) {
 					break;
@@ -1249,17 +1342,123 @@ p7142sd3cdn::ciBeam(unsigned int& pulseNum) {
 }
 
 //////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::ciDecode() {
+
+	// decode the even and odd beams. For now, just
+	// average the two.
+
+	int32_t* even = (int32_t*)(_buf);
+	int32_t* odd  = (int32_t*)(_buf+_beamLength/2);
+	int32_t* IQ   = (int32_t*)(_ciBuf);
+
+	for (int i = 0; i < _gates*2; i++) {
+		IQ[i] = (even[i] + odd[i])/2;
+	}
+}
+//////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cdn::frBeam() {
-	read(_buf, _beamLength);
+	int r = read(_buf, _beamLength);
+	assert(r == _beamLength);
 	return _buf;
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 bool
 p7142sd3cdn::ciCheckTag(char* p, unsigned int& pulseNum) {
-	pulseNum = 123456;
-	return true;
+
+/// The tag order:
+///  --! <TAG_I_EVEN><TAG_Q_EVEN><TAG_I_ODD><TAG_Q_ODD><IQpairs,even pulse><IQpairs,odd pulse>
+///
+/// The CI tag:
+///	 --! bits 31:28  Format number   0-15(4 bits)
+///	 --! bits 27:26  Channel number  0-3 (2 bits)
+///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
+///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
+///	 --! bits 23:00  Sequence number     (24 bits)
+
+	int format[4];
+	int chan[4];
+	bool Odd[4];
+	bool Q[4];
+	uint32_t seq[4];
+	for (int i = 0; i < 4; i++) {
+		uint32_t* tag = (uint32_t*)p;
+		ciDecodeTag(tag[i], format[i], chan[i], Odd[i], Q[i], seq[i]);
+	}
+
+	pulseNum = seq[0];
+
+	// time to see if we received expected values
+	bool retval = true;
+
+	retval     = retval && (format[0] ==      1);
+
+	for (int i = 1; i < 4; i++) {
+		retval = retval && (format[i] ==      1);
+		retval = retval && (seq[i]    == seq[0]);
+		retval = retval && (chan[i]   == chan[0]);
+	}
+	retval = retval && !Odd[0] && !Odd[1] && Odd[2] && Odd[3];
+	retval = retval &&   !Q[0] &&    Q[1] &&  !Q[2] &&   Q[3];
+
+	return retval;;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+uint32_t
+p7142sd3cdn::ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq) {
+	/// The CI tag:
+	///	 --! bits 31:28  Format number   0-15(4 bits)
+	///	 --! bits 27:26  Channel number  0-3 (2 bits)
+	///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
+	///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
+	///	 --! bits 23:00  Sequence number     (24 bits)
+
+    unsigned char* p = (unsigned char*)&seq;
+    int Odd = odd? 1:0;
+    int IQ   =  Q? 1:0;
+    uint32_t tag =
+    		p[0] << 24 | p[1] << 16 | p[2] << 8 |
+    		( format << 4 | chan << 2 | Odd << 1 | IQ);
+
+    return tag;
+
+    std::cout << "format: " << format << " chan:" << chan << " odd:" << odd << " Q:" << Q << std::endl;
+	std::cout.width(8);
+	std::cout.fill('0');
+	std::cout << std::hex << tag <<std::endl;
+    return tag;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3cdn::ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& Q, uint32_t& seq) {
+	/// The CI tag, in little endian format as described in VHDL:
+	///	 --! bits 31:28  Format number   0-15(4 bits)
+	///	 --! bits 27:26  Channel number  0-3 (2 bits)
+	///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
+	///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
+	///	 --! bits 23:00  Sequence number     (24 bits)
+
+    format =        (tag & 0xf0) >> 4;
+    chan   =        (tag & 0x0c) >> 2;
+    odd    = (bool) (tag & 0x02);
+    Q      = (bool) (tag & 0x01);
+    seq    =        (tag & 0xff000000) >> 24 |
+    		        (tag & 0x00ff0000) >> 8 |
+    		        (tag & 0x0000ff00) << 8;
+
+    return;
+
+	std::cout << "decoded format: " << format << " chan:"
+			<< chan << " odd:" << odd << " Q:" << Q
+			<< " seq:" << seq << std::endl;
+	std::cout.width(8);
+	std::cout.fill('0');
+	std::cout << "decoded tag:" << std::hex << tag <<std::endl;
+    return;
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -1267,35 +1466,41 @@ void
 p7142sd3cdn::initBuffer() {
 
 	// note that _beamLength is only the length of the
-	// IQ data (in bytes)
+	// IQ data (in bytes).
 
-	if (_nsum <= 1) {
-	      if (_freeRun) {
-	    	  // free run mode has:
-	    	  //   16 bit I and Q pairs
-	    	  _beamLength = _gates * 2 * 2;
-	      } else {
-	      // pulse tag mode has:
-	      //    4-byte sync word and a 4 byte pulse tag
-	      //    followed by 16 bit I and Q pairs
-	    	  _beamLength = _gates * 2 * 2;
-	      }
-	  } else {
-	      // coherent integration mode has:
-	      //   4 4-byte tags followed by
-		  //   even 32 bit I and Q pairs followed by
-		  //   odd  32 bit I and Q pairs,
-	      // for all gates. Is and Qs are 4 byte integers.
-    	  _beamLength = _gates * 2 * 2 * 4;
-	  }
+	switch(_mode) {
+	case FR:
+		// free run mode has:
+		//   16 bit I and Q pairs for each gate
+		_beamLength = _gates * 2 * 2;
+  	  break;
+	case PT:
+	    // pulse tag mode has:
+	    //    16 bit I and Q pairs for each gate
+		_beamLength = _gates * 2 * 2;
+		break;
+	case CI:
+	    // coherent integration mode has:
+		//   even 32 bit I and Q pairs followed by
+		//   odd  32 bit I and Q pairs,
+	    // for each gate.
+		_beamLength = _gates * 2 * 2 * 4;
+		break;
+	}
 
 	// allocate the buffer to hold one beam of IQ data
 	_buf = new char[_beamLength];
+
+	// allocate another buffer to hold one beam of decoded
+	// coherent integrator data. The even and odd beams are
+	// combined int one beam
+	_ciBuf = new char[_beamLength/2];
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cdn::makeSimData(int n) {
+	int r;
 
 	while(_simFifo.size() < (unsigned int)n) {
 		switch(_mode) {
@@ -1304,7 +1509,8 @@ p7142sd3cdn::makeSimData(int n) {
 			for (int i = 0; i < _beamLength/4; i++) {
 				uint32_t iq;
 				char* p = (char*)&iq;
-				p7142dn::read(p, 4);
+				r = p7142dn::read(p, 4);
+				assert(r == 4);
 				for (int j = 0; j < 4; j++) {
 					_simFifo.push_back(p[j]);
 				}
@@ -1323,7 +1529,7 @@ p7142sd3cdn::makeSimData(int n) {
 			//       bits 29:00  Pulse sequence number  0-1073741823 (30 bits)
 			// This is packed as a little-endian order 4-byte word
 			unsigned int channel = _chanId;
-			uint32_t tag = (channel << 30) | (_simPulseNum++ & 0x3fffffff);
+			uint32_t tag = (channel << 30) | (_simPulseNum & 0x3fffffff);
 			char* p = (char*)&tag;
 			for (int i = 0; i < 4; i++) {
 				_simFifo.push_back(p[i]);
@@ -1337,34 +1543,56 @@ p7142sd3cdn::makeSimData(int n) {
 			for (int i = 0; i < nPairs; i++) {
 				uint32_t iq;
 				char* p = (char*)&iq;
-				p7142dn::read(p, 4);
+				r = p7142dn::read(p, 4);
+				assert(r == 4);
 				for (int j = 0; j < 4; j++) {
 					_simFifo.push_back(p[j]);
 				}
+			}
+			_simPulseNum++;
+			if (_simPulseNum > MAX_PT_PULSE_NUM) {
+				_simPulseNum = 0;
 			}
 			break;
 		}
 		case CI: {
 			/// Add the coherent integration tag for this sample:
-			/// @todo Actually synthesize the correct tags
-			uint32_t tag = 1;
-			char* p = (char*)&tag;
+
+			/// --! <TAG_I_EVEN><TAG_Q_EVEN><TAG_I_ODD><TAG_Q_ODD><IQpairs,even pulse><IQpairs,odd pulse>
+			///
+			///	 --! bits 31:28  Format number   0-15(4 bits)
+			///	 --! bits 27:26  Channel number  0-3 (2 bits)
+			///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
+			///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
+			///	 --! bits 23:00  Sequence number     (24 bits)
+
 			for (int j = 0; j < 4; j++) {
+				uint32_t tag = ciMakeTag(1, _chanId, (j>>1)&1, j&1, _simPulseNum);
+				char* p = (char*)&tag;
 				for (int i = 0; i < 4; i++) {
 					_simFifo.push_back(p[i]);
 				}
 			}
 
-			// Add IQ data.
+			// Add IQ data. Occasionally drop some data
+			bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
 			int nPairs = _beamLength/8;
+			if (doBadSync) {
+				nPairs = (int)(((1.0 * rand())/RAND_MAX) * nPairs);
+			}
 			for (int i = 0; i < nPairs; i++) {
 				char iq[8];
-				// first i
-				p7142dn::read(iq, 8);
+				r = p7142dn::read(iq, 8);
+				assert(r == 8);
 				for (int j = 0; j < 8; j++) {
 					_simFifo.push_back(iq[j]);
 				}
 			}
+			_simPulseNum++;
+			if (_simPulseNum > MAX_CI_PULSE_NUM) {
+				_simPulseNum = 0;
+			}
+
 			break;
 		}
 		}
@@ -1376,12 +1604,12 @@ void
 p7142sd3cdn::simWait() {
 	// because the usleep overhead is large, sleep every 100 calls
 	if (!(_simWaitCounter++ % 100)) {
-		usleep((int)(100*_simPauseMS*1000));
+		usleep((int)(100*_simPauseMS*1000)*_nsum);
 	}
 }
 //////////////////////////////////////////////////////////////////////////////////
 void
-p7142sd3cdn::_unpackChannelAndPulse(const char* buf, unsigned int & chan,
+p7142sd3cdn::unpackPtChannelAndPulse(const char* buf, unsigned int & chan,
         unsigned int & pulseNum) {
     // Channel number is the upper two bits of the channel/pulse num word, which
     // is stored in little-endian byte order
@@ -1412,7 +1640,7 @@ void
 p7142sd3cdn::dumpSimFifo(std::string label, int n) {
 	std::cout << label <<  " _simFifo length: " << _simFifo.size() << std::endl;
 	std::cout << std::hex;
-	for (int i = 0; i < n && i < _simFifo.size(); i++) {
+	for (unsigned int i = 0; i < (unsigned int)n && i < _simFifo.size(); i++) {
 		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)_simFifo[i] << " ";
 		if (!((i+1) % 40)) {
 			std::cout << std::endl;

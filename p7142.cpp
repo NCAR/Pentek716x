@@ -190,8 +190,8 @@ p7142dn::read(char* buf, int bufsize) {
   /// when in simulation mode
   assert ((bufsize % 4) == 0);
 
-  short* sbuf = (short*)buf;
-  int*   ibuf = (int*)buf;
+  short* sbuf = (int16_t*)buf;
+  int*   ibuf = (int32_t*)buf;
 
   // 4  or 8 bytes per IQ pair
   int nPairs;
@@ -201,7 +201,8 @@ p7142dn::read(char* buf, int bufsize) {
 	  nPairs = (bufsize) / 4;
   }
   for (int p = 0; p < nPairs; p++) {
-    double noise = 0.1 * ((2.0 * rand()) / RAND_MAX - 1.0);    // noise is +/-10% amplitude
+	// noise is +/-10% amplitude
+    double noise = 0.1 * ((2.0 * rand()) / RAND_MAX - 1.0);
     // Noisy sine wave, with wavelength of _simWaveLength gates
     // The wavelength varies across the range
     if (_angleCount == _simWaveLength) {
@@ -212,11 +213,11 @@ p7142dn::read(char* buf, int bufsize) {
     double I = 10000 * (sin((2 * angle * M_PI)) + noise);
     double Q = 10000 * (cos((2 * angle * M_PI)) + noise);
     if (_sim4bytes) {
-		*ibuf++ = (short) I; // I
-		*ibuf++ = (short) Q; // Q
+		*ibuf++ = (int32_t) I; // I
+		*ibuf++ = (int32_t) Q; // Q
     } else {
-		*sbuf++ = (short) I; // I
-		*sbuf++ = (short) Q; // Q
+		*sbuf++ = (int16_t) I; // I
+		*sbuf++ = (int16_t) Q; // Q
     }
   }
   _bytesRead += bufsize;

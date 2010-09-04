@@ -36,24 +36,28 @@ namespace Pentek {
 /// The csac filters have a gaussian and a kaiser filter in series. The filter
 /// coefficients are configurable.
 ///
-/// The downconvertor is followed by user selectable processing
-/// options. Each option configures the firmware timing differently, and
+/// In the firmware, he downconvertor is followed by user selectable processing
+/// modes. Each option configures the firmware timing differently, and
 /// delivers the data in a different format.
 ///
-/// The processing types are:
+/// A beam of data is defined as the I and Q values for one set of range gates.
+/// Baseband I and Q data may be either 16 bits or 32 bits, depending on the operating mode.
+/// Baseband data delivered to the host application via the read() system call.
+///
+/// The modes are:
 /// <ul>
 /// <li>free running (fr): There is no gating of the received data. The baseband signal
 /// is output as a free running stream of 16 bit I and Q values.</li>
 /// <li> pulse tagger (pt): The downconversion is gated at the prt rate, and the specified
-/// number of gates is processed on each cycle. A synchronization word is prepended
-/// to the beam (over all gates) of 16 bit I and Q baseband data and all output. </li>
+/// number of gates is processed on each cycle. A synchronization word and a pulse count
+/// are prepended to the beam of baseband data.</li>
 /// <li> coherent integration (ci).: The downconversion is gated at the prt rate,
 /// and the specified
 /// number of gates is processed on each cycle. The prt is divided into even and odd
 /// pulses. I and values for even and odd pulses are accumulated
 /// separately for all gates. When the
-/// accumulation is finished, an  eight byte identifier is prepended, and the I and Q
-/// summs for even and odd, all gates, is output. </li>
+/// accumulation is finished, an  eight byte tag is prepended, and the I and Q
+/// summs for even and odd beams is output. </li>
 /// </ul>
 ///
 /// <h2>p7142sd3cdn usage</h2>
@@ -73,18 +77,45 @@ namespace Pentek {
 /// the SD3C to the delivery via the read() call. This synchronization
 /// can result in a certain amount of shifting and filling of
 /// buffers. Since any significant synchronization loss rate will not be acceptable in
-/// the system, we expect the number of re-syncs to be small, and these small
+/// the system, we rely on the assumption that the number of re-syncs to be small, and these small
 /// scale buffer manipulations should not incur a significant overall processing cost.
+/// If re-synchronization occurs frequently, there is a hardware or design issue
+/// withthe system which must be corrected.
 ///
 /// <h2>Simulation</h2>
-/// When configured to operate in simulation mode, simulated data are read from
-/// p7142dn, and sync words and tags are added appropriately depending on the
+/// For development and testing without the transceiver hardware, the p7142sd3cdn can
+/// be configured to operate in simulation mode. In this case, the p7142dn class
+/// is configured for simulation as well, and its read() function will synthesize
+/// simulated data. p7142sd3cdn will add sync words and tags as appropriate, depending on the
 /// operating mode. Synchronization errors are randomly inserted when operating in
 /// simulation mode.
 ///
-/// @todo It appears that the endianess of the sync word may not be properly observed here.
-/// If the sync code is ever changed to a non-symmetrical value, the simulation
-/// and synchronization code may break.
+/// @todo It appears that the endianess of the pulse tagger sync word may
+/// not be accunted for here. If the sync code is ever changed to a non-symmetrical
+/// value, the simulation and synchronization code may break.
+///
+/// <h2>Coherent Integrator</h2>
+/// The coherent integrator firmware in SD3C creates a data stream which is
+/// a little more complicated that the free run and pulse tagger modes. Becasue
+/// the coherent integrator tags cover 16 bytes, four of which contain fixed fields,
+/// this data stream does not contain separate sync words like the pulse tagger produces.
+/// The coherent integrator data format is documented in the SD3C VHDL as follows:
+/// @code
+/// --! <TAG_I_EVEN><TAG_Q_EVEN><TAG_I_ODD><TAG_Q_ODD><IQpairs,even pulse><IQpairs,odd pulse>
+/// --!
+/// --! The TAG is broken down as:
+/// --! bits 31:28  Format number   0-15(4 bits)
+/// --! bits 27:26  Channel number  0-3 (2 bits)
+/// --! bits    25  0=even, 1=odd   0-1 (1 bit)
+/// --! bit     24  0=I, 1=Q        0-1 (1 bit)
+/// --! bits 23:00  Sequence number     (24 bits)
+/// --!
+/// --!
+/// --! The four tags at the beginning should all have the same sequence number,
+/// --! verifying that the individual accumulators are working in sequence.
+/// --! The sequence number increments by one for each output sum from
+/// --! an accumulator.
+/// @endcode
 class p7142sd3cdn: public p7142dn {
 public:
 	/// The type of downconverter that is instantiated in the pentek firmware.
@@ -94,8 +125,12 @@ public:
 	
 	/// The SD3C synchronization word value.
 	static const uint32_t SD3C_SYNCWORD = 0xAAAAAAAA;
+	/// The maximum pulse number in a pulse tagger tag
+	static const int32_t MAX_PT_PULSE_NUM = 0x3FFFFFFF;
+	/// The maximum pulse number in a coherent integrator tag
+	static const int32_t MAX_CI_PULSE_NUM = 0xFFFFFF;
 
-	/// Collects timer initialization values
+	/// Utility structure for timer initialization values
 	struct TimerSetup {
 		/// The timer id (e.g. TIMER0)
 		int id;
@@ -228,7 +263,7 @@ public:
     /// @return Time of the given transmit pulse.
     boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
     
-	/// @return The data bandwidth in bytes per second
+	/// @return The data bandwidth from the pentek in bytes per second
 	int dataRate();
 	
 	/// @return The ADC clock frequency in Hz.
@@ -246,7 +281,7 @@ public:
 	unsigned long syncErrors();
 
 protected:
-	/// Configure the p7142sd3cdn
+	/// Configure the p7142sd3cdn. Used during construction.
 	/// @return True if the configuration was successful
 	bool config();
 
@@ -295,16 +330,9 @@ protected:
 	/// indications that it was causing the driver to drop
 	/// blocks of data.
 	void setInterruptBufSize();
-
 	/// Set the free run control bit in the transceiver
 	/// control register, as specified by _freeRun
 	void freeRunConfig();
-
-	/// Perform reset functions:
-	///
-	/// - clear the fifos
-	void reset();
-	
 	/// number of gates
 	int _gates;
 	/// number of coherent integrator sums
@@ -331,8 +359,6 @@ protected:
 	std::string _gaussianFile;
 	/// The path to the file containing the kaiser filter coefficients.
 	std::string _kaiserFile;
-    /// The pulse number if we're simulating data
-    int _simPulseNum;
 	/// Time of the first xmit pulse.
 	boost::posix_time::ptime _xmitStartTime;
 	/// peek-poke structure pointer
@@ -341,6 +367,7 @@ protected:
 	double _adc_clock;
 	/// The prf(s) in Hz
 	double _prf;
+	/// The dual prf in Hz.
     double _prf2;
     /// The timer delay counts, in adc_clock/2 counts, for all 8 timers. The first
     /// three entries are derived calculated in this class, the remaining 
@@ -370,6 +397,13 @@ protected:
     /// @param pulsenum The pulse number is returned here.
     /// @returns Pointer to the start of the beam.
     char* ptBeamDecoded(unsigned int& pulseNum);
+    /// Return the next synchronized beam of coherent integrator data.
+    /// The pulse number in the beam is checked for dropped beams.
+    /// Data associated with synchronization errors will be skipped.
+    /// The caller can access beamLength() bytes.
+    /// @param pulsenum The pulse number is returned here.
+    /// @returns Pointer to the start of the beam.
+    char* ciBeamDecoded(unsigned int& pulseNum);
     /// Return the next beam of free run data. This
     /// is a misnomer, since there aren't really beams in free run mode.
     /// Think of them as blocks. The caller can access beamLength() bytes.
@@ -377,14 +411,18 @@ protected:
     /// Return the next synchronized beam of pulse tagger data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
+    /// @param pulseTag The pulse tag is returned here
     /// @returns Pointer to the start of the beam.
-    char* ptBeam();
+    char* ptBeam(char* pulseTag);
     /// Return the next synchronized beam of pulse tagger data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
     /// @param pulseNum The pulse number is returned here
     /// @returns Pointer to the start of the beam.
     char* ciBeam(unsigned int& pulseNum);
+    /// Decode the pulse coded data that come from the coherent integrator.
+    /// Data are decoded from _buf into _ciBuf.
+    void ciDecode();
     /// Check that a coherent integrator tag is
     /// valid.
     /// @param p Pointer to the tag.
@@ -392,6 +430,21 @@ protected:
     /// if the tag is valid.
     /// @returns True if valid, false otherwise.
     bool ciCheckTag(char* p, unsigned int& pulseNum);
+    /// Create a coherent integrator tag. Used for simulation.
+    /// @param format The format identifier. Must match the format number produced by the firmware.
+    /// @param chan The channel number (0-3).
+    /// @param odd True for odd beam, false for an even
+    /// @param Q   True for a Q beam, false for I data.
+    /// @param seq The sequence number, from 0 to 0xffffff;
+    uint32_t ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq);
+    /// Decode a coherent integrator tag.
+    /// @param tag The tag to be decoded.
+    /// @param format Returns the format identifier.
+    /// @param chan Returns the channel number.
+    /// @param odd Returns true for odd beam, false for an even
+    /// @param Q   Returns true for a Q beam, false for I data.
+    /// @param seq Returns the sequence number;
+    void ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& Q, uint32_t& seq);
     /// Fill _simfifo with simulated data. Make
     /// sure that there are at least the specified number of bytes.
     /// Sync words and tags are added as appropriate. For
@@ -399,14 +452,18 @@ protected:
     /// @param n The minimum number of bytes that _simFifo must
     /// contain on return from the routine.
     void makeSimData(int n);
-    /// perform the simulation wait
+    /// Perform the simulation wait. Called once per simulated beam.
+    /// It will pause at a rate that is specified as the per beam
+    /// wait time in simPauseMS. However, it will save up the pauses
+    /// and do a 100x pause every 100 calls, so that the effective
+    /// rate is close to the desired rate. Otherwise, the usleep() overhead
+    /// kills us.
     void simWait();
-
-    /// Decode the channel/pulse number word.
-    /// @param buf a pointer to the channel/pulse number word
-    /// @param chan return argument for the unpacked channel number
-    /// @param pulseNum return argument for the unpacked pulse number
-    static void _unpackChannelAndPulse(
+    /// Decode the pulse tagger channel/pulse number word.
+    /// @param buf A pointer to the channel/pulse number word.
+    /// @param chan Return argument for the unpacked channel number.
+    /// @param pulseNum Return argument for the unpacked pulse number.
+    static void unpackPtChannelAndPulse(
     		const char* buf,
     		unsigned int & chan,
             unsigned int & pulseNum);
@@ -414,15 +471,17 @@ protected:
     /// @param label A label.
     /// @param n The number of items to print
     void dumpSimFifo(std::string label, int n);
-
-    static const int MAX_PULSE_NUM = 1073741823;    // 2^30 - 1
-    /// The thre operating modes: free run, pulse tag and coherent integration
+    /// The three operating modes: free run, pulse tag and coherent integration
     enum {FR, PT, CI} _mode;
     /// The length of one beam of data, to be delivered
     /// on each getBeam() call.
     int _beamLength;
-    /// The running buffer for data collection and processing.
+    /// The buffer that collects IQ data.
     char* _buf;
+    /// A buffer that coherently integrated data will be decoded into.
+    char* _ciBuf;
+    /// The pulse number if we're simulating data
+    int _simPulseNum;
     /// The number of ms to pause between each beam in simulation mode
     double _simPauseMS;
     /// The sim wait counter
@@ -439,13 +498,22 @@ protected:
 	/// which indicates a synchronization error. If there is a sync error,
 	/// then the sequence number check is not performed.
 	unsigned long _syncErrors;
+	/// A flag used by the synchronization code to detect when the very first
+	/// raw data are delivered from the card (or simulator).
+	bool _firstRawBeam;
 	/// Set false at startup, true after the first beam has been received.
 	bool _firstBeam;
+	/// A fifo that simulated data is built up by makeSimData() while in
+	/// simulation mode. The read() function then draws out of this fifo.
+	/// This is done so that makeSimData() can fill the buffer with
+	/// multibyte objects such as shorts and ints, but the read function
+	/// can draw out of it a byte at a time if necessary. This is required for
+	/// re-synchroniation.
 	std::deque<char> _simFifo;
 
 private:
     /// Open the control device.
-    void _openControlDevice();
+    void openControlDevice();
 
 };
 
