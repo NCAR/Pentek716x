@@ -123,6 +123,18 @@ public:
 		DDC8DECIMATE, DDC4DECIMATE
 	};
 	
+	/// Return the name of the given DDCDECIMATETYPE
+	static std::string ddcTypeName(DDCDECIMATETYPE type) {
+	    switch (type) {
+	    case DDC8DECIMATE:
+	        return std::string("DDC8DECIMATE");
+	    case DDC4DECIMATE:
+	        return std::string("DDC4DECIMATE");
+	    default:
+	        return std::string("Unknown");
+	    }
+	}
+	
 	/// The SD3C synchronization word value.
 	static const uint32_t SD3C_SYNCWORD = 0xAAAAAAAA;
 	/// The maximum pulse number in a pulse tagger tag
