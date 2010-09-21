@@ -156,13 +156,6 @@ p7142sd3cdn::p7142sd3cdn(
 		<< std::endl;
 	}
 
-	// verify that the correct down converter was selected.
-	if (ddc_type() != _ddcType) {
-		std::cerr << "The firmware DDC type (ddc4 or ddc8) does not match the specified type. Program will terminate."
-		<< std::endl;
-		exit(1);
-	}
-
     /// The SD3C Pentek firmware requires that bypass divider value be set to
     /// 2 * (pulse width in adc_frequency counts).
     setBypassDivider(2 * _timer_widths[2]);
