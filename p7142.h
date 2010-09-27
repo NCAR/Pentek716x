@@ -91,7 +91,7 @@ namespace Pentek {
 			/// The down convertor file descriptor
 			int _dnFd;
 			/// The wavelength for simulated data
-			int _simWaveLength;
+			unsigned int _simWaveLength;
 			/// The counter for keeping track of the current phase during simulation
 		    unsigned int _angleCount;
 		    ///True if simulation is supposed to produce 4 byte integers
