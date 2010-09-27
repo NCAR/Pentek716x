@@ -166,6 +166,20 @@ p7142dn::read(char* buf, int bufsize) {
 
   if (!_ok)
     return -1;
+    
+  // Enforce that reads are a multiple of 4 bytes, since the Pentek driver
+  // (silently) does this, e.g., it will return 4 bytes if 7 are requested,
+  // or 0 bytes if 1 is requested.
+  // If we are to support other read sizes, we'll have to be a lot smarter, 
+  // and keep around a buffer of up to 3 unconsumed bytes between calls here. 
+  // For now, we are not that smart...
+  if ((bufsize % 4) != 0) {
+    std::cerr << __PRETTY_FUNCTION__ << ": " << bufsize << 
+        " bytes requested, but Pentek reads must be a multiple of 4 bytes!" <<
+        std::endl;
+    abort();
+  }
+  
   if (!_simulate) {
 	  // not in simulation mode; do a proper read from the device
 	  int n;
@@ -662,11 +676,11 @@ p7142up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1,
 	long long freq;
 
 	if ((fNCO/fNCO_CLK) < 0.5)
-		freq = (fNCO/fNCO_CLK)*(0x100000000ll);
+		freq = (long long)((fNCO/fNCO_CLK)*(0x100000000ll));
 	else
 		/// @todo the following produces a 33 bit number! There is something
 		/// wrong with the formula in the DAC datasheet.
-		freq = ((fNCO/fNCO_CLK)+1)*(0x100000000ll);
+		freq = (long long)(((fNCO/fNCO_CLK)+1)*(0x100000000ll));
 
 
 	std::cout << "freq is " << std::hex << freq << std::dec << std::endl;
