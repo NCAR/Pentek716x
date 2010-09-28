@@ -1145,15 +1145,11 @@ p7142sd3cdn::ptBeamDecoded(unsigned int& pulseNum) {
 		abort();
 	}
 
-	// Initialize _lastPulse if this is the first pulse we've seen
-	if (_firstBeam) {
-		if (pulseNum == 0){
-			_lastPulse = MAX_PT_PULSE_NUM;
-		} else {
-			_lastPulse = pulseNum - 1;
-		}
-		_firstBeam = false;
-	}
+    // Initialize _lastPulse if this is the first pulse we've seen
+    if (_firstBeam) {
+        _lastPulse = pulseNum - 1;
+        _firstBeam = false;
+    }
 
 	// How many pulses since the last one we saw?
 	int delta = pulseNum - _lastPulse;
