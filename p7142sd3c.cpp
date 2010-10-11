@@ -1,3 +1,5 @@
+// -*- mode: C++; indent-tabs-mode: nil; c-basic-offset: 2; tab-width: 2; -*-
+// vim: set shiftwidth=2 softtabstop=2 expandtab:
 /*
  * p7142sd3c.cpp
  *
@@ -1258,12 +1260,9 @@ p7142sd3cdn::ciBeamDecoded(unsigned int& pulseNum) {
 		// errors where the zero pulse is skipped, or a pulse comes in
 		// that erroneously has zero for a pulse tag. Perhaps there
 		// is a better algorithm for this.
-		if (pulseNum == 0) {
-			delta = MAX_CI_PULSE_NUM - _lastPulse + 1;
+		if (pulseNum == 0)
 			std::cout << "Pulse number rollover" << std::endl;
-		} else {
-			delta += MAX_CI_PULSE_NUM + 1;
-		}
+                delta += MAX_CI_PULSE_NUM + 1;
 	}
 
 	if (delta == 0) {
