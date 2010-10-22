@@ -10,18 +10,17 @@ using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p71xx::p71xx(std::string devName, bool simulate):
-_ok(true),
+_ok(false),
 _devName(devName),
 _ctrlFd(-1),
-_simulate(simulate),
-_bytesRead(0L)
+_simulate(simulate)
 {
+    // If we're simulating, things are simple...
 	if (_simulate) {
 		_ok = true;
 		return;
 	}
 
-	_ok = false;
 	if (_devName.size() < 1)
 		return;
 
@@ -30,23 +29,26 @@ _bytesRead(0L)
 		_devName.erase(_devName.size()-1,1);
 	}
 
-	// create and access the ctrl device name
+	// If we're not simulating, open the control device
 	_devCtrl = _devName + "/ctrl";
-	int fd = open(_devCtrl.c_str(), O_RDWR);
-	if (fd < 0)
-		return;
+    _ctrlFd = open(_devCtrl.c_str(), O_RDWR);
+    if (_ctrlFd < 0) {
+        std::cerr << "Unable to open p71xx control device!" << std::endl;
+        return;
+    }
 
-	close(fd);
 	_ok = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p71xx::~p71xx() {
+    if (_ctrlFd >= 0)
+        close(_ctrlFd);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
-p71xx::ok() {
+p71xx::ok() const {
 	return _ok;
 }
 
@@ -54,27 +56,15 @@ p71xx::ok() {
 double
 p71xx::gauss(double mean, double stdDev) {
 
-		// create a normally distributed random number,
-		// using this nifty little algorithm.
+	// create a normally distributed random number,
+	// using this nifty little algorithm.
 
-		double x = rand()/(1.0*RAND_MAX);
-		double y = rand()/(1.0*RAND_MAX);
-		double u = sqrt(-2.0*log10(x))*cos(2.0*M_PI*y);
+	double x = rand()/(1.0*RAND_MAX);
+	double y = rand()/(1.0*RAND_MAX);
+	double u = sqrt(-2.0*log10(x))*cos(2.0*M_PI*y);
 
-		// set the mean std deviation
-		return stdDev * u + mean;
-	}
-
-
-//////////////////////////////////////////////////////////////////////
-long
-p71xx::bytesRead() {
-	/// @todo this needs to be protected by a mutex,
-	/// and there needs to be a similarly protected
-	/// function for setting _bytesRead.
-	long retval = _bytesRead;
-	_bytesRead = 0;
-	return retval;
+	// set the mean std deviation
+	return stdDev * u + mean;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -123,20 +113,3 @@ p71xx::bufset(int fd, int intbufsize, int bufN) {
 	}
 	return status;
 }
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////

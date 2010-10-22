@@ -3,15 +3,6 @@
 Desc: Pentek 7142 HCR DDC Registers
 
 **********************************************************************************************/
-/// PulseWidths for Decimation
-#define _0_2us 2
-#define _0_4us 4
-#define _0_6us 6
-#define _0_8us 8
-#define _1_0us 10
-#define _1_2us 12
-#define _1_4us 14
-#define _1_6us 16
 
 /// ADC FIFO Control Registers
 #define ADC_FIFO_CTRL_1 0x8C08  ///< ADC #1
@@ -95,15 +86,6 @@ Desc: Pentek 7142 HCR DDC Registers
 #define WIDTH_REG   0xA
 #define PERIOD_REG  0xB
 #define PRT_REG     0xC
-
-#define TIMER0 (0x01<<4)
-#define TIMER1 (0x02<<4)
-#define TIMER2 (0x04<<4)
-#define TIMER3 (0x08<<4)
-#define TIMER4 (0x10<<4)
-#define TIMER5 (0x20<<4)
-#define TIMER6 (0x40<<4)
-#define TIMER7 (0x80<<4)
 
 #define W_Ch0 (0x01<<4)
 #define W_Ch1 (0x02<<4)

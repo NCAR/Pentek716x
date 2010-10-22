@@ -34,7 +34,6 @@ std::string _gaussianFile = "";  ///< gaussian filter coefficient file
 std::string _kaiserFile = "";    ///< kaiser filter coefficient file
 int _decim;                      ///< Decimation or bypass divider rate
 bool _internalClock = false;     ///< set true to use the internal clock, false otherwise
-int _ddcType;                    ///< The ddc type in the pentek core. Must be 4 or 8.
 bool _freeRun = false;           ///< If set true, the prf gating of the downconversion is disabled.
 int _bufFactor = 10;			 ///< The read buffer size is _bufFactor * BASICSIZE
 std::string _outFile;            ///< File name for collecting output data, if desired
@@ -50,7 +49,6 @@ void getConfigParams()
 
 	// get parameters
 	_devRoot       = config.getString("Device/DeviceRoot",  "/dev/pentek/p7142/0");
-	_ddcType       = config.getInt("Device/DdcType",        8);
 	_gates         = config.getInt("Radar/Gates",           400);
 	_prt		   = config.getDouble("Radar/PRT", 			0.2); // 5 Hz
 	_pulseWidth    = config.getDouble("Radar/PulseWidth", 	0.000001);    // 1 uS
@@ -83,7 +81,6 @@ void parseOptions(int argc,
 	("prt",  po::value<double>(&_prt),                 "PRT in seconds")
 	("pulseWidth",  po::value<double>(&_pulseWidth),   "Pulse width seconds")
 	("nsum",  po::value<int>(&_nsum),                  "Number of coherent integrator sums")
-	("ddc",  po::value<int>(&_ddcType),                "DDC type (8 or 4; must match pentek firmware)")
 	("freeRun",                                        "Free running mode, PRT gating is disabled")
     ("internalClock",                                  "Use the internal clock instead of the front panel clock")
     ("bufferFactor",  po::value<int>(&_bufFactor),     "Read buffer factor")
@@ -98,13 +95,6 @@ void parseOptions(int argc,
 	    _internalClock = true;
 	if (vm.count("freeRun"))
 		_freeRun = true;
-
-	if (vm.count("ddc")) {
-		if (_ddcType != 4 && _ddcType != 8) {
-			std::cout << "ddc must be 4 or 8"  << std::endl;
-			exit(1);
-		}
-	}
 
 	if (vm.count("help")) {
 		std::cout << descripts << std::endl;
@@ -186,7 +176,7 @@ int main(int argc, char** argv) {
 	// get the configuration parameters from the configuration file
 	getConfigParams();
 
-	// parse the command line optins, substituting for config params.
+	// parse the command line options, substituting for config params.
 	parseOptions(argc, argv);
 
     // make sure that the specified arguments are compatible
@@ -205,45 +195,15 @@ int main(int argc, char** argv) {
 	// try to change scheduling to real-time
 	makeRealTime();
 
-    std::vector<double> delays;
-    std::vector<double> widths;
-    for (int i = 0; i < 5; i++) {
-        delays.push_back(0.0);  
-        widths.push_back(0.0);
-    }
-    	Pentek::p7142sd3cdn::DDCDECIMATETYPE ddcType = Pentek::p7142sd3cdn::DDC8DECIMATE;
-	if (_ddcType == 4) {
-		ddcType = Pentek::p7142sd3cdn::DDC4DECIMATE;
-	}
-	// create the downconvertor
-	Pentek::p7142sd3cdn downConverter(
-			_devRoot,
-			_chanId,
-			_gates,
-			_nsum,
-			_tsLength,
-            0,
-			0,
-			_prt,
-			_prt2,
-			_pulseWidth,
-			_stgrPrt,
-            delays,
-            widths,
-			_freeRun,
-			_gaussianFile,
-			_kaiserFile,
-			false,
-			0,
-			_internalClock);
+    // Instantiate our p7142 object and create the downconverter on it
+	Pentek::p7142sd3c sd3c(_devRoot, false, 0, _pulseWidth, _prt, _prt2, 
+	        _stgrPrt, _freeRun);
+	Pentek::p7142sd3cDn & downConverter = *sd3c.addDownconverter(_chanId, _gates,
+	        _nsum, _tsLength, 0, _pulseWidth, _gaussianFile, _kaiserFile);
+	
 
-	if (!downConverter.ok()) {
-		std::cerr << "cannot access " << downConverter.dnName() << "\n";
-		exit(1);
-	}
-
-	downConverter.startFilters();
-	downConverter.timersStartStop(true);
+	sd3c.startFilters();
+	sd3c.timersStartStop(true);
 
 	// start the loop
 	int loopCount = 0;

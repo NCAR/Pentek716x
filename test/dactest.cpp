@@ -42,13 +42,10 @@ int main(int argc, char** argv) {
 	double ncoFreq      = atof(argv[4]);
 	char mode           = atoi(argv[5]);
 
-	// create the upconvertor
-	Pentek::p7142up upConverter(devRoot, upName, sampleRate, ncoFreq, mode);
-
-	if (!upConverter.ok()) {
-		std::cerr << "cannot access " << devRoot << ", " << upName << "\n";
-		exit(1);
-	}
+	// create the p7142 and its upconverter
+	Pentek::p7142 card(devRoot, false);
+	Pentek::p7142Up & upConverter = *card.addUpconverter(upName, sampleRate, 
+	        ncoFreq, mode);
 
 	// create the signal
 	unsigned int n = 100;

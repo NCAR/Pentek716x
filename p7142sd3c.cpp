@@ -1,5 +1,3 @@
-// -*- mode: C++; indent-tabs-mode: nil; c-basic-offset: 2; tab-width: 2; -*-
-// vim: set shiftwidth=2 softtabstop=2 expandtab:
 /*
  * p7142sd3c.cpp
  *
@@ -8,1634 +6,499 @@
  */
 
 #include "p7142sd3c.h"
+
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <iostream>
-#include <cmath>
-#include <cstdio>
-#include "BuiltinGaussian.h"
-#include "BuiltinKaiser.h"
-#define IOCTLSLEEPUS 100
 
-using namespace Pentek;
-using namespace boost::posix_time;
+namespace Pentek {
+
+/*
+ * Timer identifier bits for the SD3C timers.
+ */
+const unsigned int p7142sd3c::SD3C_TIMER_BITS[N_SD3C_TIMERS] = {
+        0x010, 0x020, 0x040, 0x080,
+        0x100, 0x200, 0x400, 0x800
+};
+const unsigned int p7142sd3c::ALL_SD3C_TIMER_BITS = 0xff0;
+
+/*
+ * The DDC type to use if we're simulating, default DDC8DECIMATE. This can be 
+ * changed using the static setSimulateDDCType() method.
+ */
+p7142sd3c::DDCDECIMATETYPE p7142sd3c::_simulateDDCType = DDC8DECIMATE;
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142sd3cdn::p7142sd3cdn(
-    std::string devName, 
-    int chanId, 
-    int gates, 
-    int nsum,
-    int tsLength, 
-    double rx_delay, 
-    double tx_delay, 
-    double prt, 
-    double prt2, 
-    double pulseWidth,
-    bool staggeredPrt, 
-    std::vector<double> timer_delays,
-    std::vector<double> timer_widths,
-    bool freeRun, 
-    std::string gaussianFile, 
-    std::string kaiserFile,
-    bool simulate, 
-    double simPauseMS,
-    int simWaveLength,
-    bool internalClock) :
-  p7142dn(devName, 
-      chanId, 
-      1, 
-      simulate, 
-      simWaveLength,
-      nsum > 1,
-      internalClock),
-  _gates(gates), 
-  _nsum(nsum), 
-  _tsLength(tsLength),
-  _staggeredPrt(staggeredPrt), 
-  _freeRun(freeRun),
-  _gaussianFile(gaussianFile), 
-  _kaiserFile(kaiserFile),
-  _simPauseMS(simPauseMS),
-  _simPulseNum(0),
-  _simWaitCounter(0),
-  _lastPulse(0),
-  _droppedPulses(0),
-  _syncErrors(0),
-  _firstRawBeam(true),
-  _firstBeam(true)
-{
-  assert(timer_delays.size() == 5 && timer_widths.size() == 5);
-
-  // sanity check
-  if (_nsum < 1) {
-    _nsum = 1;
-  }
-  // determine the operating mode
-  if (_freeRun) {
-    _mode = FR;
-  } else {
-    if (_nsum > 1) {
-      _mode = CI;
-    } else {
-      _mode = PT;
+p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay, 
+    double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
+    bool freeRun) : 
+        p7142(devName, simulate),
+        _staggeredPrt(staggeredPrt),
+        _freeRun(freeRun) {
+    // Note the FPGA firmware revision
+    std::cout << "FPGA revision: " << fpgaRepoRevision()
+            << std::endl;
+    if (fpgaRepoRevision() == 0) {
+        std::cerr << "** WARNING: Revision number is zero. " <<
+                "Was the correct firmware loaded?" << std::endl;
     }
-  }
 
-  // set up page and mask registers for FIOREGSET and FIOREGGET functions to access FPGA registers
-  _pp.page = 2; // PCIBAR 2
-  _pp.mask = 0;
 
-  // Open the control device before we call any methods which access the card
-  openControlDevice();
+    // set up page and mask registers for FIOREGSET and FIOREGGET functions 
+    // to access FPGA registers
+    _pp.page = 2; // PCIBAR 2
+    _pp.mask = 0;
+    
+    // Set the ADC clock rate based on DDC type
+    _ddcType = _readDDCType();
+    switch (_ddcType) {
+    case DDC10DECIMATE:
+        _adc_clock = 100.0e6;
+        break;
+    case DDC8DECIMATE:
+        _adc_clock = 125.0e6;
+        break;
+    case DDC4DECIMATE:
+        _adc_clock = 48.0e6;
+        break;
+    case BURST:
+        _adc_clock = 100.0e6;
+        break;    
+    }
+    
+    // stop the timers
+    timersStartStop(false);
 
-  // Query the firmware to get DDC type
-  _ddcType = ddc_type();
+    // Convert prt, prt2, tx_pulsewidth, and tx_delay into our local representation, 
+    // which is in units of (ADC clock counts / 2)
+    _prtCounts = timeToCounts(prt);
+    _prt2Counts = timeToCounts(prt2);
+    _prf = 1.0 / prt;   // Hz
+    _prf2 = 1.0 / prt2; // Hz
 
-  // Set the ADC clock rate based on DDC type
-  _adc_clock = (_ddcType == DDC4DECIMATE) ? 48.0e6 : 125.0e6;
-  // Convert prt, prt2, pulseWidth, and delay into our local representation, 
-  // which is in units of (ADC clock counts / 2)
-  _prt = lround(prt * _adc_clock / 2);
-  _prt2 = lround(prt2 * _adc_clock / 2);
-  _prf = 1.0 / prt;
-  _prf2 = 1.0 / prt2;
+    // sync pulse timer
+    _setTimer(MASTER_SYNC_TIMER, 0, 4);
+    
+    // tx pulse pulse timer
+    int txDelayCounts = timeToCounts(tx_delay);
+    int pulseWidthCounts = timeToCounts(tx_pulsewidth);
+    _setTimer(TX_PULSE_TIMER, txDelayCounts, pulseWidthCounts);
+    
+//    std::cout << "downconverter: " << ddcTypeName(_ddcType) << std::endl;
+//    std::cout << "rx 0/1 delay:  " << _timerDelay(RX_01_TIMER) << " adc_clock/2 counts"  << std::endl; 
+//    std::cout << "rx 0/1 width:  " << _timerWidth(RX_01_TIMER) << " adc_clock/2 counts"   << std::endl;
+//    std::cout << "rx 2/3 delay:  " << _timerDelay(RX_23_TIMER) << " adc_clock/2 counts"  << std::endl; 
+//    std::cout << "rx 2/3 width:  " << _timerWidth(RX_23_TIMER) << " adc_clock/2 counts"   << std::endl;
+//    std::cout << "tx delay:      " << _timerDelay(TX_PULSE_TIMER) << " adc_clock/2 counts"  << std::endl;
+//    std::cout << "tx pulse width:" << _timerWidth(TX_PULSE_TIMER) << " adc_clock/2 counts"   << std::endl;
+//    std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
+//    std::cout << "prt:           " << _prtCounts       << " adc_clock/2 counts"   << std::endl;
+//    std::cout << "prt2:          " << _prt2Counts      << " adc_clock/2 counts"   << std::endl;
+//    std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
+//    std::cout << "rng to gate0:  " << rangeToFirstGate() << " m"                  << std::endl;
+//    std::cout << "clock source:  " << (usingInternalClock() ? "internal" : "external") << std::endl;
+//    std::cout << "ts length:     " << _tsLength                                   << std::endl;
+//    std::cout << "gates:         " << _gates                                      << std::endl;
+//    std::cout << "nsum:          " << _nsum                                       << std::endl;
+//    std::cout << "free run:      " << ((_freeRun) ? "true" : "false")             << std::endl;
+//    std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
+//    std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
+//    std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
+//    std::cout << "sim usleep     " << _simPauseMS*1000 << "us"                    <<std::endl;
+//    for (int i = 0; i < 8; i++) {
+//        std::cout << "timer " << i << " delay: " << _timerDelay(i) << " adc_clock/2 counts"  << std::endl;
+//        std::cout << "timer " << i << " width: " << _timerWidth(i) << " adc_clock/2 counts"  << std::endl;
+//    }
+    
+    // reset the FPGA clock managers. Necessary since some of our
+    // new DCMs in the firmware use the CLKFX output, which won't
+    // lock at startup.
+    _resetDCM();
 
-  int rxDelayCounts    = lround(rx_delay   * _adc_clock / 2);
-  int pulseWidthCounts = lround(pulseWidth * _adc_clock / 2);
-  int txDelayCounts    = lround(tx_delay   * _adc_clock / 2);
-
-  // sync pulse timer
-  _timer_delays.push_back(0);
-  _timer_widths.push_back(4);
-
-  // rx gate timer
-  _timer_delays.push_back(rxDelayCounts);
-  _timer_widths.push_back(pulseWidthCounts*_gates);
-
-  // tx pulse pulse timer
-  _timer_delays.push_back(txDelayCounts);
-  _timer_widths.push_back(pulseWidthCounts);
-
-  // the 5 general purpose timers
-  for (int i = 0; i < 5; i++) {
-    _timer_delays.push_back(lround(timer_delays[i] * _adc_clock / 2));
-    _timer_widths.push_back(lround(timer_widths[i] * _adc_clock / 2));
-  }
-
-  // initialize the buffering scheme.
-  initBuffer();
-
-  std::cout << "downconverter: " << ((_ddcType == Pentek::p7142sd3cdn::DDC8DECIMATE) ? "DDC8" : "DDC4") << std::endl;
-  std::cout << "rx delay:      " << _timer_delays[1] << " adc_clock/2 counts"  << std::endl; 
-  std::cout << "rx gate width: " << _timer_widths[1] << " adc_clock/2 counts"   << std::endl;
-  std::cout << "tx delay:      " << _timer_delays[2] << " adc_clock/2 counts"  << std::endl;
-  std::cout << "tx pulse width:" << _timer_widths[2] << " adc_clock/2 counts"   << std::endl;
-  std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
-  std::cout << "prt:           " << _prt             << " adc_clock/2 counts"   << std::endl;
-  std::cout << "prt2:          " << _prt2            << " adc_clock/2 counts"   << std::endl;
-  std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
-  std::cout << "rng to gate0:  " << rangeToFirstGate() << " m"                  << std::endl;
-  std::cout << "clock source:  " << (usingInternalClock() ? "internal" : "external") << std::endl;
-  std::cout << "ts length:     " << _tsLength                                   << std::endl;
-  std::cout << "gates:         " << _gates                                      << std::endl;
-  std::cout << "nsum:          " << _nsum                                       << std::endl;
-  std::cout << "free run:      " << ((_freeRun) ? "true" : "false")             << std::endl;
-  std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
-  std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
-  std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
-  std::cout << "sim usleep     " << _simPauseMS*1000 << "us"                    <<std::endl;
-  for (int i = 0; i < 8; i++) {
-    std::cout << "timer " << i << " delay: " << _timer_delays[i] << " adc_clock/2 counts"  << std::endl;
-    std::cout << "timer " << i << " width: " << _timer_widths[i] << " adc_clock/2 counts"  << std::endl;
-  }
-
-  if (_simulate)
-    return;
-
-  if (fpgaRepoRevision() == 0) {
-    std::cerr << "**** Warning: The FPGA firmware revision number is zero. Was the correct firmware loaded?"
-      << std::endl;
-  }
-
-  /// The SD3C Pentek firmware requires that bypass divider value be set to
-  /// 2 * (pulse width in adc_frequency counts).
-  setBypassDivider(2 * _timer_widths[2]);
-  std::cout << "bypass decim:  " << bypassDivider()  << std::endl;
-
-  // Note the fpga firmware revision
-  std::cout << "FPGA revision: " << fpgaRepoRevision()
-    << std::endl;
-
-  // stop the timers
-  timersStartStop(false);
-
-  // flush the fifos. Note that a flush must not be issued
-  // after the timers have been configured, as this will zero
-  // the timer parameters.
-  flush();
-
-  // configure DDC in FPGA
-  if (!config()) {
-    std::cout << "error initializing filters\n";
-  }
-
+    // set free run mode as appropriate
+    _loadFreeRun();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p7142sd3cdn::~p7142sd3cdn() {
-  close(_ctrlFd);
-  delete [] _buf;
-  delete [] _ciBuf;
+p7142sd3c::~p7142sd3c() {
+    ; // empty for now
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+p7142sd3cDn *
+p7142sd3c::addDownconverter(int chanId, int gates, int nsum, int tsLength,
+        double rx_delay, double rx_pulse_width, std::string gaussianFile, 
+        std::string kaiserFile, double simPauseMs, int simWavelength,
+        bool internalClock) {
+    // Create a new p7142sd3cDn downconverter and put it in our list
+    p7142sd3cDn * downconverter = new p7142sd3cDn(this, chanId, gates, nsum, 
+            tsLength, rx_delay, rx_pulse_width, gaussianFile, kaiserFile, 
+            simPauseMs, simWavelength, internalClock);
+    _addDownconverter(downconverter);
+    return(downconverter);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142sd3cdn::openControlDevice() {
-  if (_simulate)
-    return;
-
-  _ctrlFd = open(_devCtrl.c_str(), O_RDWR);
-  if (_ctrlFd < 0) {
-    std::cout << "unable to open Pentek ctrl device" << std::endl;
-    exit(1);
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-bool p7142sd3cdn::config() {
-
-  // reset the FPGA clock managers. Necessary since some of our
-  // new DCMs in the firmware use the CLKFX output, which won't
-  // lock at startup.
-  resetDCM(_ctrlFd);
-
-  // configure the fifo
-  fifoConfig();
-
-  // Stop the filters from running
-  stopFilters();
-
-  // set number of gates
-  setGates(_gates);
-
-  // set number of coherent integrator sums
-  setNsum(_nsum);
-
-  // Is coherent integration enabled?
-  std::cout << "coherent integration is " <<
-    (_nsum > 1 ? "enabled" : "disabled") << std::endl;
-
-  // set up the filters. Will do nothing if either of
-  // the filter file paths is empty.
-  bool filterError = filterSetup();
-
-  // initialize the internal timers
-  initTimers();
-
-  // set free run mode as appropriate
-  freeRunConfig();
-
-  if (filterError) {
-    return false;
-  }
-
-  return true;
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::freeRunConfig() {
-  if (_simulate)
-    return;
-
-  // set the free run bit as needed
-
-  // get the current state of transceiver control register
-  _pp.offset = TRANS_CNTRL;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  usleep(IOCTLSLEEPUS);
-
-  if (_freeRun) {
-    // set free run
-    _pp.value = _pp.value | TRANS_FREE_RUN;
-  } else {
-    // clear free run
-    _pp.value = _pp.value & ~TRANS_FREE_RUN;
-  }
-
-  // write transceiver control register
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-  usleep(IOCTLSLEEPUS);
-
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  usleep(IOCTLSLEEPUS);
-
-  std::cout << "transceiver control register is " << _pp.value << std::endl;
-}
-
-//////////////////////////////////////////////////////////////////////
-int p7142sd3cdn::fpgaRepoRevision() {
-  if (_simulate)
-    return 0;
-
-  _pp.offset = FPGA_REPO_REV;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  return _pp.value & 0x7fff;
-
-}
-
-//////////////////////////////////////////////////////////////////////
-p7142sd3cdn::DDCDECIMATETYPE p7142sd3cdn::ddc_type() {
-  if (_simulate)
-    return DDC8DECIMATE;
-
-  _pp.offset = FPGA_REPO_REV;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-
-  DDCDECIMATETYPE ddctype = DDC4DECIMATE;
-  switch (_pp.value & 0x8000) {
-  case 0x8000:
-    ddctype = DDC8DECIMATE;
-    break;
-  case 0x0000:
-    ddctype = DDC4DECIMATE;
-    break;
-  }
-
-  return ddctype;
-
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::startFilters() {
-
-  // Start the DDC  -- do we really want to do this here???
-  /// @todo Note that this sets the start bit on channel 0. Doesn't
-  /// really belong in this class
-
-  _pp.offset = KAISER_ADDR;
-  _pp.value = DDC_START;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-  usleep(IOCTLSLEEPUS);
-
-  std::cout << "filters enabled on " << _dnName << std::endl;
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::stopFilters() {
-  if (_simulate)
-    return;
-
-  // stop the filters if they are running.
-  _pp.offset = KAISER_ADDR;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  _pp.offset = KAISER_ADDR;
-  _pp.value = DDC_STOP;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-  usleep(IOCTLSLEEPUS);
-  _pp.offset = KAISER_ADDR;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::setGates(int gates) {
-  if (_simulate)
-    return;
-
-  _pp.offset = RADAR_GATES;
-  _pp.value = gates;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::setNsum(int nsum) {
-  if (_simulate)
-    return;
-
-  _pp.offset = CI_NSUM;
-  _pp.value = nsum;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-}
-
-//////////////////////////////////////////////////////////////////////
-bool p7142sd3cdn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
-  if (_simulate)
-    return true;
-
-  bool kaiserLoaded;
-  bool gaussianLoaded;
-
-  int attempt;
-
-  // program kaiser coefficients
-
-  int ddcSelect = _chanId << 14;
-  attempt = 0;
-
-  do {
-    kaiserLoaded = true;
-    for (unsigned int i = 0; i < kaiser.size(); i++) {
-      unsigned int readBack;
-
-      int ramAddr = 0;
-      int ramSelect = 0;
-      switch (_ddcType) {
-      case DDC8DECIMATE:
-        ramAddr = i / 8;
-        ramSelect = (i % 8) << 4;
-        break;
-      case DDC4DECIMATE:
-        ramAddr = i / 4;
-        ramSelect = (i % 4) << 4;
-        break;
-      }
-      _pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
-      _pp.offset = KAISER_ADDR;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // write the value
-      // LS word first
-      _pp.value = kaiser[i] & 0xFFFF;
-      _pp.offset = KAISER_DATA_LSW;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
-      _pp.value = (kaiser[i] >> 16) & 0x3;
-      _pp.offset = KAISER_DATA_MSW;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // latch coefficient
-      _pp.value = 0x1;
-      _pp.offset = KAISER_WR;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // disable writing (kaiser readback only succeeds if we do this)
-      _pp.value = 0x0;
-      _pp.offset = KAISER_WR;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // read back the programmed value; we need to do this in two words as above.
-      _pp.offset = KAISER_READ_LSW;
-      ioctl(_ctrlFd, FIOREGGET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      readBack = _pp.value;
-      _pp.offset = KAISER_READ_MSW;
-      ioctl(_ctrlFd, FIOREGGET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      readBack |= (_pp.value << 16);
-      if (readBack != kaiser[i]) {
-        std::cout << "kaiser readback failed for coefficient "
-          << std::dec << i << std::hex << ", wrote " << kaiser[i]
-          << ", read " << readBack << std::endl;
-
-        kaiserLoaded = false;
-      } else {
-        // std::cout << "programmed kaiser " << i << std::endl;
-      }
-
+p7142sd3c::_setTimer(TimerIndex ndx, int delay, int width, bool verbose) {
+    _DelayAndWidth currentVals = _timers[ndx];
+    // If current timer width is non-zero, warn about any changes in 
+    // width or delay.
+    if (verbose && currentVals.width() != 0) {
+        if (currentVals.width() != width) {
+            std::cerr << "WARNING: Width for timer " << ndx << 
+                    " is changing from " << currentVals.width() << " to " <<
+                    width << std::endl;
+        }
+        if (currentVals.delay() != delay) {
+            std::cerr << "WARNING: Delay for timer " << ndx << 
+                    " is changing from " << currentVals.delay() << " to " <<
+                    delay << std::endl;
+        }
     }
-    attempt++;
-  } while (!kaiserLoaded && attempt < 1); // was 50
-
-  if (kaiserLoaded) {
-    std::cout << kaiser.size()
-      << " Kaiser filter coefficients succesfully loaded" << std::endl;
-  } else {
-    std::cout << "Unable to load the Kaiser filter coefficients" << std::endl;
-  }
-
-  // program gaussian coefficients
-  attempt = 0;
-
-  // Note that the DDC select is accomplished in the kaiser filter coefficient
-  // address register, which was done during the previous kaiser filter load.
-  do {
-    gaussianLoaded = true;
-    for (unsigned int i = 0; i < gaussian.size(); i++) {
-
-      unsigned int readBack;
-      int ramAddr = 0;
-      int ramSelect = 0;
-      switch (_ddcType) {
-      case DDC8DECIMATE:
-        ramAddr = i % 8;
-        ramSelect = (i / 8) << 4;
-        break;
-      case DDC4DECIMATE:
-        ramAddr = i % 12;
-        ramSelect = (i / 12) << 4;
-        break;
-      }
-      /// @todo early versions of the gaussian filter programming required
-      /// the ds select bits to be set in the gaussian address register.
-      /// We can take this out when we get a working bitstream with this
-      /// fixed
-      _pp.value = ddcSelect | ramSelect | ramAddr;
-      _pp.offset = GUASSIAN_ADDR;
-
-      // set the address
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // write the value
-      // LS word first
-      _pp.value = gaussian[i] & 0xFFFF;
-      _pp.offset = GUASSIAN_DATA_LSW;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-      // then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
-      _pp.value = (gaussian[i] >> 16) & 0x3;
-      _pp.offset = GUASSIAN_DATA_MSW;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // enable writing
-      _pp.value = 0x1;
-      _pp.offset = GUASSIAN_WR;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // disable writing (gaussian readback only succeeds if we do this)
-      _pp.value = 0x0;
-      _pp.offset = GUASSIAN_WR;
-      ioctl(_ctrlFd, FIOREGSET, &_pp);
-      usleep(IOCTLSLEEPUS);
-
-      // read back the programmed value; we need to do this in two words as above.
-      _pp.offset = GUASSIAN_READ_LSW;
-      ioctl(_ctrlFd, FIOREGGET, &_pp);
-      usleep(IOCTLSLEEPUS);
-      readBack = _pp.value;
-      _pp.offset = GUASSIAN_READ_MSW;
-      ioctl(_ctrlFd, FIOREGGET, &_pp);
-      usleep(IOCTLSLEEPUS);
-      readBack |= _pp.value << 16;
-      if (readBack != gaussian[i]) {
-        std::cout << "gaussian readback failed for coefficient "
-          << std::dec << i << std::hex << ", wrote "
-          << gaussian[i] << ", read " << readBack << std::endl;
-
-        gaussianLoaded = false;
-      } else {
-        // std::cout << "programmed gaussian " << i << std::endl;
-      }
-    }
-    attempt++;
-  } while (!gaussianLoaded && attempt < 1); //was 50
-
-  if (gaussianLoaded) {
-    std::cout << gaussian.size()
-      << " Gaussian filter coefficients succesfully loaded" << std::endl;
-  } else {
-    std::cout << "Unable to load the Gaussian filter coefficients" << std::endl;
-  }
-
-  // return to decimal output
-  std::cout << std::dec;
-
-  return kaiserLoaded && gaussianLoaded;
-
-}
-////////////////////////////////////////////////////////////////////////
-
-int p7142sd3cdn::filterSetup() {
-
-  // get the gaussian filter coefficients.
-  FilterSpec gaussian;
-  if (_gaussianFile.size() != 0) {
-    FilterSpec g(_gaussianFile);
-    if (!g.ok()) {
-      std::cerr << "Incorrect or unaccessible filter definition: "
-        << _gaussianFile << std::endl;
-      return -1;
-    } else {
-      gaussian = g;
-    }
-  } else {
-    std::string gaussianFilterName;
-    BuiltinGaussian builtins;
-    // The pulsewidth expressed in microseconds must match one of those
-    // available in BuiltinGaussian.
-    double pulseWidthUs = 1.00;
-    gaussianFilterName = "ddc8_1_0";
-
-    // Choose the correct builtin Gaussian filter coefficient set.
-    switch (_ddcType) {
-    case DDC8DECIMATE: {
-                         switch ((int)(_timer_widths[2]/62.5 * 10)) { // pulse width in 62.5 MHz counts
-
-                         case 2:                             //pulse width = 0.256 microseconds
-                           pulseWidthUs = 0.256;
-                           gaussianFilterName = "ddc8_0_2";
-                           break;
-                         case 3:								//pulse width = 0.384 microseconds
-                           pulseWidthUs = 0.384;
-                           gaussianFilterName = "ddc8_0_3";
-                           break;
-                         case 5:
-                           pulseWidthUs = 0.512;			//pulse width = 0.512 microseconds
-                           gaussianFilterName = "ddc8_0_5";
-                           break;
-                         case 6:								//pulse width = 0.64 microseconds
-                           pulseWidthUs = 0.64;
-                           gaussianFilterName = "ddc8_0_6";
-                           break;
-                         case 7:								//pulse width = 0.768 microseconds
-                           pulseWidthUs = 0.768;
-                           gaussianFilterName = "ddc8_0_7";
-                           break;
-                         case 8:								//pulse width = 0.896 microseconds
-                           pulseWidthUs = 0.896;
-                           gaussianFilterName = "ddc8_0_8";
-                           break;
-                         case 10:							//pulse width = 1.024 microseconds
-                           pulseWidthUs = 1.024;
-                           gaussianFilterName = "ddc8_1_0";
-                           break;
-                         default:
-                           std::cerr << "chip width specification of " << _timer_widths[2]
-                             << " is not recognized, filter will be configured for a "
-                             << pulseWidthUs << " uS pulse\n";
-                           break;
-                         }
-                         break;
-                       }
-    case DDC4DECIMATE: {    // pulse_widht in 24 MHz counts
-                         pulseWidthUs = 1.0;
-                         gaussianFilterName = "ddc4_1_0";
-                         break;
-                       }
-    }
-
-    if (builtins.find(gaussianFilterName) == builtins.end()) {
-      std::cerr << "No entry for " << gaussianFilterName << ", "
-        << pulseWidthUs
-        << " us pulsewidth in the list of builtin Gaussian filters!"
-        << std::endl;
-      abort();
-    }
-    gaussian = FilterSpec(builtins[gaussianFilterName]);
-    std::cout << "Using gaussian filter coefficient set "
-      << gaussianFilterName << std::endl;
-  }
-
-  // get the kaiser filter coefficients
-  std::string kaiserFilterName;
-  FilterSpec kaiser;
-  double kaiserBandwidth = 5.0;
-  if (_kaiserFile.size() != 0) {
-    FilterSpec k(_kaiserFile);
-    if (!k.ok()) {
-      std::cerr << "Incorrect or unaccessible filter definition: "
-        << _kaiserFile << std::endl;
-      return -1;
-    } else {
-      kaiser = k;
-    }
-  } else {
-    BuiltinKaiser builtins;
-    std::string kaiserFilterName;
-    switch (_ddcType) {
-    case DDC8DECIMATE: {
-                         kaiserFilterName = "ddc8_5_0";
-                         break;
-                       }
-    case DDC4DECIMATE: {
-                         kaiserFilterName = "ddc4_4_0";
-                         break;
-                       }
-    }
-    if (builtins.find(kaiserFilterName) == builtins.end()) {
-      std::cerr << "No entry for " << kaiserFilterName
-        << " in the list of builtin Kaiser filters!" << std::endl;
-      abort();
-    }
-    kaiser = FilterSpec(builtins[kaiserFilterName]);
-    std::cout << "Using kaiser filter coefficient set " << kaiserFilterName
-      << std::endl;
-  }
-
-  std::cout << "Kaiser filter will be programmed for " << kaiserBandwidth
-    << " MHz bandwidth\n";
-
-  // load the filter coefficients
-
-  if (!loadFilters(gaussian, kaiser)) {
-    std::cerr << "Unable to load filters\n";
-    return -1;
-  }
-
-  return 0;
-}
-
-/////////////////////////////////////////////////////////////////////////
-
-bool p7142sd3cdn::initTimers() {
-  if (_simulate)
-    return true;
-
-  //
-  //    This section initializes the timers.
-
-  int periodCount; // Period Count for all Timers
-  int PrtScheme; // PRT Scheme for all Timers
-
-  // Internal Timing Setup
-
-  unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
-    | TIMER5 | TIMER6 | TIMER7;
-
-  // Calculate the period and PRT Scheme for dual prt or single prt
-  // Note: _prt and _prt2 are expressed in ADC_Clk/2 MHz Counts!
-  //       for DDC4: 24 MHz; for DDC8: 62.5 MHz
-
-  double prtClock = _adc_clock / 2; // Timer Input Clock Freq
-  int X, Y;
-  float prt_ms, prt2_ms;
-
-  if (_staggeredPrt == true) {
-    // dual prt
-    prt_ms = (float) _prt / prtClock * 1e3;
-    prt2_ms = (float) _prt2 / prtClock * 1e3;
-
-    periodCount = (int) (prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms
-            / prt_ms)) / (int) (prt2_ms / prt_ms) * prtClock / 1e3);
-
-    X = (int) ((int) (prt2_ms / prt_ms) / (prt2_ms / prt_ms
-          - (int) (prt2_ms / prt_ms)));
-    Y = (int) (X * prt2_ms / prt_ms);
-
-    PrtScheme = (Y << 4) | X;
-  } else {
-    //single prt
-    // 	PRT must be integral multiple of pulsewidth !
-    periodCount = _prt;
-    PrtScheme = 0x0000;
-  }
-
-  std::cout << "periodCount is " << periodCount << std::endl;
-
-  // Control Register
-  _pp.offset = MT_ADDR;
-  _pp.value = CONTROL_REG | ALL_TIMERS;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  // Enable Timer
-  _pp.offset = MT_DATA;
-  _pp.value = TIMER_ON;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  // Turn on Write Strobes
-  _pp.offset = MT_WR;
-  _pp.value = WRITE_ON;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  // Configure the timers
-  std::vector<TimerSetup> timers;
-
-  // the sync pulse
-  timers.push_back(TimerSetup(TIMER0, _timer_delays[0], _timer_widths[0]));
-  // the rx gate
-  timers.push_back(TimerSetup(TIMER1, _timer_delays[1], _timer_widths[1]));
-  // the tx pulse
-  timers.push_back(TimerSetup(TIMER2, _timer_delays[2], _timer_widths[2]));
-  // 1st general purpose timer
-  timers.push_back(TimerSetup(TIMER3, _timer_delays[3], _timer_widths[3]));
-  // 2nd general purpose timer
-  timers.push_back(TimerSetup(TIMER4, _timer_delays[4], _timer_widths[4]));
-  // 3rd general purpose timer
-  timers.push_back(TimerSetup(TIMER5, _timer_delays[5], _timer_widths[5]));
-  // 4th general purpose timer
-  timers.push_back(TimerSetup(TIMER6, _timer_delays[6], _timer_widths[6]));
-  // 5th general purpose timer
-  timers.push_back(TimerSetup(TIMER7, _timer_delays[7], _timer_widths[7]));
-
-  for (unsigned int i = 0; i < timers.size(); i++) {
-
-    // Delay Register
-    _pp.offset = MT_ADDR; // Address
-    _pp.value = DELAY_REG | timers[i].id;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-    _pp.offset = MT_DATA; // Data
-    _pp.value = timers[i].delay;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-    // Pulse Width Register
-    _pp.offset = MT_ADDR; // Address
-    _pp.value = WIDTH_REG | timers[i].id;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-    _pp.offset = MT_DATA; // Data
-    _pp.value = timers[i].width;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
-  }
-
-  // ALL TIMERS
-  // Period Register
-  _pp.offset = MT_ADDR; // Address
-  _pp.value = PERIOD_REG | ALL_TIMERS;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  _pp.offset = MT_DATA; // Data
-  _pp.value = periodCount;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  //Multiple PRT Register
-  _pp.offset = MT_ADDR; // Address
-  _pp.value = PRT_REG | ALL_TIMERS;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  _pp.offset = MT_DATA; // Mult PRT Valu Timer 0
-  _pp.value = PrtScheme;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  // Turn off Write Strobes	_delay
-  _pp.offset = MT_WR;
-  _pp.value = WRITE_OFF;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  return true;
-
-}
-
-/////////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::timersStartStop(bool start) {
-  if (_simulate)
-    return;
-  //
-  //    This start the internal timers.
-  bool INTERNAL_TRIG = true;
-  unsigned int ALL_TIMERS = TIMER0 | TIMER1 | TIMER2 | TIMER3 | TIMER4
-    | TIMER5 | TIMER6 | TIMER7;
-
-  // Turn on Write Strobes
-  _pp.offset = MT_WR;
-  _pp.value = WRITE_ON;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  // Control Register
-  _pp.offset = MT_ADDR;
-  _pp.value = CONTROL_REG | ALL_TIMERS;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  // Enable/Disable Timer
-  _pp.offset = MT_DATA;
-  if (start) {
-    _pp.value = TIMER_ON;
-  } else {
-    _pp.value = 0;
-  }
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  _pp.offset = MT_ADDR; // Address
-  if (start) {
-    if (INTERNAL_TRIG)
-      _pp.value = ALL_TIMERS | ADDR_TRIG;  // internal trigger
-    else
-      _pp.value = ALL_TIMERS | GPS_EN;     // external trigger
-  } else {
-    std::cout << "timer stopped\n";
-    _pp.value = ALL_TIMERS;
-  }
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  if (start) {
-    _pp.value = ALL_TIMERS;
-    ioctl(_ctrlFd, FIOREGSET, &_pp);
-  }
-
-  // Turn off Write Strobes
-  _pp.offset = MT_WR;
-  _pp.value = WRITE_OFF;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-  if (start) {
-    std::cout << "timers started" << std::endl;
-  } else {
-    std::cout << "timers stopped" << std::endl;
-    //exit (1);
-  }
-
-  // Get current system time as xmit start time
-  setXmitStartTime(microsec_clock::universal_time());
-}
-
-//////////////////////////////////////////////////////////////////////
-unsigned short int p7142sd3cdn::TTLIn() {
-  if (_simulate)
-    return 0;
-
-  _pp.offset = TTL_IN;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-
-  return _pp.value;
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::TTLOut(unsigned short int data) {
-  if (_simulate)
-    return;
-
-  _pp.value = data;
-
-  _pp.offset = TTL_OUT1;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::setInterruptBufSize() {
-
-  // how many bytes are there in each time series?
-  int tsBlockSize;
-  if (_nsum < 2) {
-    tsBlockSize = _tsLength * _gates * 2 * 2;
-  } else {
-    // coherently integrated data has:
-    // 4 tags followed by even IQ pairs followed by odd IQ pairs,
-    // for all gates. Tags, I and Q are 4 byte integers.
-    tsBlockSize = _tsLength * (4 + _gates * 2 * 2) * 4;
-  }
-
-  double pulseFreq = 1.0 / (_prt / (10.0e6));
-  double tsFreq = pulseFreq / _tsLength;
-
-  // we want the interrupt buffer size to be a multiple of tsBlockSize,
-  // but no more than 20 interrupts per second.
-  int intBlocks = 1;
-
-  if (tsFreq <= 20) {
-    intBlocks = 1;
-  } else {
-    intBlocks = (int)(tsFreq / 20) + 1;
-  }
-
-  int bufferSize = tsBlockSize * intBlocks;
-
-  std::cout << "prt is " << _prt << "  prt frequency is " << pulseFreq
-    << "  ts freq is " << tsFreq << "  tsblocks per interrupt is "
-    << intBlocks << std::endl;
-
-  std::cout << "pentek interrupt buffer size is " << bufferSize << std::endl;
-
-  // set the buffer size
-  bufset(_dnFd, bufferSize, 2);
-
-}
-////////////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::resetDCM(int fd) {
-  if (_simulate)
-    return;
-
-  _pp.offset = DCM_CONTROL;
-
-  // read the dcm control register
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-  // turn on the DCM reset bit
-  _pp.value = 0x10 | _pp.value;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-  usleep(1000);
-
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-  // turn off the DCM reset bit
-  _pp.value = _pp.value & ~0x10;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-  usleep(1000);
-
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::fifoConfig() {
-  if (_simulate)
-    return;
-
-  // The fifos need to be configured for
-  // the given channel that we are using.
-
-  // find the fifo configuration register
-  unsigned int readBack;
-  int ppOffset = ADC_FIFO_CTRL_1;
-  switch (_chanId) {
-  case 0:
-    ppOffset = ADC_FIFO_CTRL_1;
-    break;
-  case 1:
-    ppOffset = ADC_FIFO_CTRL_2;
-    break;
-  case 2:
-    ppOffset = ADC_FIFO_CTRL_3;
-    break;
-  case 3:
-    ppOffset = ADC_FIFO_CTRL_4;
-    break;
-  }
-
-  _pp.offset = ppOffset;
-  ioctl(_ctrlFd, FIOREGGET, &_pp);
-  readBack = _pp.value;
-
-  // And configure ADC FIFO Control for this channel
-  _pp.offset = ppOffset;
-  _pp.value = readBack & 0x000034BF;
-  ioctl(_ctrlFd, FIOREGSET, &_pp);
-
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cdn::setXmitStartTime(ptime startTime) {
-  _xmitStartTime = startTime;
-}
-
-//////////////////////////////////////////////////////////////////////
-ptime p7142sd3cdn::timeOfPulse(unsigned long pulseNum) const {
-  // Figure out offset since transmitter start based on the pulse
-  // number and PRT(s).
-  double offsetSeconds;
-  if (_staggeredPrt) {
-    unsigned long prt1Count = pulseNum / 2 + pulseNum % 2;
-    unsigned long prt2Count = pulseNum / 2;
-    offsetSeconds =  prt1Count /_prf + prt2Count / _prf2;
-  } else {
-    offsetSeconds = pulseNum / _prf;
-  }
-  // Translate offsetSeconds to a boost::posix_time::time_duration
-  double remainder = offsetSeconds;
-  int hours = (int)(remainder / 3600);
-  remainder -= (3600 * hours);
-  int minutes = (int)(remainder / 60);
-  remainder -= (60 * minutes);
-  int seconds = (int)remainder;
-  remainder -= seconds;
-  int nanoseconds = (int)(1.0e9 * remainder);
-  int fractionalSeconds = (int)(nanoseconds *
-      (time_duration::ticks_per_second() / 1.0e9));
-  time_duration offset(hours, minutes, seconds,
-      fractionalSeconds);
-  // Finally, add the offset to the _xmitStartTime to get the absolute
-  // pulse time
-  return(_xmitStartTime + offset);
-}
-
-//////////////////////////////////////////////////////////////////////
-int p7142sd3cdn::dataRate() {
-  int rate = 0;
-
-  switch (_mode) {
-  case FR:
-    // two bytes of I and two bytes of Q for each range gate
-    rate = _gates*4;
-    break;
-  case PT:
-    // pulse tagger
-    // there is a four byte sync word and a four byte pulse tag
-    // at the beginning of each pulse. There are two bytes for each
-    // I and each Q for each range gate.
-    rate = (int)(_prf * (4 + 4 + _gates*4));
-    break;
-  case CI:
-    // coherent integration
-    // there is a 16 byte tag at the beginning of each pulse. Each pulse
-    // returns a set of even I's and Q's, and a set of odd I's and Q's. The
-    // even and odd pulses are separated by the prt, and so taken together they
-    // run at half the prf. Each I and Q for a gate is 32 bits (wider than the
-    // non-CI mode because they are sums of 16 bit numbers), so there are 8 bytes
-    // per gate for even and 8 bytes per gate for odd pulses.
-    rate = (int)((_prf/2)*(16+_gates*8*2)/_nsum);
-    break;
-  }
-
-  return rate;
+    _timers[ndx] = _DelayAndWidth(delay, width);
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-//
-// ******    Buffer management and data handling in the following section    *****
-//
-//////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////
 int
-p7142sd3cdn::read(char* buf, int n) {
-  // Unless we're simulating, we just use the superclass read
-  if (!_simulate) {
-    int r =  p7142dn::read(buf, n);
-    assert(r == n);
-    return r;
-  }
-
-  // ************ simulation mode *************
-
-  // Generate simulated data
-  makeSimData(n);
-
-  // copy to user buffer
-  for (int i = 0; i < n; i++) {
-    buf[i] = _simFifo[0];
-    _simFifo.pop_front();
-  }
-
-  return n;
+p7142sd3c::timeToCounts(double time) const {
+    return(lround(time * _adc_clock / 2));
 }
 
 //////////////////////////////////////////////////////////////////////////////////
+double
+p7142sd3c::countsToTime(int counts) const {
+    return((2 * counts) / _adc_clock);
+}
 
-char*
-p7142sd3cdn::getBeam(unsigned int& pulsenum) {
+//////////////////////////////////////////////////////////////////////
+int p7142sd3c::fpgaRepoRevision() {
+    if (_simulate)
+        return 1;
+    
+    _pp.offset = FPGA_REPO_REV;
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    return _pp.value & 0x7fff;
 
-  // perform the simulation wait if necessary
-  if (_simulate) {
-    simWait();
-  }
+}
 
-  if (_nsum <= 1) {
+/////////////////////////////////////////////////////////////////////////
+void p7142sd3c::timersStartStop(bool start) {
+    if (_simulate)
+        return;
+        
+    // Load timer values before starting the timers
+    if (start) {
+        _initTimers();
+    }
+        
+    // Turn on Write Strobes
+    _pp.offset = MT_WR;
+    _pp.value = WRITE_ON;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    // Control Register
+    _pp.offset = MT_ADDR;
+    _pp.value = CONTROL_REG | ALL_SD3C_TIMER_BITS;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    // Enable/Disable Timer
+    _pp.offset = MT_DATA;
+    if (start) {
+        _pp.value = TIMER_ON;
+    } else {
+        _pp.value = 0;
+    }
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    // Force internal triggers (for now?).
+    bool internalTriggers = true;
+
+    _pp.offset = MT_ADDR; // Address
+    if (start) {
+        if (internalTriggers)
+            _pp.value = ALL_SD3C_TIMER_BITS | ADDR_TRIG;  // internal trigger
+        else
+            _pp.value = ALL_SD3C_TIMER_BITS | GPS_EN;     // external trigger
+    } else {
+        _pp.value = ALL_SD3C_TIMER_BITS;
+    }
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    if (start) {
+        _pp.value = ALL_SD3C_TIMER_BITS;
+        ioctl(ctrlFd(), FIOREGSET, &_pp);
+    }
+
+    // Turn off Write Strobes
+    _pp.offset = MT_WR;
+    _pp.value = WRITE_OFF;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    if (start) {
+        std::cout << "timers started" << std::endl;
+    } else {
+        std::cout << "timers stopped" << std::endl;
+        //exit (1);
+    }
+
+    // Get current system time as xmit start time
+    setXmitStartTime(boost::posix_time::microsec_clock::universal_time());
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142sd3c::startFilters() {
+    if (isSimulating())
+        return;
+
+    // Start the DDC
+    _pp.offset = KAISER_ADDR;
+    _pp.value = DDC_START;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    usleep(p7142::P7142_IOCTLSLEEPUS);
+
+    std::cout << "filters enabled on " << _devName << std::endl;
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142sd3c::stopFilters() {
+    if (isSimulating())
+        return;
+
+    // stop the filters if they are running.
+    _pp.offset = KAISER_ADDR;
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    _pp.offset = KAISER_ADDR;
+    _pp.value = DDC_STOP;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    usleep(p7142::P7142_IOCTLSLEEPUS);
+    _pp.offset = KAISER_ADDR;
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+}
+
+//////////////////////////////////////////////////////////////////////
+unsigned short int p7142sd3c::TTLIn() {
+    if (_simulate)
+        return 0;
+
+    _pp.offset = TTL_IN;
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+
+    return _pp.value;
+}
+
+//////////////////////////////////////////////////////////////////////
+void p7142sd3c::TTLOut(unsigned short int data) {
+    if (_simulate)
+        return;
+
+    _pp.value = data;
+
+    _pp.offset = TTL_OUT1;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+}
+
+//////////////////////////////////////////////////////////////////////
+p7142sd3c::DDCDECIMATETYPE p7142sd3c::_readDDCType() {
+    if (_simulate)
+        return _simulateDDCType;
+    
+    _pp.offset = FPGA_REPO_REV;
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    
+    DDCDECIMATETYPE ddctype = DDC4DECIMATE;
+    switch (_pp.value & 0xC000) {
+    case 0x8000:
+        ddctype = DDC10DECIMATE;
+        break;
+    case 0x4000:
+        ddctype = DDC8DECIMATE;
+        break;
+    case 0x0000:
+        ddctype = DDC4DECIMATE;
+        break;
+   case 0xC000:
+        ddctype = BURST;
+        break;     
+    }
+    
+    return ddctype;
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142sd3c::_resetDCM() {
+    if (isSimulating())
+        return;
+
+    _pp.offset = DCM_CONTROL;
+
+    // read the dcm control register
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+    // turn on the DCM reset bit
+    _pp.value = 0x10 | _pp.value;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    usleep(1000);
+
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+    // turn off the DCM reset bit
+    _pp.value = _pp.value & ~0x10;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    usleep(1000);
+
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
+
+}
+
+//////////////////////////////////////////////////////////////////////
+void
+p7142sd3c::_loadFreeRun() {
+    if (isSimulating())
+        return;
+
+    // set the free run bit as needed
+
+    // get the current state of transceiver control register
+    _pp.offset = TRANS_CNTRL;
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    usleep(P7142_IOCTLSLEEPUS);
+
     if (_freeRun) {
-      // free run mode
-      pulsenum = 0;
-      return frBeam();
+        // set free run
+        _pp.value = _pp.value | TRANS_FREE_RUN;
     } else {
-      // pulse tagger mode
-      return ptBeamDecoded(pulsenum);
+        // clear free run
+        _pp.value = _pp.value & ~TRANS_FREE_RUN;
     }
-  } else {
-    // coherent integration mode
-    return ciBeamDecoded(pulsenum);
-  }
+
+    // write transceiver control register
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    usleep(P7142_IOCTLSLEEPUS);
+
+    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    usleep(P7142_IOCTLSLEEPUS);
+
+    std::cout << "free run mode is " << (_freeRun ? "enabled" : "disabled") << 
+        " for " << devName() << std::endl;
+    std::cout << "transceiver control register is " << _pp.value << std::endl;
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-int
-p7142sd3cdn::beamLength() {
-  return _beamLength;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-char*
-p7142sd3cdn::ptBeamDecoded(unsigned int& pulseNum) {
-
-  // get the beam
-  char pulseTag[4];
-  char* buf = ptBeam(pulseTag);
-
-  // unpack the channel number and pulse sequence number.
-  // Unpack the 4-byte channel id/pulse number
-  unsigned int chan;
-  unpackPtChannelAndPulse(pulseTag, chan, pulseNum);
-  if (int(chan) != _chanId) {
-    std::cerr << "p7142sd3cdnThread for channel " << _chanId <<
-      " got data for channel " << chan << "!" << std::endl;
-    abort();
-  }
-
-  // Initialize _lastPulse if this is the first pulse we've seen
-  if (_firstBeam) {
-    _lastPulse = pulseNum - 1;
-    _firstBeam = false;
-  }
-
-  // How many pulses since the last one we saw?
-  int delta = pulseNum - _lastPulse;
-  if (delta < (-MAX_PT_PULSE_NUM / 2)) {
-    // if the new pulse number is zero, assume that it
-    // was a legitimate wrap. Unfortunately this won't catch
-    // errors where the zero pulse is skipped, or a pulse comes in
-    // that erroneously has zero for a pulse tag. Perhaps there
-    // is a better algorithm for this.
-    if (pulseNum == 0) {
-      delta = MAX_PT_PULSE_NUM - _lastPulse + 1;
-      std::cout << "Pulse number rollover" << std::endl;
-    } else {
-      delta += MAX_PT_PULSE_NUM + 1;
-    }
-  }
-
-  if (delta == 0) {
-    std::cerr << "Channel " << _chanId << ": got repeat of pulse " <<
-      pulseNum << "!" << std::endl;
-    abort();
-  } else if (delta != 1) {
-    std::cerr << _lastPulse << "->" << pulseNum << ": ";
-    if (delta < 0) {
-      std::cerr << "Channel " << _chanId << " went BACKWARD " <<
-        -delta << " pulses" << std::endl;
-    } else {
-      std::cerr << "Channel " << _chanId << " dropped " <<
-        delta - 1 << " pulses" << std::endl;
-    }
-  }
-  _droppedPulses += (delta - 1);
-  _lastPulse = pulseNum;
-
-  return buf;
-}
-//////////////////////////////////////////////////////////////////////////////////
-char*
-p7142sd3cdn::ptBeam(char* pulseTag) {
-
-  int r;
-  while(1) {
-    if (_firstRawBeam) {
-      // skip over the first 4 bytes, assuming that
-      // they are a good sync word.
-      r = read(_buf, 4);
-      assert(r == 4);
-      _firstRawBeam = false;
-    }
-
-    // read pulse number
-    r = read(pulseTag, 4);
-    assert(r == 4);
-
-    // read one beam into buf
-    r = read(_buf, _beamLength);
-    assert(r == (_beamLength));
-
-    // read the next sync word
-    char syncbuf[4];
-    r = read(syncbuf, 4);
-    assert(r == 4);
-    uint32_t sync;
-    sync = *((uint32_t*)syncbuf);
-
-    if (sync == SD3C_SYNCWORD) {
-      return _buf;
-    } else {
-      _syncErrors++;
-      // scan byte by byte for sync word
-      while(1) {
-        memmove(syncbuf, syncbuf+1,3);
-        r = read(syncbuf+3, 1);
-        assert(r == 1);
-        sync = *((uint32_t*)syncbuf);
-        if (sync == SD3C_SYNCWORD) {
-          break;
-        }
-      }
-    }
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-char*
-p7142sd3cdn::ciBeamDecoded(unsigned int& pulseNum) {
-
-  // get the beam
-  char* buf = ciBeam(pulseNum);
-
-  // Initialize _lastPulse if this is the first pulse we've seen
-  if (_firstBeam) {
-    if (pulseNum == 0){
-      _lastPulse = MAX_CI_PULSE_NUM;
-    } else {
-      _lastPulse = pulseNum - 1;
-    }
-    _firstBeam = false;
-  }
-
-  // How many pulses since the last one we saw?
-  int delta = pulseNum - _lastPulse;
-  if (delta < (-MAX_CI_PULSE_NUM / 2)) {
-    // if the new pulse number is zero, assume that it
-    // was a legitimate wrap. Unfortunately this won't catch
-    // errors where the zero pulse is skipped, or a pulse comes in
-    // that erroneously has zero for a pulse tag. Perhaps there
-    // is a better algorithm for this.
-    if (pulseNum == 0)
-      std::cout << "Pulse number rollover" << std::endl;
-    delta += MAX_CI_PULSE_NUM + 1;
-  }
-
-  if (delta == 0) {
-    std::cerr << "Channel " << _chanId << ": got repeat of pulse " <<
-      pulseNum << "!" << std::endl;
-    abort();
-  } else if (delta != 1) {
-    std::cerr << _lastPulse << "->" << pulseNum << ": ";
-    if (delta < 0) {
-      std::cerr << "Channel " << _chanId << " went BACKWARD " <<
-        -delta << " pulses" << std::endl;
-    } else {
-      std::cerr << "Channel " << _chanId << " dropped " <<
-        delta - 1 << " pulses" << std::endl;
-    }
-  }
-  _droppedPulses += (delta - 1);
-  _lastPulse = pulseNum;
-
-  return buf;
-}
-//////////////////////////////////////////////////////////////////////////////////
-char*
-p7142sd3cdn::ciBeam(unsigned int& pulseNum) {
-  int r;
-
-  while(1) {
-    if (_firstRawBeam) {
-      // skip over the first 16 bytes, assuming that
-      // they are a good tag word.
-      r = read(_buf, 16);
-      assert(r == 16);
-      _firstRawBeam = false;
-    }
-    // read one beam into buf
-    r = read(_buf, _beamLength);
-    assert(r == _beamLength);
-
-    // decode the coherent integrator even and odd beams
-    // into a single beam. Data are read from _buf and
-    // and written to _ciBuf.
-    ciDecode();
-
-    // read the next tag word
-    char tagbuf[16];
-    r = read(tagbuf, 16);
-    assert(r == 16);
-
-    if (ciCheckTag(tagbuf, pulseNum)) {
-      return _ciBuf;
-    } else {
-      _syncErrors++;
-      // scan byte by byte for the
-      while(1) {
-        memmove(tagbuf, tagbuf+1,15);
-        r = read(tagbuf+15, 1);
-        assert(r == 1);
-        // check for synchronization
-        if (ciCheckTag(tagbuf, pulseNum)) {
-          break;
-        }
-      }
-    }
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::ciDecode() {
-
-  // decode the even and odd beams. For now, just
-  // average the two.
-
-  int32_t* even = (int32_t*)(_buf);
-  int32_t* odd  = (int32_t*)(_buf+_beamLength/2);
-  int32_t* IQ   = (int32_t*)(_ciBuf);
-
-  for (int i = 0; i < _gates*2; i++) {
-    IQ[i] = (even[i] + odd[i])/2;
-  }
-}
-//////////////////////////////////////////////////////////////////////////////////
-char*
-p7142sd3cdn::frBeam() {
-  int r = read(_buf, _beamLength);
-  assert(r == _beamLength);
-  return _buf;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 bool
-p7142sd3cdn::ciCheckTag(char* p, unsigned int& pulseNum) {
+p7142sd3c::_initTimers() {
+    if (_simulate)
+        return true;
 
-  /// The tag order:
-  ///  --! <TAG_I_EVEN><TAG_Q_EVEN><TAG_I_ODD><TAG_Q_ODD><IQpairs,even pulse><IQpairs,odd pulse>
-  ///
-  /// The CI tag:
-  ///	 --! bits 31:28  Format number   0-15(4 bits)
-  ///	 --! bits 27:26  Channel number  0-3 (2 bits)
-  ///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
-  ///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
-  ///	 --! bits 23:00  Sequence number     (24 bits)
+    //
+    //    This section initializes the timers.
 
-  int format[4];
-  int chan[4];
-  bool Odd[4];
-  bool Q[4];
-  uint32_t seq[4];
-  for (int i = 0; i < 4; i++) {
-    uint32_t* tag = (uint32_t*)p;
-    ciDecodeTag(tag[i], format[i], chan[i], Odd[i], Q[i], seq[i]);
-  }
+    int periodCount; // Period Count for all Timers
+    int PrtScheme; // PRT Scheme for all Timers
 
-  pulseNum = seq[0];
+    // Calculate the period and PRT Scheme for dual prt or single prt
+    // Note: _prtCounts and _prt2Counts are expressed in ADC_Clk/2 MHz Counts!
+    //       for DDC4: 24 MHz; for DDC8: 62.5 MHz
 
-  // time to see if we received expected values
-  bool retval = true;
+    int X, Y;
+    float prt_ms, prt2_ms;
 
-  retval     = retval && (format[0] ==      1);
+    if (_staggeredPrt == true) {
+        // dual prt
+        prt_ms = countsToTime(_prtCounts) * 1000;
+        prt2_ms = countsToTime(_prt2Counts) * 1000;
 
-  for (int i = 1; i < 4; i++) {
-    retval = retval && (format[i] ==      1);
-    retval = retval && (seq[i]    == seq[0]);
-    retval = retval && (chan[i]   == chan[0]);
-  }
-  retval = retval && !Odd[0] && !Odd[1] && Odd[2] && Odd[3];
-  retval = retval &&   !Q[0] &&    Q[1] &&  !Q[2] &&   Q[3];
+        periodCount = timeToCounts(prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms
+                / prt_ms)) / (int) (prt2_ms / prt_ms) * 0.001);
 
-  return retval;;
-}
+        X = (int) ((int) (prt2_ms / prt_ms) / 
+                (prt2_ms / prt_ms - (int) (prt2_ms / prt_ms)));
+        Y = (int) (X * prt2_ms / prt_ms);
 
-//////////////////////////////////////////////////////////////////////////////////
-uint32_t
-p7142sd3cdn::ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq) {
-  /// The CI tag:
-  ///	 --! bits 31:28  Format number   0-15(4 bits)
-  ///	 --! bits 27:26  Channel number  0-3 (2 bits)
-  ///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
-  ///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
-  ///	 --! bits 23:00  Sequence number     (24 bits)
-
-  unsigned char* p = (unsigned char*)&seq;
-  int Odd = odd? 1:0;
-  int IQ   =  Q? 1:0;
-  uint32_t tag =
-    p[0] << 24 | p[1] << 16 | p[2] << 8 |
-    ( format << 4 | chan << 2 | Odd << 1 | IQ);
-
-  return tag;
-
-  std::cout << "format: " << format << " chan:" << chan << " odd:" << odd << " Q:" << Q << std::endl;
-  std::cout.width(8);
-  std::cout.fill('0');
-  std::cout << std::hex << tag <<std::endl;
-  return tag;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& Q, uint32_t& seq) {
-  /// The CI tag, in little endian format as described in VHDL:
-  ///	 --! bits 31:28  Format number   0-15(4 bits)
-  ///	 --! bits 27:26  Channel number  0-3 (2 bits)
-  ///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
-  ///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
-  ///	 --! bits 23:00  Sequence number     (24 bits)
-
-  format =        (tag & 0xf0) >> 4;
-  chan   =        (tag & 0x0c) >> 2;
-  odd    = (bool) (tag & 0x02);
-  Q      = (bool) (tag & 0x01);
-  seq    =        (tag & 0xff000000) >> 24 |
-    (tag & 0x00ff0000) >> 8 |
-    (tag & 0x0000ff00) << 8;
-
-  return;
-
-  std::cout << "decoded format: " << format << " chan:"
-    << chan << " odd:" << odd << " Q:" << Q
-    << " seq:" << seq << std::endl;
-  std::cout.width(8);
-  std::cout.fill('0');
-  std::cout << "decoded tag:" << std::hex << tag <<std::endl;
-  return;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::initBuffer() {
-
-  // note that _beamLength is only the length of the
-  // IQ data (in bytes).
-
-  switch(_mode) {
-  case FR:
-    // free run mode has:
-    //   16 bit I and Q pairs for each gate
-    _beamLength = _gates * 2 * 2;
-    break;
-  case PT:
-    // pulse tag mode has:
-    //    16 bit I and Q pairs for each gate
-    _beamLength = _gates * 2 * 2;
-    break;
-  case CI:
-    // coherent integration mode has:
-    //   even 32 bit I and Q pairs followed by
-    //   odd  32 bit I and Q pairs,
-    // for each gate.
-    _beamLength = _gates * 2 * 2 * 4;
-    break;
-  }
-
-  // allocate the buffer to hold one beam of IQ data
-  _buf = new char[_beamLength];
-
-  // allocate another buffer to hold one beam of decoded
-  // coherent integrator data. The even and odd beams are
-  // combined int one beam
-  _ciBuf = new char[_beamLength/2];
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::makeSimData(int n) {
-  int r;
-
-  while(_simFifo.size() < (unsigned int)n) {
-    switch(_mode) {
-    case FR:{
-              // ************* free run mode ***************
-              for (int i = 0; i < _beamLength/4; i++) {
-                uint32_t iq;
-                char* p = (char*)&iq;
-                r = p7142dn::read(p, 4);
-                assert(r == 4);
-                for (int j = 0; j < 4; j++) {
-                  _simFifo.push_back(p[j]);
-                }
-              }
-              break;
-            }
-    case PT: {
-               // ********** pulse tag mode **************
-               // Add sync word
-               static uint32_t syncword = SD3C_SYNCWORD;
-               for (int i = 0; i < 4; i++) {
-                 _simFifo.push_back(((char*)&syncword)[i]);
-               }
-               // Add the pulse tag for this sample:
-               //       bits 31:30  Channel number         0-3 (2 bits)
-               //       bits 29:00  Pulse sequence number  0-1073741823 (30 bits)
-               // This is packed as a little-endian order 4-byte word
-               unsigned int channel = _chanId;
-               uint32_t tag = (channel << 30) | (_simPulseNum & 0x3fffffff);
-               char* p = (char*)&tag;
-               for (int i = 0; i < 4; i++) {
-                 _simFifo.push_back(p[i]);
-               }
-               // Add IQ data. Occasionally drop some data
-               bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
-               int nPairs = _beamLength/4;
-               if (doBadSync) {
-                 nPairs = (int)(((1.0 * rand())/RAND_MAX) * nPairs);
-               }
-               for (int i = 0; i < nPairs; i++) {
-                 uint32_t iq;
-                 char* p = (char*)&iq;
-                 r = p7142dn::read(p, 4);
-                 assert(r == 4);
-                 for (int j = 0; j < 4; j++) {
-                   _simFifo.push_back(p[j]);
-                 }
-               }
-               _simPulseNum++;
-               if (_simPulseNum > MAX_PT_PULSE_NUM) {
-                 _simPulseNum = 0;
-               }
-               break;
-             }
-    case CI: {
-               /// Add the coherent integration tag for this sample:
-
-               /// --! <TAG_I_EVEN><TAG_Q_EVEN><TAG_I_ODD><TAG_Q_ODD><IQpairs,even pulse><IQpairs,odd pulse>
-               ///
-               ///	 --! bits 31:28  Format number   0-15(4 bits)
-               ///	 --! bits 27:26  Channel number  0-3 (2 bits)
-               ///	 --! bits    25  0=even, 1=odd   0-1 (1 bit)
-               ///	 --! bit     24  0=I, 1=Q        0-1 (1 bit)
-               ///	 --! bits 23:00  Sequence number     (24 bits)
-
-               for (int j = 0; j < 4; j++) {
-                 uint32_t tag = ciMakeTag(1, _chanId, (j>>1)&1, j&1, _simPulseNum);
-                 char* p = (char*)&tag;
-                 for (int i = 0; i < 4; i++) {
-                   _simFifo.push_back(p[i]);
-                 }
-               }
-
-               // Add IQ data. Occasionally drop some data
-               bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
-               int nPairs = _beamLength/8;
-               if (doBadSync) {
-                 nPairs = (int)(((1.0 * rand())/RAND_MAX) * nPairs);
-               }
-               for (int i = 0; i < nPairs; i++) {
-                 char iq[8];
-                 r = p7142dn::read(iq, 8);
-                 assert(r == 8);
-                 for (int j = 0; j < 8; j++) {
-                   _simFifo.push_back(iq[j]);
-                 }
-               }
-               _simPulseNum++;
-               if (_simPulseNum > MAX_CI_PULSE_NUM) {
-                 _simPulseNum = 0;
-               }
-
-               break;
-             }
+        PrtScheme = (Y << 4) | X;
+    } else {
+        //single prt
+        //  PRT must be integral multiple of pulsewidth !
+        periodCount = _prtCounts;
+        PrtScheme = 0x0000;
     }
-  }
-}
 
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::simWait() {
-  // because the usleep overhead is large, sleep every 100 calls
-  if (!(_simWaitCounter++ % 100)) {
-    usleep((int)(100*_simPauseMS*1000)*_nsum);
-  }
-}
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::unpackPtChannelAndPulse(const char* buf, unsigned int & chan,
-    unsigned int & pulseNum) {
-  // Channel number is the upper two bits of the channel/pulse num word, which
-  // is stored in little-endian byte order
-  const unsigned char *ubuf = (const unsigned char*)buf;
-  chan = (ubuf[3] >> 6) & 0x3;
+    std::cout << "periodCount is " << periodCount << std::endl;
 
-  // Pulse number is the lower 30 bits of the channel/pulse num word, which is
-  // stored in little-endian byte order
-  pulseNum = (ubuf[3] & 0x3f) << 24 | ubuf[2] << 16 | ubuf[1] << 8 | ubuf[0];
-}
+    // Control Register
+    _pp.offset = MT_ADDR;
+    _pp.value = CONTROL_REG | ALL_SD3C_TIMER_BITS;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
 
-//////////////////////////////////////////////////////////////////////////////////
-unsigned long
-p7142sd3cdn::droppedPulses() {
-  unsigned long retval = _droppedPulses;
-  return retval;
-}
+    // Enable Timer
+    _pp.offset = MT_DATA;
+    _pp.value = TIMER_ON;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
 
-//////////////////////////////////////////////////////////////////////////////////
-unsigned long
-p7142sd3cdn::syncErrors() {
-  unsigned long retval = _syncErrors;
-  return retval;
-}
+    // Turn on Write Strobes
+    _pp.offset = MT_WR;
+    _pp.value = WRITE_ON;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
 
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cdn::dumpSimFifo(std::string label, int n) {
-  std::cout << label <<  " _simFifo length: " << _simFifo.size() << std::endl;
-  std::cout << std::hex;
-  for (unsigned int i = 0; i < (unsigned int)n && i < _simFifo.size(); i++) {
-    std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)_simFifo[i] << " ";
-    if (!((i+1) % 40)) {
-      std::cout << std::endl;
+    for (unsigned int i = 0; i < N_SD3C_TIMERS; i++) {
+        std::cout << "Initializing timer " << i << ": delay " <<
+            countsToTime(_timerDelay(i)) << "s (" << _timerDelay(i) <<
+            "), width " << countsToTime(_timerWidth(i)) << "s (" << 
+            _timerWidth(i) << ")" << std::endl;
+        
+        // Delay Register
+        _pp.offset = MT_ADDR; // Address
+        _pp.value = DELAY_REG | SD3C_TIMER_BITS[i];
+        ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+        _pp.offset = MT_DATA; // Data
+        _pp.value = _timerDelay(i);
+        ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+        // Pulse Width Register
+        _pp.offset = MT_ADDR; // Address
+        _pp.value = WIDTH_REG | SD3C_TIMER_BITS[i];
+        ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+        _pp.offset = MT_DATA; // Data
+        _pp.value = _timerWidth(i);
+        ioctl(ctrlFd(), FIOREGSET, &_pp);
     }
-  }
-  std::cout << std::dec << std::endl;;
+
+    // ALL TIMERS
+    // Period Register
+    _pp.offset = MT_ADDR; // Address
+    _pp.value = PERIOD_REG | ALL_SD3C_TIMER_BITS;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    _pp.offset = MT_DATA; // Data
+    _pp.value = periodCount;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    //Multiple PRT Register
+    _pp.offset = MT_ADDR; // Address
+    _pp.value = PRT_REG | ALL_SD3C_TIMER_BITS;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    _pp.offset = MT_DATA; // Mult PRT Valu Timer 0
+    _pp.value = PrtScheme;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    // Turn off Write Strobes
+    _pp.offset = MT_WR;
+    _pp.value = WRITE_OFF;
+    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+    return true;
+
 }
 
-
-
+} // end namespace Pentek
