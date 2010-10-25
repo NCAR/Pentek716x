@@ -56,7 +56,7 @@ p7142Dn::p7142Dn(
     }
 
     // set the clock source
-    int clockSource = usingInternalClock() ? CLK_SRC_INTERN : CLK_SRC_FRTPAN;
+    int clockSource = internalClock ? CLK_SRC_INTERN : CLK_SRC_FRTPAN;
 
     if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1) {
         std::cerr << "unable to set the clock source for "
