@@ -22,21 +22,18 @@ const unsigned int p7142sd3c::SD3C_TIMER_BITS[N_SD3C_TIMERS] = {
 };
 const unsigned int p7142sd3c::ALL_SD3C_TIMER_BITS = 0xff0;
 
-/*
- * The DDC type to use if we're simulating, default DDC8DECIMATE. This can be 
- * changed using the static setSimulateDDCType() method.
- */
-p7142sd3c::DDCDECIMATETYPE p7142sd3c::_simulateDDCType = DDC8DECIMATE;
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay, 
     double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
-    bool freeRun) : 
+    unsigned int gates, unsigned int nsum, bool freeRun, 
+    DDCDECIMATETYPE simulateDDCType) : 
         p7142(devName, simulate),
         _staggeredPrt(staggeredPrt),
-        _freeRun(freeRun) {
+        _freeRun(freeRun),
+        _gates(gates),
+        _nsum(nsum),
+        _simulateDDCType(simulateDDCType) {
     // Note the FPGA firmware revision
     std::cout << "FPGA revision: " << fpgaRepoRevision()
             << std::endl;
@@ -45,6 +42,17 @@ p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay,
                 "Was the correct firmware loaded?" << std::endl;
     }
 
+    // sanity check
+    if (_nsum < 1) {
+        std::cerr << "Selected nsum of " << _nsum << " makes no sense!" <<
+                std::endl;
+        abort();
+    }
+    
+    // Determine our operating mode
+    _mode = (_nsum > 1) ? MODE_CI : MODE_PULSETAG;
+    if (_freeRun)
+        _mode = MODE_FREERUN;
 
     // set up page and mask registers for FIOREGSET and FIOREGGET functions 
     // to access FPGA registers
@@ -70,6 +78,15 @@ p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay,
     
     // stop the timers
     timersStartStop(false);
+    
+    // Write the gate count and coherent integration registers
+    if (! isSimulating()) {
+        _controlIoctl(FIOREGSET, RADAR_GATES, gates);
+        _controlIoctl(FIOREGGET, RADAR_GATES);
+
+        _controlIoctl(FIOREGSET, CI_NSUM, nsum);
+        _controlIoctl(FIOREGGET, CI_NSUM);
+    }
 
     // Convert prt, prt2, tx_pulsewidth, and tx_delay into our local representation, 
     // which is in units of (ADC clock counts / 2)
@@ -128,12 +145,12 @@ p7142sd3c::~p7142sd3c() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142sd3cDn *
-p7142sd3c::addDownconverter(int chanId, int gates, int nsum, int tsLength,
+p7142sd3c::addDownconverter(int chanId, bool burstSampling, int tsLength,
         double rx_delay, double rx_pulse_width, std::string gaussianFile, 
         std::string kaiserFile, double simPauseMs, int simWavelength,
         bool internalClock) {
     // Create a new p7142sd3cDn downconverter and put it in our list
-    p7142sd3cDn * downconverter = new p7142sd3cDn(this, chanId, gates, nsum, 
+    p7142sd3cDn * downconverter = new p7142sd3cDn(this, chanId, burstSampling,
             tsLength, rx_delay, rx_pulse_width, gaussianFile, kaiserFile, 
             simPauseMs, simWavelength, internalClock);
     _addDownconverter(downconverter);
@@ -499,6 +516,15 @@ p7142sd3c::_initTimers() {
 
     return true;
 
+}
+
+unsigned int
+p7142sd3c::_controlIoctl(int request, unsigned int offset, unsigned int value) {
+    _pp.offset = offset;
+    _pp.value = value;
+    ioctl(ctrlFd(), request, &_pp);
+    usleep(p7142::P7142_IOCTLSLEEPUS);
+    return _pp.value;
 }
 
 } // end namespace Pentek

@@ -5,8 +5,8 @@
  *      Author: sd3c
  */
 
-#ifndef P7172SD3C_H_
-#define P7172SD3C_H_
+#ifndef P7142SD3C_H_
+#define P7142SD3C_H_
 
 #include "p7142.h"
 #include "p7142sd3cDn.h"
@@ -41,6 +41,12 @@ namespace Pentek {
 ///
 class p7142sd3c : public p7142 {
 public:
+    /// The types of downconverters that can be instantiated in the SD3C Pentek 
+    /// firmware.
+    typedef enum {
+        DDC10DECIMATE, DDC8DECIMATE, DDC4DECIMATE, BURST
+    } DDCDECIMATETYPE;
+
     /// Constructor.
     /// @param devName The top level device name (e.g.,
     /// /dev/pentek/p7142/0. Use ok() to verify successful construction.
@@ -49,21 +55,32 @@ public:
     /// @param prt The radar PRT in seconds
     /// @param prt2 The second PRT of a staggered PRT sequence in seconds
     /// @param staggeredPrt set true to use the second PRT for staggered PRT mode
+    /// @param gates The number of gates to be sampled by all non-burst
+    ///     downconverters
+    /// @param nsum The number of pulses to sum for coherent integration by all
+    ///     non-burst downconverters. If nsum == 1, coherent integration is 
+    ///     disabled.
     /// @param freeRun If true, the firmware will be configured to ignore the 
     ///     PRT gating.
+    /// @param simulateDDCType The DDC type to use when running in simulation
+    ///     mode.
     p7142sd3c(std::string devName, bool simulate, double tx_delay, 
         double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
-        bool freeRun);
+        unsigned int gates, unsigned int nsum, bool freeRun,
+        DDCDECIMATETYPE simulateDDCType = DDC8DECIMATE);
     
     /// Destructor.
     virtual ~p7142sd3c();
     
     /// Construct and add a downconverter for one of our receiver channels.
-    /// @param chanId The channel identifier (should be a zero based small integer)
-    /// @param gates The number of gates
-    /// @param nsum The number of coherent integrator sums. If < 2, the coherent integrator will not be used.
-    /// @param tsLength The number of pulses in one time series. Used to set interrupt buffer size, so
-    /// that we have reasonable responsiveness in the data stream.
+    /// @param chanId The channel identifier (0-3)
+    /// @param burstSampling Set true if burst sampling should be used for this 
+    ///     channel. Burst sampling implies that gates will be as short as the 
+    ///     card's sampling clock will allow. The rx_pulsewidth and the sampling
+    ///     clock frequency will determine the number of gates sampled.
+    /// @param tsLength The number of pulses in one time series. Used to set 
+    ///     interrupt buffer size, so that we have reasonable responsiveness in 
+    ///     the data stream.
     /// @param rx_delay the delay to the first rx gate in seconds
     /// @param pulse_width The radar pulse width in seconds
     /// @param gaussianFile Name of the file containing the Gaussian
@@ -76,8 +93,7 @@ public:
     /// @param simWaveLength The wavelength of the simulated data, in sample counts
     virtual p7142sd3cDn * addDownconverter(
             int chanId, 
-            int gates, 
-            int nsum,
+            bool burstSampling,
             int tsLength,
             double rx_delay, 
             double rx_pulse_width,
@@ -153,12 +169,6 @@ public:
     /// @param data The value to be written.
     void TTLOut(unsigned short int data);
 
-    /// The types of downconverters that can be instantiated in the SD3C Pentek 
-    /// firmware.
-    typedef enum {
-        DDC10DECIMATE, DDC8DECIMATE, DDC4DECIMATE, BURST
-    } DDCDECIMATETYPE;
-
     /// Return our DDC type
     /// @return the DDC type instantiated in our card's firmware
     DDCDECIMATETYPE ddcType() { return _ddcType; }
@@ -182,7 +192,7 @@ public:
             return std::string("Unknown");
         }
     }
-    
+
     /// Set the filter start bit, which starts the data flow for all channels.
     void startFilters();
 
@@ -229,10 +239,15 @@ public:
         _setTimer(GP_TIMER_3, timeToCounts(delay), timeToCounts(width));
     }
     
-    /// Set the DDC type when simulating a P7142 card.
-    static void setSimulateDDCType(DDCDECIMATETYPE type) {
-        _simulateDDCType = type;
-    }
+    /// Return the number of gates being sampled by our non-burst downconverters.
+    /// @return the number of gates being sampled by our non-burst 
+    ///     downconverters
+    unsigned int gates() const { return _gates; }
+    
+    /// Return the number of pulses to sum for coherent integration, used by
+    /// all of our non-burst downconverters. If nsum == 1, coherent integration
+    /// is disabled.
+    unsigned int nsum() const { return _nsum; }
     
     friend class p7142sd3cDn;
     
@@ -333,6 +348,15 @@ protected:
 
     /// @return Read the type of DDC instantiated in the firmware
     DDCDECIMATETYPE _readDDCType();
+    
+    /// Perform an ioctl call to the control device using the given address
+    /// offset and value. The resulting value is returned.
+    /// @param request The ioctl request type.
+    /// @param offset The address offset for the ioctl request.
+    /// @param value The value to pass in the ioctl call.
+    /// @return The value returned by the ioctl call.
+    unsigned int _controlIoctl(int request, unsigned int offset, 
+            unsigned int value = 0);
 
     /**
      * Simple class to hold integer delay and width for a timer.
@@ -347,6 +371,13 @@ protected:
         int _delay;
         int _width;
     };
+    
+    /// The three operating modes: free run, pulse tag and coherent integration
+    typedef enum { MODE_FREERUN, MODE_PULSETAG, MODE_CI } OperatingMode;
+    
+    /// Return our operating mode: free run, pulse tag and coherent integration.
+    /// @return operating mode: free run, pulse tag and coherent integration.
+    OperatingMode _operatingMode() const { return _mode; }
     
     /**
      * vector of delay/width pairs for our 8 SD3C timers
@@ -372,12 +403,19 @@ protected:
     double _prf;
     /// The dual prf in Hz.
     double _prf2;
+    /// The number of gates to be sampled by all non-burst downconverters.
+    unsigned int _gates;
+    /// The number of pulses to sum for coherent integration by all non-burst
+    /// downconverters.
+    unsigned int _nsum;
     /// DDC type instantiated in our card's firmware
     DDCDECIMATETYPE _ddcType;
     /// DDC type to use when simulating (default DDC8DECIMATE).
-    static DDCDECIMATETYPE _simulateDDCType;
+    DDCDECIMATETYPE _simulateDDCType;
+    /// The three operating modes: free run, pulse tag and coherent integration
+    OperatingMode _mode;
 };
 
 }
 
-#endif /* P7172SD3C_H_ */
+#endif /* P7142SD3C_H_ */

@@ -16,20 +16,18 @@ using namespace boost::posix_time;
 namespace Pentek {
 
 ////////////////////////////////////////////////////////////////////////////////
-p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId, int gates, 
-        int nsum, int tsLength, double rx_delay, double rx_pulsewidth,
-        std::string gaussianFile, std::string kaiserFile, double simPauseMS,
+p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId, 
+        bool burstSampling, int tsLength, double rx_delay, double rx_pulsewidth,
+        std::string gaussianFile, std::string kaiserFile, double simPauseMS, 
         int simWaveLength, bool internalClock) :
         p7142Dn(p7142sd3cPtr, 
                 chanId, 
                 1, 
                 simWaveLength,
-                nsum > 1,
+                p7142sd3cPtr->nsum() > 1,
                 internalClock),
         _sd3c(*p7142sd3cPtr),
-        _isBurst(gates == -1),
-        _gates(gates), 
-        _nsum(nsum), 
+        _isBurst(burstSampling),
         _tsLength(tsLength),
         _gaussianFile(gaussianFile), 
         _kaiserFile(kaiserFile),
@@ -42,20 +40,20 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId, int gates,
         _firstRawBeam(true),
         _firstBeam(true)
 {
-    // sanity check
-    if (_nsum < 1) {
-        std::cerr << "Selected nsum of " << _nsum << " makes no sense!" <<
-                std::endl;
-        abort();
-    }
+    // Get gate count and coherent integration sum count from our card
+    _gates = _sd3c.gates();
+    _nsum = _sd3c.nsum();
     
-    // Determine our operating mode
-    _mode = (_nsum > 1) ? MODE_CI : MODE_PULSETAG;
-    if (_sd3c._freeRun)
-        _mode = MODE_FREERUN;
-
+    // Convert our rx delay and width to counts.
     int rxDelayCounts = _sd3c.timeToCounts(rx_delay);
     int rxPulsewidthCounts = _sd3c.timeToCounts(rx_pulsewidth);
+    if (rxPulsewidthCounts == 0) {
+        std::cerr << "Rx pulsewidth of " << rx_pulsewidth << " seconds " <<
+                "for channel " << _chanId << 
+                " is zero counts @ ADC clock freq of " << _sd3c.adcFrequency() <<
+                " Hz!" << std::endl;
+        abort();
+    }
 
     // Set the rx gating timer. 
     // Note that Channels 0 and 1 share RX_01_TIMER, and channels 2 and 3 
@@ -144,12 +142,6 @@ bool p7142sd3cDn::config() {
     // Stop the filters from running
     _sd3c.stopFilters();
 
-    // set number of gates
-    setGates(_gates);
-
-    // set number of coherent integrator sums
-    setNsum(_nsum);
-
     // Is coherent integration enabled?
     std::cout << "coherent integration is " <<
           (_nsum > 1 ? "enabled" : "disabled") << std::endl;
@@ -162,30 +154,6 @@ bool p7142sd3cDn::config() {
     }
 
     return true;
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cDn::setGates(int gates) {
-    if (isSimulating())
-        return;
-    
-    _pp.offset = RADAR_GATES;
-    _pp.value = gates;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
-}
-
-//////////////////////////////////////////////////////////////////////
-void p7142sd3cDn::setNsum(int nsum) {
-    if (isSimulating())
-        return;
-    
-    _pp.offset = CI_NSUM;
-    _pp.value = nsum;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -226,47 +194,29 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             case p7142sd3c::BURST:   // Burst mode uses no filters
                 break;    
             }
-            _pp.value = ddcSelect | DDC_STOP | ramSelect | ramAddr;
-            _pp.offset = KAISER_ADDR;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, KAISER_ADDR, 
+                    ddcSelect | DDC_STOP | ramSelect | ramAddr);
 
             // write the value
             // LS word first
-            _pp.value = kaiser[i] & 0xFFFF;
-            _pp.offset = KAISER_DATA_LSW;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, KAISER_DATA_LSW, kaiser[i] & 0xFFFF);
 
-            // then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
-            _pp.value = (kaiser[i] >> 16) & 0x3;
-            _pp.offset = KAISER_DATA_MSW;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            // then the MS word -- since coefficients are 18 bits and FPGA 
+            // registers are 16 bits!
+            _sd3c._controlIoctl(FIOREGSET, KAISER_DATA_MSW, 
+                    (kaiser[i] >> 16) & 0x3);
 
             // latch coefficient
-            _pp.value = 0x1;
-            _pp.offset = KAISER_WR;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, KAISER_WR, 0x1);
 
             // disable writing (kaiser readback only succeeds if we do this)
-            _pp.value = 0x0;
-            _pp.offset = KAISER_WR;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, KAISER_WR, 0x0);
 
-            // read back the programmed value; we need to do this in two words as above.
-            _pp.offset = KAISER_READ_LSW;
-            ioctl(ctrlFd(), FIOREGGET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            // read back the programmed value; we need to do this in two words 
+            // as above.
+            readBack = _sd3c._controlIoctl(FIOREGGET, KAISER_READ_LSW) | 
+                   (_sd3c._controlIoctl(FIOREGGET, KAISER_READ_MSW) << 16);
 
-            readBack = _pp.value;
-            _pp.offset = KAISER_READ_MSW;
-            ioctl(ctrlFd(), FIOREGGET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
-
-            readBack |= (_pp.value << 16);
             if (readBack != kaiser[i]) {
                 std::cout << "kaiser readback failed for coefficient "
                         << std::dec << i << std::hex << ", wrote " << kaiser[i]
@@ -320,46 +270,31 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             /// the ds select bits to be set in the gaussian address register.
             /// We can take this out when we get a working bitstream with this
             /// fixed
-            _pp.value = ddcSelect | ramSelect | ramAddr;
-            _pp.offset = GUASSIAN_ADDR;
 
             // set the address
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_ADDR, 
+                    ddcSelect | ramSelect | ramAddr);
 
             // write the value
             // LS word first
-            _pp.value = gaussian[i] & 0xFFFF;
-            _pp.offset = GUASSIAN_DATA_LSW;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
-            // then the MS word -- since coefficients are 18 bits and FPGA registers are 16 bits!
-            _pp.value = (gaussian[i] >> 16) & 0x3;
-            _pp.offset = GUASSIAN_DATA_MSW;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_DATA_LSW, 
+                    gaussian[i] & 0xFFFF);
 
-            // enable writing
-            _pp.value = 0x1;
-            _pp.offset = GUASSIAN_WR;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            // then the MS word -- since coefficients are 18 bits and FPGA 
+            // registers are 16 bits!
+            _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_DATA_MSW, 
+                    (gaussian[i] >> 16) & 0x3);
+
+            // latch coefficient
+            _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_WR, 0x1);
 
             // disable writing (gaussian readback only succeeds if we do this)
-            _pp.value = 0x0;
-            _pp.offset = GUASSIAN_WR;
-            ioctl(ctrlFd(), FIOREGSET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
+            _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_WR, 0x0);
 
-            // read back the programmed value; we need to do this in two words as above.
-            _pp.offset = GUASSIAN_READ_LSW;
-            ioctl(ctrlFd(), FIOREGGET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
-            readBack = _pp.value;
-            _pp.offset = GUASSIAN_READ_MSW;
-            ioctl(ctrlFd(), FIOREGGET, &_pp);
-            usleep(p7142::P7142_IOCTLSLEEPUS);
-            readBack |= _pp.value << 16;
+            // read back the programmed value; we need to do this in two words 
+            // as above.
+            readBack = _sd3c._controlIoctl(FIOREGGET, GAUSSIAN_READ_LSW) |
+                    (_sd3c._controlIoctl(FIOREGGET, GUASSIAN_READ_MSW) << 16);
             if (readBack != gaussian[i]) {
                 std::cout << "gaussian readback failed for coefficient "
                         << std::dec << i << std::hex << ", wrote "
@@ -607,14 +542,10 @@ void p7142sd3cDn::fifoConfig() {
         break;
     }
 
-    _pp.offset = ppOffset;
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
-    readBack = _pp.value;
+    readBack = _sd3c._controlIoctl(FIOREGGET, ppOffset);
 
     // And configure ADC FIFO Control for this channel
-    _pp.offset = ppOffset;
-    _pp.value = readBack & 0x000034BF;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    _sd3c._controlIoctl(FIOREGSET, ppOffset, readBack & 0x000034BF);
 
 }
 
@@ -652,19 +583,19 @@ ptime p7142sd3cDn::timeOfPulse(unsigned long pulseNum) const {
 int p7142sd3cDn::dataRate() {
     int rate = 0;
 
-    switch (_mode) {
-    case MODE_FREERUN:
+    switch (_sd3c._operatingMode()) {
+    case p7142sd3c::MODE_FREERUN:
         // two bytes of I and two bytes of Q for each range gate
         rate = _gates*4;
         break;
-    case MODE_PULSETAG:
+    case p7142sd3c::MODE_PULSETAG:
         // pulse tagger
         // there is a four byte sync word and a four byte pulse tag
         // at the beginning of each pulse. There are two bytes for each
         // I and each Q for each range gate.
         rate = (int)(_sd3c._prf * (4 + 4 + _gates*4));
         break;
-    case MODE_CI:
+    case p7142sd3c::MODE_CI:
         // coherent integration
         // there is a 16 byte tag at the beginning of each pulse. Each pulse
         // returns a set of even I's and Q's, and a set of odd I's and Q's. The
@@ -719,17 +650,17 @@ p7142sd3cDn::getBeam(unsigned int& pulsenum) {
         simWait();
     }
 
-    switch (_mode) {
-        case MODE_FREERUN:
+    switch (_sd3c._operatingMode()) {
+        case p7142sd3c::MODE_FREERUN:
             pulsenum = 0;
             return frBeam();
-        case MODE_PULSETAG:
+        case p7142sd3c::MODE_PULSETAG:
             return ptBeamDecoded(pulsenum);
-        case MODE_CI:
+        case p7142sd3c::MODE_CI:
             return ciBeamDecoded(pulsenum);
         default:
-            std::cerr << __PRETTY_FUNCTION__ << ": unhandled mode " << _mode << 
-                std::endl;
+            std::cerr << __PRETTY_FUNCTION__ << ": unhandled mode " << 
+                _sd3c._operatingMode() << std::endl;
             abort();
     }
 }
@@ -1056,18 +987,18 @@ p7142sd3cDn::initBuffer() {
     // note that _beamLength is only the length of the
     // IQ data (in bytes).
 
-    switch(_mode) {
-    case MODE_FREERUN:
+    switch(_sd3c._operatingMode()) {
+    case p7142sd3c::MODE_FREERUN:
         // free run mode has:
         //   16 bit I and Q pairs for each gate
         _beamLength = _gates * 2 * 2;
       break;
-    case MODE_PULSETAG:
+    case p7142sd3c::MODE_PULSETAG:
         // pulse tag mode has:
         //    16 bit I and Q pairs for each gate
         _beamLength = _gates * 2 * 2;
         break;
-    case MODE_CI:
+    case p7142sd3c::MODE_CI:
         // coherent integration mode has:
         //   even 32 bit I and Q pairs followed by
         //   odd  32 bit I and Q pairs,
@@ -1076,7 +1007,7 @@ p7142sd3cDn::initBuffer() {
         break;
     default:
         std::cerr << __PRETTY_FUNCTION__ << ": unknown SD3C mode: " << 
-            _mode << std::endl;
+            _sd3c._operatingMode() << std::endl;
         abort();
     }
 
@@ -1095,8 +1026,8 @@ p7142sd3cDn::makeSimData(int n) {
     int r;
 
     while(_simFifo.size() < (unsigned int)n) {
-        switch(_mode) {
-        case MODE_FREERUN: {
+        switch(_sd3c._operatingMode()) {
+        case p7142sd3c::MODE_FREERUN: {
             // ************* free run mode ***************
             for (int i = 0; i < _beamLength/4; i++) {
                 uint32_t iq;
@@ -1109,7 +1040,7 @@ p7142sd3cDn::makeSimData(int n) {
             }
             break;
         }
-        case MODE_PULSETAG: {
+        case p7142sd3c::MODE_PULSETAG: {
             // ********** pulse tag mode **************
             // Add sync word
             uint32_t syncword = SD3C_SYNCWORD;
@@ -1146,7 +1077,7 @@ p7142sd3cDn::makeSimData(int n) {
             }
             break;
         }
-        case MODE_CI: {
+        case p7142sd3c::MODE_CI: {
             /// Add the coherent integration tag for this sample:
 
             /// --! <TAG_I_EVEN><TAG_Q_EVEN><TAG_I_ODD><TAG_Q_ODD><IQpairs,even pulse><IQpairs,odd pulse>

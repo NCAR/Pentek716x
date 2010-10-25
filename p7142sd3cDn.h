@@ -105,6 +105,10 @@ public:
     /// @param p7142sd3cPtr Pointer to the p7142sd3c which owns this 
     ///     downconverter.
     /// @param chanId The channel identifier (0-3)
+    /// @param burstSampling Set true if burst sampling should be used for this 
+    ///     channel. Burst sampling implies that gates will be as short as the 
+    ///     card's sampling clock will allow. The rx_pulsewidth and the sampling
+    ///     clock frequency will determine the number of gates sampled.
     /// @param gates The number of gates. If set to -1, the number of gates will
     ///     be set automatically to the maximum number which can be generated
     ///     over a period of rx_pulsewidth. (I.e., burst sampling)
@@ -131,8 +135,7 @@ public:
     p7142sd3cDn(
         p7142sd3c * p7142sd3cPtr, 
         int chanId, 
-        int gates, 
-        int nsum,
+        bool burstSampling,
         int tsLength,
         double rx_delay, 
         double rx_pulsewidth,
@@ -152,9 +155,6 @@ public:
     /// @param bufsize The number of bytes to read.
     /// @return The actual number of bytes read
     virtual int read(char* buf, int bufsize);
-    
-    /// @return The number of gates being sampled
-    int gates() const { return _gates; }
     
     /// @return The receiver pulsewidth, in s
     double rcvrPulseWidth() const;
@@ -192,6 +192,11 @@ public:
     /// @return A pointer to one beam of data.
     char* getBeam(unsigned int& pulsenum);
     
+    /// Return our gate count. For burst sampling channels, this may be
+    /// different from the gate count set for our p7142sd3c object.
+    /// @return the gate count for this downconverter.
+    unsigned int gates() const { return _gates; }
+    
     /// @return The cumulative number of dropped pulses
     unsigned long droppedPulses();
     /// @return the number of synchronization errors detected.
@@ -207,12 +212,6 @@ protected:
 
     /// Configure the down converter fifos
     void fifoConfig();
-
-    /// set the number of gates
-    void setGates(int gates);
-
-    /// set the number of sums
-    void setNsum(int nsum);
 
     /// Configure the filters and the decimation value.
     int filterSetup();
@@ -326,8 +325,6 @@ protected:
     
     /// The p7142sd3c which owns us
     p7142sd3c & _sd3c;
-    /// The three operating modes: free run, pulse tag and coherent integration
-    enum {MODE_FREERUN, MODE_PULSETAG, MODE_CI} _mode;
     /// Is this a burst sampling channel?
     bool _isBurst;
     /// number of gates

@@ -42,11 +42,11 @@ Desc: Pentek 7142 HCR DDC Registers
 #define KAISER_READ_MSW 0x8EC0  ///< Register 472 Kaiser filter coefficient read (MSW)
 
 // Gaussian filter registers
-#define GUASSIAN_ADDR     0x8EC8  ///< Register 473 Gaussian filter coefficient address and control
-#define GUASSIAN_DATA_LSW 0x8ED0  ///< Register 474 Gaussian filter coefficient data (LSW)
-#define GUASSIAN_DATA_MSW 0x8ED8  ///< Register 475 Gaussian filter coefficient data (MSW)
-#define GUASSIAN_WR       0x8EE0  ///< Register 476 Gaussian filter write
-#define GUASSIAN_READ_LSW 0x8EE8  ///< Register 477 Gaussian filter coefficient read (LSW)
+#define GAUSSIAN_ADDR     0x8EC8  ///< Register 473 Gaussian filter coefficient address and control
+#define GAUSSIAN_DATA_LSW 0x8ED0  ///< Register 474 Gaussian filter coefficient data (LSW)
+#define GAUSSIAN_DATA_MSW 0x8ED8  ///< Register 475 Gaussian filter coefficient data (MSW)
+#define GAUSSIAN_WR       0x8EE0  ///< Register 476 Gaussian filter write
+#define GAUSSIAN_READ_LSW 0x8EE8  ///< Register 477 Gaussian filter coefficient read (LSW)
 #define GUASSIAN_READ_MSW 0x8EF0  ///< Register 478 Gaussian filter coefficient read (MSW)
 
 // Radar gates register
