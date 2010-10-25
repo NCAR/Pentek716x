@@ -75,11 +75,6 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
     if (isSimulating())
         return;
 
-    // Set up page and mask registers for FIOREGSET and FIOREGGET functions 
-    // to access FPGA registers. For simplicity and consistency, just copy the 
-    // setup from our p7142sdc3...
-    _pp = _sd3c._pp;
-    
     /// Set the bypass divider (decimation) for our receiver channel
     int bypassOk = _isBurst ? 
             setBypassDivider(2) : setBypassDivider(2 * rxPulsewidthCounts);

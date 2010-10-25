@@ -374,8 +374,6 @@ protected:
     /// can draw out of it a byte at a time if necessary. This is required for
     /// re-synchroniation.
     std::deque<char> _simFifo;
-    /// peek-poke structure pointer
-    ARG_PEEKPOKE _pp;
 };
 
 } // end namespace Pentek
