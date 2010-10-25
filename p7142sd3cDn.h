@@ -17,7 +17,7 @@ namespace Pentek {
 
 class p7142sd3c;
 
-/// A p7142Dn class specialized for cards running the SD3C firmware.
+/// @brief A p7142Dn downconverter class for P7142 cards running SD3C firmware.
 ///
 /// In the firmware, each channel contains a downconverter implemented with csac
 /// filters. The csac filters have a gaussian and a kaiser filter in series. The
@@ -53,11 +53,11 @@ class p7142sd3c;
 /// processing section must be configured properly.
 ///
 /// The other activity is the actual collection of the baseband data stream.
-/// Consumer applications call p7142sd3c to deliver I and Q data blocks, on a 
-/// beam by beam basis. p7142sd3c handles detection and recovery from dropped 
-/// data and synchronization errors. The consumer simply calls nextBeam() for 
-/// the next beam of I and Q data, and the p7142sd3cDn will block until the 
-/// request can be satisfied.
+/// Consumer applications call p7142sd3cDn to deliver I and Q data blocks, on a 
+/// beam by beam basis. The p7142sd3cDn class handles detection and recovery 
+/// from dropped data and synchronization errors. The consumer simply calls 
+/// nextBeam() for the next beam of I and Q data, and the p7142sd3cDn will block
+/// until the request can be satisfied.
 ///
 /// Synchronization is performed when operating in the pulse tagging and
 /// coherent integration modes. Synchronization is required
@@ -88,7 +88,7 @@ class p7142sd3c;
 /// --! The TAG is broken down as:
 /// --! bits 31:28  Format number   0-15(4 bits)
 /// --! bits 27:26  Channel number  0-3 (2 bits)
-/// --! bits    25  0=even, 1=odd   0-1 (1 bit)
+/// --! bit     25  0=even, 1=odd   0-1 (1 bit)
 /// --! bit     24  0=I, 1=Q        0-1 (1 bit)
 /// --! bits 23:00  Sequence number     (24 bits)
 /// --!
