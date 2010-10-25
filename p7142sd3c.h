@@ -52,6 +52,7 @@ public:
     /// /dev/pentek/p7142/0. Use ok() to verify successful construction.
     /// @param simulate Set true for simulation mode.
     /// @param tx_delay the delay for the tx pulse in seconds
+    /// @param tx_pulsewidth the length of the transmit pulse in seconds
     /// @param prt The radar PRT in seconds
     /// @param prt2 The second PRT of a staggered PRT sequence in seconds
     /// @param staggeredPrt set true to use the second PRT for staggered PRT mode
@@ -67,7 +68,7 @@ public:
     p7142sd3c(std::string devName, bool simulate, double tx_delay, 
         double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
         unsigned int gates, unsigned int nsum, bool freeRun,
-        DDCDECIMATETYPE simulateDDCType = DDC8DECIMATE);
+        DDCDECIMATETYPE simulateDDCType);
     
     /// Destructor.
     virtual ~p7142sd3c();
@@ -82,15 +83,18 @@ public:
     ///     interrupt buffer size, so that we have reasonable responsiveness in 
     ///     the data stream.
     /// @param rx_delay the delay to the first rx gate in seconds
-    /// @param pulse_width The radar pulse width in seconds
+    /// @param rx_pulse_width The total pulse sampling time (for all gates) in 
+    ///     seconds
     /// @param gaussianFile Name of the file containing the Gaussian
-    ///   filter parameters
+    ///     filter parameters
     /// @param kaiserFile Name of the file containing the Kaiser
-    ///   filter parameters
-    /// @param simulate Set true if we operate in simulation mode.
+    ///     filter parameters
     /// @param simPauseMS The number of milliseconds to wait between beams
-    /// simulated data when calling read()
-    /// @param simWaveLength The wavelength of the simulated data, in sample counts
+    ///     simulated data when calling read()
+    /// @param simWaveLength The wavelength of the simulated data, in sample 
+    ///     counts
+    /// @param internalClock Set to true if the Pentek card's internal clock
+    ///     should be used
     virtual p7142sd3cDn * addDownconverter(
             int chanId, 
             bool burstSampling,
@@ -331,9 +335,10 @@ protected:
      * set here are not actually loaded onto the card until the timers are 
      * started with timersStartStop().
      * 
-     * @param timerNdx the TimerIndex for the timer to be set
+     * @param ndx the TimerIndex for the timer to be set
      * @param delay the delay in counts for the timer
      * @param width the width in counts for the timer to be held on
+     * @param verbose set to true for verbose output
      */
     void _setTimer(TimerIndex ndx, int delay, int width, bool verbose = true);
     

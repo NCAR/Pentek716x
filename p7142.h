@@ -72,7 +72,7 @@ namespace Pentek {
             /// Add (or replace) our upconverter. If we already have an
             /// upconverter, it will be deleted. This object assumes ownership 
             /// of the incoming upconverter.
-            /// @param downconverter the downconverter to be added.
+            /// @param upconverter the upconverter to be added.
             void _addUpconverter(p7142Up * upconverter);
             
 			std::vector<p7142Dn*> _downconverters;
