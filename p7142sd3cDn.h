@@ -109,29 +109,20 @@ public:
     ///     channel. Burst sampling implies that gates will be as short as the 
     ///     card's sampling clock will allow. The rx_pulsewidth and the sampling
     ///     clock frequency will determine the number of gates sampled.
-    /// @param gates The number of gates. If set to -1, the number of gates will
-    ///     be set automatically to the maximum number which can be generated
-    ///     over a period of rx_pulsewidth. (I.e., burst sampling)
-    /// @param nsum The number of coherent integrator sums. If < 2, the coherent
-    ///     integrator will not be used.
     /// @param tsLength The number of pulses in one time series. Used to set 
     ///     interrupt buffer size, so that we have reasonable responsiveness in 
     ///     the data stream.
     /// @param rx_delay the delay to the first rx gate in seconds
     /// @param rx_pulsewidth the total length of time to sample data
-    /// @param prt The radar PRT in seconds
-    /// @param prt2 The second PRT of a staggered PRT sequence in seconds
-    /// @param pulse_width The radar pulse width in seconds
-    /// @param stgr_prt the staggered PRT flag; 1 = stagger, 0 = uniform
     /// @param gaussianFile Name of the file containing the Gaussian filter 
     ///     parameters
     /// @param kaiserFile Name of the file containing the Kaiser filter 
     ///     parameters
     /// @param simPauseMS The number of milliseconds to wait between beams
-    /// simulated data when calling read()
+    ///     simulated data when calling read()
     /// @param simWaveLength The wavelength of the simulated data, in sample counts
     /// @param internalClock Set true if the internal clock should be
-    /// used instead of an external clock source.
+    ///     used instead of an external clock source.
     p7142sd3cDn(
         p7142sd3c * p7142sd3cPtr, 
         int chanId, 
