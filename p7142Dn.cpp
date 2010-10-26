@@ -16,6 +16,9 @@
 #include <cstring>
 #include <sys/ioctl.h>
 
+#include <boost/pool/detail/guard.hpp>
+using namespace boost::details::pool;   // for guard
+
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,8 +34,11 @@ p7142Dn::p7142Dn(
   _dnFd(-1),
   _simWaveLength(simWaveLength),
   _angleCount(0),
-  _sim4bytes(sim4bytes)
+  _sim4bytes(sim4bytes),
+  _mutex()
 {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating()) {
         _dnName = "dnSimulate";
         return;
@@ -81,6 +87,8 @@ p7142Dn::p7142Dn(
 
 ////////////////////////////////////////////////////////////////////////////////
 p7142Dn::~p7142Dn() {
+  guard<boost::recursive_mutex> guard(_mutex);
+  
   if (_dnFd >= 0)
     close (_dnFd);
 }
@@ -88,24 +96,28 @@ p7142Dn::~p7142Dn() {
 ////////////////////////////////////////////////////////////////////////////////
 std::string
 p7142Dn::dnName() {
+    guard<boost::recursive_mutex> guard(_mutex);
     return _dnName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool
 p7142Dn::isSimulating() const {
+    guard<boost::recursive_mutex> guard(_mutex);
     return _p7142.isSimulating();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 int
 p7142Dn::ctrlFd() const {
+    guard<boost::recursive_mutex> guard(_mutex);
     return _p7142.ctrlFd();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 int
 p7142Dn::overUnderCount() {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // if simulate, indicate no errors.
     if (isSimulating()) {
@@ -134,6 +146,7 @@ p7142Dn::overUnderCount() {
 ////////////////////////////////////////////////////////////////////////////////
 int
 p7142Dn::read(char* buf, int bufsize) {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // Enforce that reads are a multiple of 4 bytes, since the Pentek driver
     // (silently) does this, e.g., it will return 4 bytes if 7 are requested,
@@ -150,8 +163,7 @@ p7142Dn::read(char* buf, int bufsize) {
 
     if (!isSimulating()) {
         // not in simulation mode; do a proper read from the device
-        int n;
-        n = ::read(_dnFd, buf, bufsize);
+        int n = ::read(_dnFd, buf, bufsize);
 
         if (n > 0)
             _bytesRead += n;
@@ -207,8 +219,7 @@ p7142Dn::read(char* buf, int bufsize) {
 ////////////////////////////////////////////////////////////////////////////////
 long
 p7142Dn::bytesRead() {
-    /// @todo this needs to be protected by a mutex, and there needs to be a 
-    /// similarly protected function for setting _bytesRead.
+    guard<boost::recursive_mutex> guard(_mutex);
     long retval = _bytesRead;
     _bytesRead = 0;
     return retval;
@@ -217,16 +228,19 @@ p7142Dn::bytesRead() {
 ////////////////////////////////////////////////////////////////////////////////
 int
 p7142Dn::fd() {
+    guard<boost::recursive_mutex> guard(_mutex);
     return _dnFd;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void p7142Dn::flush() {
-      // flush the device read buffers. This will clear the fifos,
-      // which will probably contain data since we are not able yet
-      // to disable the timers, and so the fifos may have been
-      // filling. When we do implement true timer control, this
-      // flush will probably not be needed.
+  guard<boost::recursive_mutex> guard(_mutex);
+  
+  // flush the device read buffers. This will clear the fifos,
+  // which will probably contain data since we are not able yet
+  // to disable the timers, and so the fifos may have been
+  // filling. When we do implement true timer control, this
+  // flush will probably not be needed.
   if (isSimulating())
       return;
   
@@ -241,6 +255,8 @@ void p7142Dn::flush() {
 ////////////////////////////////////////////////////////////////////////////////
 bool
 p7142Dn::usingInternalClock() const {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return(false);
     
@@ -255,6 +271,8 @@ p7142Dn::usingInternalClock() const {
 ////////////////////////////////////////////////////////////////////////////////
 int
 p7142Dn::bypassDivider() const {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return(0);
     
@@ -271,6 +289,8 @@ p7142Dn::bypassDivider() const {
 ////////////////////////////////////////////////////////////////////////////////
 bool
 p7142Dn::setBypassDivider(int bypassdiv) const {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return true;
     

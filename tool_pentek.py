@@ -18,6 +18,7 @@ variables.AddVariables(PathVariable('PENTEK_ROOT', 'PENTEK_ROOT directory.',
 PENTEK_INCLUDE = os.path.join('$PENTEK_ROOT', 'include')
 
 tools = Split("""
+boost_mutex
 doxygen
 """)
 

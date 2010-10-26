@@ -11,6 +11,9 @@
 #include "FilterSpec.h"
 #include <sys/ioctl.h>
 
+#include <boost/pool/detail/guard.hpp>
+using namespace boost::details::pool;   // for guard
+
 using namespace boost::posix_time;
 
 namespace Pentek {
@@ -40,6 +43,8 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
         _firstRawBeam(true),
         _firstBeam(true)
 {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     // Get gate count and coherent integration sum count from our card
     _gates = _sd3c.gates();
     _nsum = _sd3c.nsum();
@@ -99,6 +104,8 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
 
 ////////////////////////////////////////////////////////////////////////////////
 p7142sd3cDn::~p7142sd3cDn() {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     delete [] _buf;
     delete [] _ciBuf;
 }
@@ -110,6 +117,7 @@ std::string p7142sd3cDn::ddcTypeName() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 double p7142sd3cDn::rcvrPulseWidth() const {
+    guard<boost::recursive_mutex> guard(_mutex);
     // Note that Channels 0 and 1 share RX_01_TIMER, and channels 2 and 3 
     // share RX_23_TIMER.
     p7142sd3c::TimerIndex rxTimerNdx = (_chanId <= 1) ? 
@@ -119,6 +127,8 @@ double p7142sd3cDn::rcvrPulseWidth() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 double p7142sd3cDn::rcvrFirstGateDelay() const {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     int txDelayCounts = _sd3c._timerDelay(p7142sd3c::TX_PULSE_TIMER);
     // Note that Channels 0 and 1 share RX_01_TIMER, and channels 2 and 3 
     // share RX_23_TIMER.
@@ -130,6 +140,7 @@ double p7142sd3cDn::rcvrFirstGateDelay() const {
 }
 ////////////////////////////////////////////////////////////////////////////////
 bool p7142sd3cDn::config() {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // configure the fifo
     fifoConfig();
@@ -153,6 +164,8 @@ bool p7142sd3cDn::config() {
 
 //////////////////////////////////////////////////////////////////////
 bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return true;
 
@@ -319,6 +332,7 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 ////////////////////////////////////////////////////////////////////////
 
 int p7142sd3cDn::filterSetup() {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // No filters if this is a burst sampling channel
     if (_isBurst)
@@ -474,6 +488,7 @@ int p7142sd3cDn::filterSetup() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cDn::setInterruptBufSize() {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // how many bytes are there in each time series?
     int tsBlockSize;
@@ -513,6 +528,8 @@ void p7142sd3cDn::setInterruptBufSize() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3cDn::fifoConfig() {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return;
 
@@ -546,6 +563,8 @@ void p7142sd3cDn::fifoConfig() {
 
 //////////////////////////////////////////////////////////////////////
 ptime p7142sd3cDn::timeOfPulse(unsigned long pulseNum) const {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     // Figure out offset since transmitter start based on the pulse
     // number and PRT(s).
     double offsetSeconds;
@@ -576,6 +595,8 @@ ptime p7142sd3cDn::timeOfPulse(unsigned long pulseNum) const {
 
 //////////////////////////////////////////////////////////////////////
 int p7142sd3cDn::dataRate() {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     int rate = 0;
 
     switch (_sd3c._operatingMode()) {
@@ -614,6 +635,8 @@ int p7142sd3cDn::dataRate() {
 //////////////////////////////////////////////////////////////////////
 int
 p7142sd3cDn::read(char* buf, int n) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     // Unless we're simulating, we just use the superclass read
     if (!isSimulating()) {
         int r =  p7142Dn::read(buf, n);
@@ -663,12 +686,14 @@ p7142sd3cDn::getBeam(unsigned int& pulsenum) {
 //////////////////////////////////////////////////////////////////////////////////
 int
 p7142sd3cDn::beamLength() {
+    guard<boost::recursive_mutex> guard(_mutex);
     return _beamLength;
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::ptBeamDecoded(unsigned int& pulseNum) {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // get the beam
     char pulseTag[4];
@@ -726,6 +751,7 @@ p7142sd3cDn::ptBeamDecoded(unsigned int& pulseNum) {
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::ptBeam(char* pulseTag) {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     int r;
     while(1) {
@@ -741,7 +767,7 @@ p7142sd3cDn::ptBeam(char* pulseTag) {
         r = read(pulseTag, 4);
         assert(r == 4);
 
-        // read one beam into buf
+        // read one beam of IQ data into buf
         r = read(_buf, _beamLength);
         assert(r == (_beamLength));
 
@@ -767,6 +793,7 @@ p7142sd3cDn::ptBeam(char* pulseTag) {
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::ciBeamDecoded(unsigned int& pulseNum) {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // get the beam
     char* buf = ciBeam(pulseNum);
@@ -813,6 +840,8 @@ p7142sd3cDn::ciBeamDecoded(unsigned int& pulseNum) {
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::ciBeam(unsigned int& pulseNum) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     int r;
 
     while(1) {
@@ -858,6 +887,7 @@ p7142sd3cDn::ciBeam(unsigned int& pulseNum) {
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cDn::ciDecode() {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // decode the even and odd beams. For now, just
     // average the two.
@@ -873,6 +903,8 @@ p7142sd3cDn::ciDecode() {
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::frBeam() {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     int r = read(_buf, _beamLength);
     assert(r == _beamLength);
     return _buf;
@@ -978,6 +1010,7 @@ p7142sd3cDn::ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& 
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cDn::initBuffer() {
+    guard<boost::recursive_mutex> guard(_mutex);
 
     // note that _beamLength is only the length of the
     // IQ data (in bytes).
@@ -1018,6 +1051,8 @@ p7142sd3cDn::initBuffer() {
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cDn::makeSimData(int n) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     int r;
 
     while(_simFifo.size() < (unsigned int)n) {
@@ -1119,6 +1154,7 @@ p7142sd3cDn::makeSimData(int n) {
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cDn::simWait() {
+    guard<boost::recursive_mutex> guard(_mutex);
     // because the usleep overhead is large, sleep every 100 calls
     if (!(_simWaitCounter++ % 100)) {
         usleep((int)(100*_simPauseMS*1000)*_nsum);
@@ -1141,6 +1177,7 @@ p7142sd3cDn::unpackPtChannelAndPulse(const char* buf, unsigned int & chan,
 //////////////////////////////////////////////////////////////////////////////////
 unsigned long
 p7142sd3cDn::droppedPulses() {
+    guard<boost::recursive_mutex> guard(_mutex);
     unsigned long retval = _droppedPulses;
     return retval;
 }
@@ -1148,6 +1185,7 @@ p7142sd3cDn::droppedPulses() {
 //////////////////////////////////////////////////////////////////////////////////
 unsigned long
 p7142sd3cDn::syncErrors() {
+    guard<boost::recursive_mutex> guard(_mutex);
     unsigned long retval = _syncErrors;
     return retval;
 }
@@ -1155,6 +1193,7 @@ p7142sd3cDn::syncErrors() {
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cDn::dumpSimFifo(std::string label, int n) {
+    guard<boost::recursive_mutex> guard(_mutex);
     std::cout << label <<  " _simFifo length: " << _simFifo.size() << std::endl;
     std::cout << std::hex;
     for (unsigned int i = 0; i < (unsigned int)n && i < _simFifo.size(); i++) {

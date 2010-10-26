@@ -157,7 +157,7 @@ public:
     }
     
     /// @return The FPGA firmware software repository revision number.
-    int fpgaRepoRevision();
+    unsigned int fpgaRepoRevision() const { return _fpgaRepoRev; }
 
     /// Set the time of the first transmit pulse.
     /// @param startTime The boost::posix_time::ptime of the first transmit
@@ -175,7 +175,7 @@ public:
 
     /// Return our DDC type
     /// @return the DDC type instantiated in our card's firmware
-    DDCDECIMATETYPE ddcType() { return _ddcType; }
+    DDCDECIMATETYPE ddcType() const { return _ddcType; }
     
     /// Return the name of the firmware DDC type
     /// @return the name of the firmware DDC type
@@ -354,6 +354,10 @@ protected:
     /// @return Read the type of DDC instantiated in the firmware
     DDCDECIMATETYPE _readDDCType();
     
+    /// @return Read and return the FPGA firmware software repository revision 
+    /// number from the card.
+    unsigned int _readFpgaRepoRevision();
+
     /// Perform an ioctl call to the control device using the given address
     /// offset and value. The resulting value is returned.
     /// @param request The ioctl request type.
@@ -419,6 +423,8 @@ protected:
     DDCDECIMATETYPE _simulateDDCType;
     /// The three operating modes: free run, pulse tag and coherent integration
     OperatingMode _mode;
+    /// The revision number reported by the FPGA firmware
+    unsigned int _fpgaRepoRev;
 };
 
 }

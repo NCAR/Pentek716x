@@ -15,6 +15,9 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
+#include <boost/pool/detail/guard.hpp>
+using namespace boost::details::pool;   // for guard
+
 using namespace Pentek;
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -27,8 +30,11 @@ p7142Up::p7142Up(p7142 * myP7142Ptr, std::string upName,
         _upName(upName),
         _mem2Name(""),
         _upFd(-1),
-        _mem2depth(0)
+        _mem2depth(0),
+        _mutex()
 {
+    guard<boost::recursive_mutex> guard(_mutex);
+    
     if (isSimulating())
         return;
 
@@ -166,6 +172,7 @@ p7142Up::p7142Up(p7142 * myP7142Ptr, std::string upName,
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p7142Up::~p7142Up() {
+    guard<boost::recursive_mutex> guard(_mutex);
     if (_upFd >= 0) {
         std::cout << __FUNCTION__ << " closing upconverter" << std::endl;
         close (_upFd);
@@ -175,12 +182,15 @@ p7142Up::~p7142Up() {
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
 p7142Up::isSimulating() const {
+    guard<boost::recursive_mutex> guard(_mutex);
     return _p7142.isSimulating();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142Up::dumpDACregs(int fd) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating()) {
         std::cout << "No DAC registers: running in simulation mode." << std::endl;
         return;
@@ -205,6 +215,8 @@ p7142Up::dumpDACregs(int fd) {
 ////////////////////////////////////////////////////////////////////////////////////////
 char
 p7142Up::getDACreg(int fd, int reg) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return 0;
 
@@ -224,6 +236,8 @@ p7142Up::getDACreg(int fd, int reg) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142Up::setDACreg(int fd, int reg, char val) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return;
 
@@ -242,6 +256,8 @@ p7142Up::setDACreg(int fd, int reg, char val) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142Up::write(long* data, int n) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return;
 
@@ -278,6 +294,8 @@ p7142Up::write(long* data, int n) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142Up::startDAC() {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return;
 
@@ -335,6 +353,8 @@ p7142Up::startDAC() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142Up::stopDAC() {
+  guard<boost::recursive_mutex> guard(_mutex);
+
   if (isSimulating())
       return;
 
@@ -356,6 +376,8 @@ p7142Up::stopDAC() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142Up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1, char& nco_freq_2, char& nco_freq_3) {
+    guard<boost::recursive_mutex> guard(_mutex);
+
     if (isSimulating())
         return;
     

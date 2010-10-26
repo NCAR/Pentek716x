@@ -9,6 +9,7 @@
 #define P7142DN_H_
 
 #include <string>
+#include <boost/thread/recursive_mutex.hpp>
 
 namespace Pentek {
 
@@ -111,8 +112,10 @@ class p7142Dn {
         unsigned int _simWaveLength;
         /// The counter for keeping track of the current phase during simulation
         unsigned int _angleCount;
-        ///True if simulation is supposed to produce 4 byte integers
+        /// True if simulation is supposed to produce 4 byte integers
         bool _sim4bytes;
+        /// Mutex for thread safety
+        mutable boost::recursive_mutex _mutex;
 };
 
 }   // end namespace Pentek

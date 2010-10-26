@@ -9,6 +9,7 @@
 #define P7142UP_H_
 
 #include <string>
+#include <boost/thread/recursive_mutex.hpp>
 
 namespace Pentek {
 
@@ -88,6 +89,8 @@ class p7142Up {
         /// The depth of mem2 in 4 byte words. mem2 will contain the 
         /// DAC signal
         long _mem2depth;
+        /// Mutex for thread safety
+        mutable boost::recursive_mutex _mutex;
 
 };
 

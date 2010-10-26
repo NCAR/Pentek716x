@@ -6,6 +6,8 @@
 #include "math.h"
 #include <string>
 
+#include <boost/thread/recursive_mutex.hpp>
+
 namespace Pentek {
 
 	/// Base class for a p7142 digital transceiver card.
@@ -82,6 +84,8 @@ namespace Pentek {
 	        int _ctrlFd;
             /// set true if in simulation mode
             bool _simulate;
+            /// recursive mutex which provides us thread safety.
+            mutable boost::recursive_mutex _mutex;
 	};
 }
 

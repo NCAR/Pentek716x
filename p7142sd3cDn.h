@@ -262,14 +262,14 @@ protected:
     /// @param pulseNum The pulse number is returned here,
     /// if the tag is valid.
     /// @returns True if valid, false otherwise.
-    bool ciCheckTag(char* p, unsigned int& pulseNum);
+    static bool ciCheckTag(char* p, unsigned int& pulseNum);
     /// Create a coherent integrator tag. Used for simulation.
     /// @param format The format identifier. Must match the format number produced by the firmware.
     /// @param chan The channel number (0-3).
     /// @param odd True for odd beam, false for an even
     /// @param Q   True for a Q beam, false for I data.
     /// @param seq The sequence number, from 0 to 0xffffff;
-    uint32_t ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq);
+    static uint32_t ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq);
     /// Decode a coherent integrator tag.
     /// @param tag The tag to be decoded.
     /// @param format Returns the format identifier.
@@ -277,7 +277,8 @@ protected:
     /// @param odd Returns true for odd beam, false for an even
     /// @param Q   Returns true for a Q beam, false for I data.
     /// @param seq Returns the sequence number;
-    void ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& Q, uint32_t& seq);
+    static void ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, 
+            bool& Q, uint32_t& seq);
     /// Fill _simfifo with simulated data. Make
     /// sure that there are at least the specified number of bytes.
     /// Sync words and tags are added as appropriate. For

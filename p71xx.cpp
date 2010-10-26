@@ -5,6 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include <boost/pool/detail/guard.hpp>
+using namespace boost::details::pool;   // for guard
+
 
 using namespace Pentek;
 
@@ -13,8 +16,10 @@ p71xx::p71xx(std::string devName, bool simulate):
 _ok(false),
 _devName(devName),
 _ctrlFd(-1),
-_simulate(simulate)
+_simulate(simulate),
+_mutex()
 {
+    guard<boost::recursive_mutex> guard(_mutex);
     // If we're simulating, things are simple...
 	if (_simulate) {
 		_ok = true;
@@ -42,6 +47,7 @@ _simulate(simulate)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p71xx::~p71xx() {
+    guard<boost::recursive_mutex> guard(_mutex);
     if (_ctrlFd >= 0)
         close(_ctrlFd);
 }
@@ -70,7 +76,6 @@ p71xx::gauss(double mean, double stdDev) {
 //////////////////////////////////////////////////////////////////////
 int
 p71xx::doIoctl(int fd, int ioctlCode, void* arg, std::string errMsg, bool doexit) {
-
    int status = ioctl(fd, ioctlCode, arg);
    if (status == -1) {
     std::cout << errMsg << std::endl;
@@ -99,7 +104,6 @@ p71xx::doIoctl(int fd, int ioctlCode, double arg, std::string errMsg, bool doexi
 ////////////////////////////////////////////////////////////////////////////////////////
 int
 p71xx::bufset(int fd, int intbufsize, int bufN) {
-
 	BUFFER_CFG bc;
 	bc.bufno = 0;
 	bc.bufsize = bufN*intbufsize;
