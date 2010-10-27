@@ -168,9 +168,6 @@ public:
     /// @return Time of the given transmit pulse.
     boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
     
-    /// @return The expected data bandwidth from this channel in bytes per second
-    int dataRate();
-    
     /// @returns The length in bytes of IQ data in each beam that the
     /// is returned by getBeam(). The user of p7142sd3cDn should
     /// verify that this matches their expectations. The beam length

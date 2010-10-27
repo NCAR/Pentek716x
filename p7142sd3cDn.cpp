@@ -590,39 +590,6 @@ ptime p7142sd3cDn::timeOfPulse(unsigned long pulseNum) const {
     return(_sd3c._xmitStartTime + offset);
 }
 
-//////////////////////////////////////////////////////////////////////
-int p7142sd3cDn::dataRate() {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
-
-    int rate = 0;
-
-    switch (_sd3c._operatingMode()) {
-    case p7142sd3c::MODE_FREERUN:
-        // two bytes of I and two bytes of Q for each range gate
-        rate = _gates*4;
-        break;
-    case p7142sd3c::MODE_PULSETAG:
-        // pulse tagger
-        // there is a four byte sync word and a four byte pulse tag
-        // at the beginning of each pulse. There are two bytes for each
-        // I and each Q for each range gate.
-        rate = (int)(_sd3c._prf * (4 + 4 + _gates*4));
-        break;
-    case p7142sd3c::MODE_CI:
-        // coherent integration
-        // there is a 16 byte tag at the beginning of each pulse. Each pulse
-        // returns a set of even I's and Q's, and a set of odd I's and Q's. The
-        // even and odd pulses are separated by the prt, and so taken together they
-        // run at half the prf. Each I and Q for a gate is 32 bits (wider than the
-        // non-CI mode because they are sums of 16 bit numbers), so there are 8 bytes
-        // per gate for even and 8 bytes per gate for odd pulses.
-        rate = (int)((_sd3c._prf/2)*(16+_gates*8*2)/_nsum);
-        break;
-    }
-
-    return rate;
-}
-
 //////////////////////////////////////////////////////////////////////////////////
 //
 // ******    Buffer management and data handling in the following section    *****

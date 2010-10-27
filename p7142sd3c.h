@@ -253,6 +253,10 @@ public:
     /// is disabled.
     unsigned int nsum() const { return _nsum; }
     
+    /// @return The expected data bandwidth from a (non-burst) receiver channel 
+    /// in bytes per second
+    int dataRate();
+    
     friend class p7142sd3cDn;
     
 protected:

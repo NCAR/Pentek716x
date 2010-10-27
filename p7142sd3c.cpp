@@ -102,31 +102,31 @@ p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay,
     // sync pulse timer
     _setTimer(MASTER_SYNC_TIMER, 0, 4);
     
-    // tx pulse pulse timer
+    // tx pulse timer
     int txDelayCounts = timeToCounts(tx_delay);
     int pulseWidthCounts = timeToCounts(tx_pulsewidth);
     _setTimer(TX_PULSE_TIMER, txDelayCounts, pulseWidthCounts);
     
-//    std::cout << "downconverter: " << ddcTypeName(_ddcType) << std::endl;
+    std::cout << "downconverter: " << ddcTypeName(_ddcType) << std::endl;
 //    std::cout << "rx 0/1 delay:  " << _timerDelay(RX_01_TIMER) << " adc_clock/2 counts"  << std::endl; 
 //    std::cout << "rx 0/1 width:  " << _timerWidth(RX_01_TIMER) << " adc_clock/2 counts"   << std::endl;
 //    std::cout << "rx 2/3 delay:  " << _timerDelay(RX_23_TIMER) << " adc_clock/2 counts"  << std::endl; 
 //    std::cout << "rx 2/3 width:  " << _timerWidth(RX_23_TIMER) << " adc_clock/2 counts"   << std::endl;
-//    std::cout << "tx delay:      " << _timerDelay(TX_PULSE_TIMER) << " adc_clock/2 counts"  << std::endl;
-//    std::cout << "tx pulse width:" << _timerWidth(TX_PULSE_TIMER) << " adc_clock/2 counts"   << std::endl;
+    std::cout << "tx delay:      " << _timerDelay(TX_PULSE_TIMER) << " adc_clock/2 counts"  << std::endl;
+    std::cout << "tx pulse width:" << _timerWidth(TX_PULSE_TIMER) << " adc_clock/2 counts"   << std::endl;
 //    std::cout << "gate spacing:  " << gateSpacing()    << " m"                    << std::endl;
-//    std::cout << "prt:           " << _prtCounts       << " adc_clock/2 counts"   << std::endl;
-//    std::cout << "prt2:          " << _prt2Counts      << " adc_clock/2 counts"   << std::endl;
-//    std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
+    std::cout << "prt:           " << _prtCounts       << " adc_clock/2 counts"   << std::endl;
+    std::cout << "prt2:          " << _prt2Counts      << " adc_clock/2 counts"   << std::endl;
+    std::cout << "staggered:     " << ((_staggeredPrt) ? "true" : "false")        << std::endl;
 //    std::cout << "rng to gate0:  " << rangeToFirstGate() << " m"                  << std::endl;
 //    std::cout << "clock source:  " << (usingInternalClock() ? "internal" : "external") << std::endl;
 //    std::cout << "ts length:     " << _tsLength                                   << std::endl;
-//    std::cout << "gates:         " << _gates                                      << std::endl;
-//    std::cout << "nsum:          " << _nsum                                       << std::endl;
-//    std::cout << "free run:      " << ((_freeRun) ? "true" : "false")             << std::endl;
-//    std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
-//    std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
-//    std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
+    std::cout << "gates:         " << _gates                                      << std::endl;
+    std::cout << "nsum:          " << _nsum                                       << std::endl;
+    std::cout << "free run:      " << ((_freeRun) ? "true" : "false")             << std::endl;
+    std::cout << "adc clock:     " << _adc_clock       << " Hz"                   << std::endl;
+    std::cout << "prf:           " << _prf             << " Hz"                   << std::endl;
+    std::cout << "data rate:     " << dataRate()/1.0e3 << " KB/s"                 << std::endl;
 //    std::cout << "sim usleep     " << _simPauseMS*1000 << "us"                    <<std::endl;
 //    for (int i = 0; i < 8; i++) {
 //        std::cout << "timer " << i << " delay: " << _timerDelay(i) << " adc_clock/2 counts"  << std::endl;
@@ -559,6 +559,39 @@ p7142sd3c::_controlIoctl(int request, unsigned int offset, unsigned int value) {
     ioctl(ctrlFd(), request, &_pp);
     usleep(p7142::P7142_IOCTLSLEEPUS);
     return _pp.value;
+}
+
+//////////////////////////////////////////////////////////////////////
+int p7142sd3c::dataRate() {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    int rate = 0;
+
+    switch (_mode) {
+    case MODE_FREERUN:
+        // two bytes of I and two bytes of Q for each range gate
+        rate = _gates*4;
+        break;
+    case MODE_PULSETAG:
+        // pulse tagger
+        // there is a four byte sync word and a four byte pulse tag
+        // at the beginning of each pulse. There are two bytes for each
+        // I and each Q for each range gate.
+        rate = (int)(_prf * (4 + 4 + _gates*4));
+        break;
+    case MODE_CI:
+        // coherent integration
+        // there is a 16 byte tag at the beginning of each pulse. Each pulse
+        // returns a set of even I's and Q's, and a set of odd I's and Q's. The
+        // even and odd pulses are separated by the prt, and so taken together they
+        // run at half the prf. Each I and Q for a gate is 32 bits (wider than the
+        // non-CI mode because they are sums of 16 bit numbers), so there are 8 bytes
+        // per gate for even and 8 bytes per gate for odd pulses.
+        rate = (int)((_prf/2)*(16+_gates*8*2)/_nsum);
+        break;
+    }
+
+    return rate;
 }
 
 } // end namespace Pentek
