@@ -5,9 +5,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <boost/pool/detail/guard.hpp>
-using namespace boost::details::pool;   // for guard
-
 
 using namespace Pentek;
 
@@ -19,7 +16,7 @@ _ctrlFd(-1),
 _simulate(simulate),
 _mutex()
 {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
     // If we're simulating, things are simple...
 	if (_simulate) {
 		_ok = true;
@@ -47,7 +44,7 @@ _mutex()
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p71xx::~p71xx() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
     if (_ctrlFd >= 0)
         close(_ctrlFd);
 }

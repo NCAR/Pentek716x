@@ -11,9 +11,6 @@
 #include <sys/ioctl.h>
 #include <iostream>
 
-#include <boost/pool/detail/guard.hpp>
-using namespace boost::details::pool;   // for guard
-
 namespace Pentek {
 
 /*
@@ -37,7 +34,7 @@ p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay,
         _gates(gates),
         _nsum(nsum),
         _simulateDDCType(simulateDDCType) {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
             
     // Set up page and mask registers for FIOREGSET and FIOREGGET functions 
     // to access FPGA registers. We use _pp for all of our ioctl() calls, so
@@ -155,7 +152,7 @@ p7142sd3c::addDownconverter(int chanId, bool burstSampling, int tsLength,
         double rx_delay, double rx_pulse_width, std::string gaussianFile, 
         std::string kaiserFile, double simPauseMs, int simWavelength,
         bool internalClock) {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
     // Create a new p7142sd3cDn downconverter and put it in our list
     p7142sd3cDn * downconverter = new p7142sd3cDn(this, chanId, burstSampling,
             tsLength, rx_delay, rx_pulse_width, gaussianFile, kaiserFile, 
@@ -168,7 +165,7 @@ p7142sd3c::addDownconverter(int chanId, bool burstSampling, int tsLength,
 void
 p7142sd3c::_setTimer(TimerIndex ndx, int delay, int width, bool verbose) {
     _DelayAndWidth currentVals = _timers[ndx];
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
     // If current timer width is non-zero, warn about any changes in 
     // width or delay.
     if (verbose && currentVals.width() != 0) {
@@ -189,20 +186,20 @@ p7142sd3c::_setTimer(TimerIndex ndx, int delay, int width, bool verbose) {
 //////////////////////////////////////////////////////////////////////////////////
 int
 p7142sd3c::timeToCounts(double time) const {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
     return(lround(time * _adc_clock / 2));
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 double
 p7142sd3c::countsToTime(int counts) const {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
     return((2 * counts) / _adc_clock);
 }
 
 //////////////////////////////////////////////////////////////////////
 unsigned int p7142sd3c::_readFpgaRepoRevision() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate)
         return 1;
@@ -215,7 +212,7 @@ unsigned int p7142sd3c::_readFpgaRepoRevision() {
 
 /////////////////////////////////////////////////////////////////////////
 void p7142sd3c::timersStartStop(bool start) {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate)
         return;
@@ -281,7 +278,7 @@ void p7142sd3c::timersStartStop(bool start) {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3c::startFilters() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (isSimulating())
         return;
@@ -297,7 +294,7 @@ void p7142sd3c::startFilters() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3c::stopFilters() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (isSimulating())
         return;
@@ -315,7 +312,7 @@ void p7142sd3c::stopFilters() {
 
 //////////////////////////////////////////////////////////////////////
 unsigned short int p7142sd3c::TTLIn() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate)
         return 0;
@@ -328,7 +325,7 @@ unsigned short int p7142sd3c::TTLIn() {
 
 //////////////////////////////////////////////////////////////////////
 void p7142sd3c::TTLOut(unsigned short int data) {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate)
         return;
@@ -342,7 +339,7 @@ void p7142sd3c::TTLOut(unsigned short int data) {
 
 //////////////////////////////////////////////////////////////////////
 p7142sd3c::DDCDECIMATETYPE p7142sd3c::_readDDCType() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate)
         return _simulateDDCType;
@@ -376,7 +373,7 @@ p7142sd3c::DDCDECIMATETYPE p7142sd3c::_readDDCType() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3c::_resetDCM() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (isSimulating())
         return;
@@ -408,7 +405,7 @@ p7142sd3c::_resetDCM() {
 //////////////////////////////////////////////////////////////////////
 void
 p7142sd3c::_loadFreeRun() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (isSimulating())
         return;
@@ -443,7 +440,7 @@ p7142sd3c::_loadFreeRun() {
 /////////////////////////////////////////////////////////////////////////
 bool
 p7142sd3c::_initTimers() {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate)
         return true;
@@ -553,7 +550,7 @@ p7142sd3c::_initTimers() {
 
 unsigned int
 p7142sd3c::_controlIoctl(int request, unsigned int offset, unsigned int value) {
-    guard<boost::recursive_mutex> guard(_mutex);
+    boost::recursive_mutex::scoped_lock guard(_mutex);
 
     _pp.offset = offset;
     _pp.value = value;
