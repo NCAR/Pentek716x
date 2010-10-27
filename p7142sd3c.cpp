@@ -38,10 +38,16 @@ p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay,
         _nsum(nsum),
         _simulateDDCType(simulateDDCType) {
     guard<boost::recursive_mutex> guard(_mutex);
+            
+    // Set up page and mask registers for FIOREGSET and FIOREGGET functions 
+    // to access FPGA registers. We use _pp for all of our ioctl() calls, so
+    // set it up before any ioctl-s!
+    _pp.page = 2; // PCIBAR 2
+    _pp.mask = 0;
     
     // Note the FPGA firmware revision
     _fpgaRepoRev = _readFpgaRepoRevision();
-    std::cout << "FPGA revision: " << _fpgaRepoRev << std::endl;
+    std::cout << _devName << " FPGA revision: " << _fpgaRepoRev << std::endl;
     if (_fpgaRepoRev == 0) {
         std::cerr << "** WARNING: Revision number is zero. " <<
                 "Was the correct firmware loaded?" << std::endl;
@@ -59,13 +65,9 @@ p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay,
     if (_freeRun)
         _mode = MODE_FREERUN;
 
-    // set up page and mask registers for FIOREGSET and FIOREGGET functions 
-    // to access FPGA registers
-    _pp.page = 2; // PCIBAR 2
-    _pp.mask = 0;
-    
     // Set the ADC clock rate based on DDC type
     _ddcType = _readDDCType();
+    std::cout << _devName << " DDC type: " << ddcTypeName() << std::endl;
     switch (_ddcType) {
     case DDC10DECIMATE:
         _adc_clock = 100.0e6;
@@ -207,7 +209,7 @@ unsigned int p7142sd3c::_readFpgaRepoRevision() {
     
     _pp.offset = FPGA_REPO_REV;
     ioctl(ctrlFd(), FIOREGGET, &_pp);
-    return _pp.value & 0x7fff;
+    return _pp.value & 0x3fff;
 
 }
 
@@ -348,8 +350,11 @@ p7142sd3c::DDCDECIMATETYPE p7142sd3c::_readDDCType() {
     _pp.offset = FPGA_REPO_REV;
     ioctl(ctrlFd(), FIOREGGET, &_pp);
     
+    // 1-bit DDC type up to rev 502, 2-bit after that
+    int mask = (_fpgaRepoRev > 502) ? 0xC000 : 0x4000;
+    
     DDCDECIMATETYPE ddctype = DDC4DECIMATE;
-    switch (_pp.value & 0xC000) {
+    switch (_pp.value & mask) {
     case 0x8000:
         ddctype = DDC10DECIMATE;
         break;
