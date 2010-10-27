@@ -347,21 +347,23 @@ p7142sd3c::DDCDECIMATETYPE p7142sd3c::_readDDCType() {
     _pp.offset = FPGA_REPO_REV;
     ioctl(ctrlFd(), FIOREGGET, &_pp);
     
-    // 1-bit DDC type up to rev 502, 2-bit after that
-    int mask = (_fpgaRepoRev > 502) ? 0xC000 : 0x4000;
+    // Up to rev 502, DDC type was a 1-bit value at bit 15.
+    // After that it's a 2-bit value in bits 14-15.
+    int ddcTypeFpgaVal = (_fpgaRepoRev > 502) ? 
+        (_pp.value & 0xC000) >> 14 : (_pp.value & 0x8000) >> 15;
     
     DDCDECIMATETYPE ddctype = DDC4DECIMATE;
-    switch (_pp.value & mask) {
-    case 0x8000:
-        ddctype = DDC10DECIMATE;
-        break;
-    case 0x4000:
-        ddctype = DDC8DECIMATE;
-        break;
-    case 0x0000:
+    switch (ddcTypeFpgaVal) {
+    case 0:
         ddctype = DDC4DECIMATE;
         break;
-   case 0xC000:
+    case 1:
+        ddctype = DDC8DECIMATE;
+        break;
+    case 2:
+        ddctype = DDC10DECIMATE;
+        break;
+    case 3:
         ddctype = BURST;
         break;     
     }
