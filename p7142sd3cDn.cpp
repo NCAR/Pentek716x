@@ -299,7 +299,7 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             // read back the programmed value; we need to do this in two words 
             // as above.
             readBack = _sd3c._controlIoctl(FIOREGGET, GAUSSIAN_READ_LSW) |
-                    (_sd3c._controlIoctl(FIOREGGET, GUASSIAN_READ_MSW) << 16);
+                    (_sd3c._controlIoctl(FIOREGGET, GAUSSIAN_READ_MSW) << 16);
             if (readBack != gaussian[i]) {
                 std::cout << "gaussian readback failed for coefficient "
                         << std::dec << i << std::hex << ", wrote "

@@ -47,7 +47,7 @@ Desc: Pentek 7142 HCR DDC Registers
 #define GAUSSIAN_DATA_MSW 0x8ED8  ///< Register 475 Gaussian filter coefficient data (MSW)
 #define GAUSSIAN_WR       0x8EE0  ///< Register 476 Gaussian filter write
 #define GAUSSIAN_READ_LSW 0x8EE8  ///< Register 477 Gaussian filter coefficient read (LSW)
-#define GUASSIAN_READ_MSW 0x8EF0  ///< Register 478 Gaussian filter coefficient read (MSW)
+#define GAUSSIAN_READ_MSW 0x8EF0  ///< Register 478 Gaussian filter coefficient read (MSW)
 
 // Radar gates register
 #define RADAR_GATES       0x8EF8 ///< Register 479 The number of radar gates
