@@ -58,7 +58,7 @@ p7142Dn::p7142Dn(
         abort();
     }
 
-    // set the clock source
+    // Set the clock source.
     int clockSource = internalClock ? CLK_SRC_INTERN : CLK_SRC_FRTPAN;
 
     if (ioctl(_dnFd, FIOCLKSRCSET, clockSource) == -1) {
@@ -66,6 +66,9 @@ p7142Dn::p7142Dn(
                 << _dnName << std::endl;
         abort();
     }
+    // Using our firmware, we *must* reset the Pentek DCM after changing 
+    // clock source
+    _p7142._resetDCM();
 
     // set the bypass divider
     if (! setBypassDivider(bypassdivrate)) {
