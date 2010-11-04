@@ -329,11 +329,6 @@ protected:
         return(_timers[timerNdx].width());
     }
     
-    /// Reset the digital clock managers on the FPGA. Necessary since
-    /// some of the new DCMs we have added in the firmware use the
-    /// CLKFX output, which won't lock at startup.
-    void _resetDCM();
-
     /**
      * Set delay and width values for the selected timer. Note that values
      * set here are not actually loaded onto the card until the timers are 
@@ -361,15 +356,6 @@ protected:
     /// @return Read and return the FPGA firmware software repository revision 
     /// number from the card.
     unsigned int _readFpgaRepoRevision();
-
-    /// Perform an ioctl call to the control device using the given address
-    /// offset and value. The resulting value is returned.
-    /// @param request The ioctl request type.
-    /// @param offset The address offset for the ioctl request.
-    /// @param value The value to pass in the ioctl call.
-    /// @return The value returned by the ioctl call.
-    unsigned int _controlIoctl(int request, unsigned int offset, 
-            unsigned int value = 0);
 
     /**
      * Simple class to hold integer delay and width for a timer.

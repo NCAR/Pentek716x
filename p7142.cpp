@@ -72,3 +72,47 @@ p7142::_addUpconverter(p7142Up * upconverter) {
     }
     _upconverter = upconverter;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+unsigned int
+p7142::_controlIoctl(unsigned int request, unsigned int offset, 
+    unsigned int value) {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    ARG_PEEKPOKE pp;
+    pp.page = 2; // PCIBAR 2
+    pp.mask = 0;
+    pp.offset = offset;
+    pp.value = value;
+
+    ioctl(ctrlFd(), request, &pp);
+    usleep(p7142::P7142_IOCTLSLEEPUS);
+
+    return pp.value;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p7142::_resetDCM() {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    if (isSimulating())
+        return;
+
+    // read the DCM control register
+    unsigned int val = _controlIoctl(FIOREGGET, DCM_CONTROL);
+
+    // turn on the DCM reset bit
+    val |= 0x10;
+    _controlIoctl(FIOREGSET, DCM_CONTROL, val);
+    usleep(1000);
+
+    val = _controlIoctl(FIOREGGET, DCM_CONTROL);
+
+    // turn off the DCM reset bit
+    val &= ~0x10;
+    _controlIoctl(FIOREGSET, DCM_CONTROL, val);
+    usleep(1000);
+
+    val = _controlIoctl(FIOREGGET, DCM_CONTROL);
+}

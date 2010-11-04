@@ -300,14 +300,9 @@ void p7142sd3c::stopFilters() {
         return;
 
     // stop the filters if they are running.
-    _pp.offset = KAISER_ADDR;
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
-    _pp.offset = KAISER_ADDR;
-    _pp.value = DDC_STOP;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-    usleep(p7142::P7142_IOCTLSLEEPUS);
-    _pp.offset = KAISER_ADDR;
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
+    _controlIoctl(FIOREGGET, KAISER_ADDR);  
+    _controlIoctl(FIOREGSET, KAISER_ADDR, DDC_STOP);
+    _controlIoctl(FIOREGGET, KAISER_ADDR);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -369,38 +364,6 @@ p7142sd3c::DDCDECIMATETYPE p7142sd3c::_readDDCType() {
     }
     
     return ddctype;
-
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3c::_resetDCM() {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
-
-    if (isSimulating())
-        return;
-
-    _pp.offset = DCM_CONTROL;
-
-    // read the dcm control register
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
-    //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-    // turn on the DCM reset bit
-    _pp.value = 0x10 | _pp.value;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-    usleep(1000);
-
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
-    //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
-
-    // turn off the DCM reset bit
-    _pp.value = _pp.value & ~0x10;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-    usleep(1000);
-
-    ioctl(ctrlFd(), FIOREGGET, &_pp);
-    //std::cout << "DCM control readback is 0x" << std::hex << _pp.value << std::endl;
 
 }
 
@@ -548,17 +511,6 @@ p7142sd3c::_initTimers() {
 
     return true;
 
-}
-
-unsigned int
-p7142sd3c::_controlIoctl(int request, unsigned int offset, unsigned int value) {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
-
-    _pp.offset = offset;
-    _pp.value = value;
-    ioctl(ctrlFd(), request, &_pp);
-    usleep(p7142::P7142_IOCTLSLEEPUS);
-    return _pp.value;
 }
 
 //////////////////////////////////////////////////////////////////////

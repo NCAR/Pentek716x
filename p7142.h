@@ -75,6 +75,28 @@ namespace Pentek {
             /// @param upconverter the upconverter to be added.
             void _addUpconverter(p7142Up * upconverter);
             
+            /// Perform an ioctl call to the control device using the given address
+            /// offset and value. The resulting value is returned.
+            /// @param request The ioctl request type.
+            /// @param offset The address offset for the ioctl request.
+            /// @param value The value to pass in the ioctl call.
+            /// @return The value returned by the ioctl call.
+            unsigned int _controlIoctl(unsigned int request, 
+                    unsigned int offset, unsigned int value = 0);
+                    
+            /// Perform a FIOREGGET ioctl call to the control device for the 
+            /// given address. The resulting value is returned.
+            /// @param addr The address of the register to get.
+            /// @return The value in the selected register.
+            unsigned int _regget(unsigned int addr);
+
+            /// Reset the digital clock managers on the FPGA. Necessary since
+            /// some of the new DCMs we add in the firmware use the
+            /// CLKFX output, which won't lock at startup. <em>Downconverters
+            /// must call this method whenever they change their clock source
+            /// via the CLKSRCSET ioctl!</em>
+            void _resetDCM();
+
 			std::vector<p7142Dn*> _downconverters;
 			p7142Up * _upconverter;
 	};
