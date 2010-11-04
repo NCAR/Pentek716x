@@ -225,7 +225,7 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             if (readBack != kaiser[i]) {
                 std::cout << "kaiser readback failed for coefficient "
                         << std::dec << i << std::hex << ", wrote " << kaiser[i]
-                        << ", read " << readBack << std::endl;
+                        << ", read " << readBack << std::dec << std::endl;
 
                 kaiserLoaded = false;
             } else {
@@ -477,7 +477,8 @@ int p7142sd3cDn::filterSetup() {
 
     if (!loadFilters(gaussian, kaiser)) {
         std::cerr << "Unable to load filters\n";
-        return -1;
+//        return -1;
+        exit(1);
     }
 
     return 0;
