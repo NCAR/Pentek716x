@@ -606,6 +606,17 @@ p7142sd3cDn::read(char* buf, int n) {
     if (!isSimulating()) {
         int r =  p7142Dn::read(buf, n);
         assert(r == n);
+        /**
+        std::cout << "read " << r << " bytes" << std::endl;
+        std::cout << std::hex;
+	    for (unsigned int i = 0; i < (unsigned int)r; i++) {
+	        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)buf[i] << " ";
+	        if (!((i+1) % 40)) {
+	            std::cout << std::endl;
+	        }
+	    }
+	    std::cout << std::dec << std::endl;;
+	    **/
         return r;
     }
 
@@ -833,17 +844,18 @@ p7142sd3cDn::ciBeam(unsigned int& pulseNum) {
 
         if (ciCheckTag(tagbuf, pulseNum)) {
             return _ciBuf;
-        } else {
-            _syncErrors++;
-            // scan byte by byte for the
-            while(1) {
-                memmove(tagbuf, tagbuf+1,15);
-                r = read(tagbuf+15, 1);
-                assert(r == 1);
-                // check for synchronization
-                if (ciCheckTag(tagbuf, pulseNum)) {
-                    break;
-                }
+        }
+        return _ciBuf;
+        _syncErrors++;
+        
+        // scan 4 bytes at a time for a correct tag
+        while(1) {
+            memmove(tagbuf, tagbuf+4,12);
+            r = read(tagbuf+12, 4);
+            assert(r == 4);
+            // check for synchronization
+            if (ciCheckTag(tagbuf, pulseNum)) {
+                break;
             }
         }
     }
@@ -953,13 +965,11 @@ p7142sd3cDn::ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& 
     ///  --! bit     24  0=I, 1=Q        0-1 (1 bit)
     ///  --! bits 23:00  Sequence number     (24 bits)
 
-    format =        (tag & 0xf0) >> 4;
-    chan   =        (tag & 0x0c) >> 2;
-    odd    = (bool) (tag & 0x02);
-    Q      = (bool) (tag & 0x01);
-    seq    =        (tag & 0xff000000) >> 24 |
-                    (tag & 0x00ff0000) >> 8 |
-                    (tag & 0x0000ff00) << 8;
+    format =        (tag >> 28) & 0xf;
+    chan   =        (tag >> 26) & 0x3;
+    odd    = (bool) ((tag >> 25) & 0x1);
+    Q      = (bool) ((tag >> 24) & 0x1);
+    seq    =        (tag & 0xffffff);
 
     return;
 
@@ -968,7 +978,7 @@ p7142sd3cDn::ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, bool& 
             << " seq:" << seq << std::endl;
     std::cout.width(8);
     std::cout.fill('0');
-    std::cout << "decoded tag:" << std::hex << tag <<std::endl;
+    std::cout << "decoded tag:" << std::hex << tag << std::dec << std::endl;
     return;
 }
 
