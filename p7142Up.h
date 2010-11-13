@@ -23,7 +23,7 @@ class p7142Up {
         /// Write the baseband signal to ram.
         /// @param data The I and Q signal values
         /// @param n The number of values.
-        virtual void write(long* data, int n);
+        virtual void write(int32_t* data, int n);
         /// Start the DAC output
         virtual void startDAC();
         /// Stop the DAC output
@@ -32,6 +32,8 @@ class p7142Up {
         std::string upName();
         /// Are we simulating a real card?
         bool isSimulating() const;
+        /// @return The dac clock in Hz.
+        double sampleClockHz();
 
     protected:
         // Class p7142 is a friend; the intention is that construction of

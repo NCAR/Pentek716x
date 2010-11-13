@@ -252,7 +252,7 @@ p7142Up::setDACreg(int fd, int reg, char val) {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142Up::write(long* data, int n) {
+p7142Up::write(int32_t* data, int n) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (isSimulating())
@@ -410,3 +410,10 @@ p7142Up::ncoConfig(double fNCO, double fDAC, char& nco_freq_0, char& nco_freq_1,
     nco_freq_3 = (freq >> 24) & 0xff;
 
 }
+
+////////////////////////////////////////////////////////////////////////////////////////
+double
+p7142Up::sampleClockHz() {
+	return _sampleClockHz;
+}
+
