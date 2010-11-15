@@ -104,7 +104,6 @@ p7142sd3cDn::~p7142sd3cDn() {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     delete [] _buf;
-    delete [] _ciBuf;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -832,20 +831,14 @@ p7142sd3cDn::ciBeam(unsigned int& pulseNum) {
         r = read(_buf, _beamLength);
         assert(r == _beamLength);
 
-        // decode the coherent integrator even and odd beams
-        // into a single beam. Data are read from _buf and
-        // and written to _ciBuf.
-        ciDecode();
-
         // read the next tag word
         char tagbuf[16];
         r = read(tagbuf, 16);
         assert(r == 16);
 
         if (ciCheckTag(tagbuf, pulseNum)) {
-            return _ciBuf;
+            return _buf;
         }
-        return _ciBuf;
         _syncErrors++;
         
         // scan 4 bytes at a time for a correct tag
@@ -861,22 +854,6 @@ p7142sd3cDn::ciBeam(unsigned int& pulseNum) {
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-void
-p7142sd3cDn::ciDecode() {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
-
-    // decode the even and odd beams. For now, just
-    // average the two.
-
-    int32_t* even = (int32_t*)(_buf);
-    int32_t* odd  = (int32_t*)(_buf+_beamLength/2);
-    int32_t* IQ   = (int32_t*)(_ciBuf);
-
-    for (int i = 0; i < _gates*2; i++) {
-        IQ[i] = (even[i] + odd[i])/2;
-    }
-}
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::frBeam() {
@@ -1014,13 +991,9 @@ p7142sd3cDn::initBuffer() {
         abort();
     }
 
-    // allocate the buffer to hold one beam of IQ data
+    // allocate the buffer to hold one (or two for CI) beams of IQ data
     _buf = new char[_beamLength];
 
-    // allocate another buffer to hold one beam of decoded
-    // coherent integrator data. The even and odd beams are
-    // combined int one beam
-    _ciBuf = new char[_beamLength/2];
 }
 
 //////////////////////////////////////////////////////////////////////////////////

@@ -174,7 +174,9 @@ public:
     /// is computed during construction, and will not change thereafter.
     int beamLength();
     
-    /// Get one beam of data.
+    /// Get one or two beams of data. For free run and
+    /// pulse tagger mode, one beam is returned. For the coherent integrator
+    /// mode, an even and an odd beam are returned.
     /// @param pulsenum The pulse number is returned here. For raw data,
     /// the pulse number will be 0.
     /// @return A pointer to one beam of data.
@@ -250,9 +252,6 @@ protected:
     /// @param pulseNum The pulse number is returned here
     /// @returns Pointer to the start of the beam.
     char* ciBeam(unsigned int& pulseNum);
-    /// Decode the pulse coded data that come from the coherent integrator.
-    /// Data are decoded from _buf into _ciBuf.
-    void ciDecode();
     /// Check that a coherent integrator tag is
     /// valid.
     /// @param p Pointer to the tag.
@@ -331,8 +330,6 @@ protected:
     int _beamLength;
     /// The buffer that collects IQ data.
     char* _buf;
-    /// A buffer that coherently integrated data will be decoded into.
-    char* _ciBuf;
     /// The pulse number if we're simulating data
     int _simPulseNum;
     /// The number of ms to pause between each beam in simulation mode
