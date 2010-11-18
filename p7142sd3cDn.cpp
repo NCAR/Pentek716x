@@ -920,8 +920,7 @@ p7142sd3cDn::ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq) {
     int Odd = odd? 1:0;
     int IQ   =  Q? 1:0;
     uint32_t tag =
-            p[0] << 24 | p[1] << 16 | p[2] << 8 |
-            ( format << 4 | chan << 2 | Odd << 1 | IQ);
+    		(( format << 4 | chan << 2 | Odd << 1 | IQ) << 24) | (seq & 0xffffff);
 
     return tag;
 
