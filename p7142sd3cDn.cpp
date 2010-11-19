@@ -1103,8 +1103,10 @@ void
 p7142sd3cDn::simWait() {
     boost::recursive_mutex::scoped_lock guard(_mutex);
     // because the usleep overhead is large, sleep every 100 calls
-    if (!(_simWaitCounter++ % 100)) {
-        usleep((int)(100*_simPauseMS*1000)*_nsum);
+   	if (_simPauseMS > 0) {
+   	    if (!(_simWaitCounter++ % 100)) {
+        	usleep((int)(100*_simPauseMS*1000)*_nsum);
+    	}
     }
 }
 //////////////////////////////////////////////////////////////////////////////////
