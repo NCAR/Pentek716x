@@ -709,13 +709,13 @@ p7142sd3cDn::ptBeamDecoded(unsigned int& pulseNum) {
                 pulseNum << "!" << std::endl;
         abort();
     } else if (delta != 1) {
-        std::cerr << _lastPulse << "->" << pulseNum << ": ";
+        // std::cerr << _lastPulse << "->" << pulseNum << ": ";
         if (delta < 0) {
-            std::cerr << "Channel " << _chanId << " went BACKWARD " <<
-                -delta << " pulses" << std::endl;
+            //std::cerr << "Channel " << _chanId << " went BACKWARD " <<
+            //    -delta << " pulses" << std::endl;
         } else {
-            std::cerr << "Channel " << _chanId << " dropped " <<
-                delta - 1 << " pulses" << std::endl;
+            // std::cerr << "Channel " << _chanId << " dropped " <<
+            //    delta - 1 << " pulses" << std::endl;
         }
     }
     _droppedPulses += (delta - 1);
@@ -798,13 +798,13 @@ p7142sd3cDn::ciBeamDecoded(unsigned int& pulseNum) {
                 pulseNum << "!" << std::endl;
         abort();
     } else if (delta != 1) {
-        std::cerr << _lastPulse << "->" << pulseNum << ": ";
+        //std::cerr << _lastPulse << "->" << pulseNum << ": ";
         if (delta < 0) {
-            std::cerr << "Channel " << _chanId << " went BACKWARD " <<
-                -delta << " pulses" << std::endl;
+            //std::cerr << "Channel " << _chanId << " went BACKWARD " <<
+            //    -delta << " pulses" << std::endl;
         } else {
-            std::cerr << "Channel " << _chanId << " dropped " <<
-                delta - 1 << " pulses" << std::endl;
+            //std::cerr << "Channel " << _chanId << " dropped " <<
+            //    delta - 1 << " pulses" << std::endl;
         }
     }
     _droppedPulses += (delta - 1);
