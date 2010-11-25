@@ -214,8 +214,11 @@ unsigned int p7142sd3c::_readFpgaRepoRevision() {
 void p7142sd3c::timersStartStop(bool start) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
-    if (_simulate)
+    if (_simulate) {
+        setXmitStartTime(boost::posix_time::microsec_clock::universal_time());
         return;
+    }
+
         
     // Load timer values before starting the timers
     if (start) {
