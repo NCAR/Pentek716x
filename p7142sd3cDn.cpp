@@ -1035,6 +1035,7 @@ p7142sd3cDn::makeSimData(int n) {
             }
             // Add IQ data. Occasionally drop some data
             bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
+            doBadSync = false;
             int nPairs = _beamLength/4;
             if (doBadSync) {
                 nPairs = (int)(((1.0 * rand())/RAND_MAX) * nPairs);
@@ -1075,6 +1076,7 @@ p7142sd3cDn::makeSimData(int n) {
 
             // Add IQ data. Occasionally drop some data
             bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
+            doBadSync = false;
             int nPairs = _beamLength/8;
             if (doBadSync) {
                 nPairs = (int)(((1.0 * rand())/RAND_MAX) * nPairs);
@@ -1087,7 +1089,7 @@ p7142sd3cDn::makeSimData(int n) {
                     _simFifo.push_back(iq[j]);
                 }
             }
-            _simPulseNum++;
+            _simPulseNum += _nsum;
             if (_simPulseNum > MAX_CI_PULSE_NUM) {
                 _simPulseNum = 0;
             }
