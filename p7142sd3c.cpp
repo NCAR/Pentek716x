@@ -27,13 +27,14 @@ const unsigned int p7142sd3c::ALL_SD3C_TIMER_BITS = 0xff0;
 p7142sd3c::p7142sd3c(std::string devName, bool simulate, double tx_delay, 
     double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
     unsigned int gates, unsigned int nsum, bool freeRun, 
-    DDCDECIMATETYPE simulateDDCType) : 
+    DDCDECIMATETYPE simulateDDCType, bool externalStartTrigger) : 
         p7142(devName, simulate),
         _staggeredPrt(staggeredPrt),
         _freeRun(freeRun),
         _gates(gates),
         _nsum(nsum),
-        _simulateDDCType(simulateDDCType) {
+        _simulateDDCType(simulateDDCType),
+        _externalStartTrigger(externalStartTrigger) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
             
     // Set up page and mask registers for FIOREGSET and FIOREGGET functions 
@@ -244,15 +245,12 @@ void p7142sd3c::timersStartStop(bool start) {
     }
     ioctl(ctrlFd(), FIOREGSET, &_pp);
 
-    // Force internal triggers for now.
-    bool internalTriggers = true;
-
     _pp.offset = MT_ADDR; // Address
     if (start) {
-        if (internalTriggers)
-            _pp.value = ALL_SD3C_TIMER_BITS | ADDR_TRIG;  // internal trigger
-        else
+        if (_externalStartTrigger)
             _pp.value = ALL_SD3C_TIMER_BITS | GPS_EN;     // external trigger
+        else
+            _pp.value = ALL_SD3C_TIMER_BITS | ADDR_TRIG;  // internal trigger
     } else {
         _pp.value = ALL_SD3C_TIMER_BITS;
     }

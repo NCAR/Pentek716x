@@ -65,10 +65,13 @@ public:
     ///     PRT gating.
     /// @param simulateDDCType The DDC type to use when running in simulation
     ///     mode.
+    /// @param externalStartTrigger If true, an external trigger source
+    ///     (generally a 1 PPS signal from a GPS clock) is used to start the 
+    ///     radar.
     p7142sd3c(std::string devName, bool simulate, double tx_delay, 
         double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
         unsigned int gates, unsigned int nsum, bool freeRun,
-        DDCDECIMATETYPE simulateDDCType);
+        DDCDECIMATETYPE simulateDDCType, bool externalStartTrigger = false);
     
     /// Destructor.
     virtual ~p7142sd3c();
@@ -415,6 +418,8 @@ protected:
     OperatingMode _mode;
     /// The revision number reported by the FPGA firmware
     unsigned int _fpgaRepoRev;
+    /// Does radar start wait for an external trigger?
+    bool _externalStartTrigger;
 };
 
 }
