@@ -256,11 +256,6 @@ void p7142sd3c::timersStartStop(bool start) {
     }
     ioctl(ctrlFd(), FIOREGSET, &_pp);
 
-    if (start) {
-        _pp.value = ALL_SD3C_TIMER_BITS;
-        ioctl(ctrlFd(), FIOREGSET, &_pp);
-    }
-
     // Turn off Write Strobes
     _pp.offset = MT_WR;
     _pp.value = WRITE_OFF;
