@@ -60,7 +60,11 @@ public:
     ///     downconverters
     /// @param nsum The number of pulses to sum for coherent integration by all
     ///     non-burst downconverters. If nsum == 1, coherent integration is 
-    ///     disabled.
+    ///     disabled. Note that this is the number of beams which will go into
+    ///     the even or odd sum; i.e. the even beam integration will collect
+    ///     nsum beams and the odd beam integration will collect nsum beams.
+    ///     Thus it is half of the effective PRF decimation rate. Profiler
+    ///     configurations usually specify two times this value.
     /// @param freeRun If true, the firmware will be configured to ignore the 
     ///     PRT gating.
     /// @param simulateDDCType The DDC type to use when running in simulation
@@ -252,8 +256,10 @@ public:
     unsigned int gates() const { return _gates; }
     
     /// Return the number of pulses to sum for coherent integration, used by
-    /// all of our non-burst downconverters. If nsum == 1, coherent integration
-    /// is disabled.
+    /// all of our non-burst downconverters. It represents the number of
+    /// beams which go into an even beam accumulation, and likewise the
+    /// number of beams which go into an odd beam accumulation.
+    /// If nsum == 1, coherent integration is disabled.
     unsigned int nsum() const { return _nsum; }
     
     /// @return The expected data bandwidth from a (non-burst) receiver channel 
