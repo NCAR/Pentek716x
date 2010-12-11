@@ -222,32 +222,35 @@ public:
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
-    void setGPTimer0(double delay, double width) {
-        _setTimer(GP_TIMER_0, timeToCounts(delay), timeToCounts(width));
+    /// @param invert true if the timer output should be inverted
+    void setGPTimer0(double delay, double width, bool invert = false) {
+        _setTimer(GP_TIMER_0, timeToCounts(delay), timeToCounts(width), true, invert);
     }
     
     /// Set up general purpose timer 1. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
-    void setGPTimer1(double delay, double width) {
-        _setTimer(GP_TIMER_1, timeToCounts(delay), timeToCounts(width));
+    /// @param invert true if the timer output should be inverted
+    void setGPTimer1(double delay, double width, bool invert = false) {
+        _setTimer(GP_TIMER_1, timeToCounts(delay), timeToCounts(width), true, invert);
     }
     
     /// Set up general purpose timer 2. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
-    void setGPTimer2(double delay, double width) {
-        _setTimer(GP_TIMER_2, timeToCounts(delay), timeToCounts(width));
+    /// @param invert true if the timer output should be inverted
+    void setGPTimer2(double delay, double width, bool invert = false) {
+        _setTimer(GP_TIMER_2, timeToCounts(delay), timeToCounts(width), true, invert);
     }
     
     /// Set up general purpose timer 3. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
-    void setGPTimer3(double delay, double width) {
-        _setTimer(GP_TIMER_3, timeToCounts(delay), timeToCounts(width));
+    void setGPTimer3(double delay, double width, bool invert = false) {
+        _setTimer(GP_TIMER_3, timeToCounts(delay), timeToCounts(width), true, invert);
     }
     
     /// Return the number of gates being sampled by our non-burst downconverters.
@@ -339,6 +342,18 @@ protected:
     }
     
     /**
+     * Return timer invert flag for the selected timer. While
+     * an integer index may be used explicitly, it is recommended to use
+     * a TimerIndex enumerated value instead.
+     * @param timerNdx the integer (or TimerIndex) index for the timer of
+     *     interest
+     * @return true if the timer is inverted
+     */
+    bool _timerInvert(int timerNdx) const {
+        return(_timers[timerNdx].invert());
+    }
+    
+    /**
      * Set delay and width values for the selected timer. Note that values
      * set here are not actually loaded onto the card until the timers are 
      * started with timersStartStop().
@@ -347,8 +362,9 @@ protected:
      * @param delay the delay in counts for the timer
      * @param width the width in counts for the timer to be held on
      * @param verbose set to true for verbose output
+     * @param invert set true to invert the timer output
      */
-    void _setTimer(TimerIndex ndx, int delay, int width, bool verbose = true);
+    void _setTimer(TimerIndex ndx, int delay, int width, bool verbose = true, bool invert = false);
     
     /// Load configured timer values onto the device.
     /// @return true if successful, false otherwise.
@@ -369,15 +385,20 @@ protected:
     /**
      * Simple class to hold integer delay and width for a timer.
      */
-    class _DelayAndWidth {
+    class _DelayAndWidthAndInvert {
     public:
-        _DelayAndWidth(int delay, int width) : _delay(delay), _width(width) {}
-        _DelayAndWidth() : _delay(0), _width(0) {}
+        _DelayAndWidthAndInvert(int delay, int width, bool invert) : 
+           _delay(delay), 
+           _width(width),
+           _invert(invert) {}
+        _DelayAndWidthAndInvert() : _delay(0), _width(0), _invert(false) {}
         int delay() const { return _delay; }
         int width() const { return _width; }
+        int invert() const { return _invert; }
     private:
         int _delay;
         int _width;
+        bool _invert;
     };
     
     /// The three operating modes: free run, pulse tag and coherent integration
@@ -390,7 +411,7 @@ protected:
     /**
      * vector of delay/width pairs for our 8 SD3C timers
      */
-    _DelayAndWidth _timers[N_SD3C_TIMERS];
+    _DelayAndWidthAndInvert _timers[N_SD3C_TIMERS];
     /// radar PRT in _adc_clock/2 counts
     unsigned int _prtCounts;
     /// second PRT of staggered PRT in _adc_clock/2 counts

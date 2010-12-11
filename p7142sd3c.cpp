@@ -164,8 +164,8 @@ p7142sd3c::addDownconverter(int chanId, bool burstSampling, int tsLength,
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p7142sd3c::_setTimer(TimerIndex ndx, int delay, int width, bool verbose) {
-    _DelayAndWidth currentVals = _timers[ndx];
+p7142sd3c::_setTimer(TimerIndex ndx, int delay, int width, bool verbose, bool invert) {
+    _DelayAndWidthAndInvert currentVals = _timers[ndx];
     boost::recursive_mutex::scoped_lock guard(_mutex);
     // If current timer width is non-zero, warn about any changes in 
     // width or delay.
@@ -181,7 +181,7 @@ p7142sd3c::_setTimer(TimerIndex ndx, int delay, int width, bool verbose) {
                     delay << std::endl;
         }
     }
-    _timers[ndx] = _DelayAndWidth(delay, width);
+    _timers[ndx] = _DelayAndWidthAndInvert(delay, width, invert);
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -455,12 +455,37 @@ p7142sd3c::_initTimers() {
     _pp.offset = MT_WR;
     _pp.value = WRITE_ON;
     ioctl(ctrlFd(), FIOREGSET, &_pp);
+    
+    // The following code is an attempt to configure individula timers to be
+    // inverting, but it doesn't work and is commented out for the time being.
+    /** 
+    for (int i = 0; i < 8; i++) {
 
+	    // Control Register
+	    _pp.offset = MT_ADDR;
+	    _pp.value = CONTROL_REG | SD3C_TIMER_BITS[i];
+	    ioctl(ctrlFd(), FIOREGSET, &_pp);
+	
+	    // Enable Timer
+	    _pp.offset = MT_DATA;
+	    _pp.value = TIMER_ON;
+	    if (_timerInvert(i)) {
+	    	_pp.value |= TIMER_NEG;
+	    }
+	    ioctl(ctrlFd(), FIOREGSET, &_pp);
+
+        // Turn on Write Strobes
+    	_pp.offset = MT_WR;
+    	_pp.value = WRITE_ON;
+    	ioctl(ctrlFd(), FIOREGSET, &_pp);
+    }
+    **/
+    
     for (unsigned int i = 0; i < N_SD3C_TIMERS; i++) {
         std::cout << "Initializing timer " << i << ": delay " <<
             countsToTime(_timerDelay(i)) << "s (" << _timerDelay(i) <<
             "), width " << countsToTime(_timerWidth(i)) << "s (" << 
-            _timerWidth(i) << ")" << std::endl;
+            _timerWidth(i) << ")" << (_timerInvert(i)? ", inverted":"") << std::endl;
         
         // Delay Register
         _pp.offset = MT_ADDR; // Address
