@@ -393,9 +393,9 @@ p7142sd3c::_loadFreeRun() {
     ioctl(ctrlFd(), FIOREGGET, &_pp);
     usleep(P7142_IOCTLSLEEPUS);
 
-    std::cout << "free run mode is " << (_freeRun ? "enabled" : "disabled") << 
-        " for " << devName() << std::endl;
-    std::cout << "transceiver control register is " << _pp.value << std::endl;
+    //std::cout << "free run mode is " << (_freeRun ? "enabled" : "disabled") << 
+    //    " for " << devName() << std::endl;
+    //std::cout << "transceiver control register is " << _pp.value << std::endl;
 }
 
 /////////////////////////////////////////////////////////////////////////
