@@ -326,7 +326,7 @@ protected:
      * @return the timer delay in counts
      */
     int _timerDelay(int timerNdx) const {
-        return(_timers[timerNdx].delay());
+        return(_timerConfigs[timerNdx].delay());
     }
     
     /**
@@ -338,7 +338,7 @@ protected:
      * @return the timer width in counts
      */
     int _timerWidth(int timerNdx) const {
-        return(_timers[timerNdx].width());
+        return(_timerConfigs[timerNdx].width());
     }
     
     /**
@@ -350,7 +350,7 @@ protected:
      * @return true if the timer is inverted
      */
     bool _timerInvert(int timerNdx) const {
-        return(_timers[timerNdx].invert());
+        return(_timerConfigs[timerNdx].invert());
     }
     
     /**
@@ -385,13 +385,13 @@ protected:
     /**
      * Simple class to hold integer delay and width for a timer.
      */
-    class _DelayAndWidthAndInvert {
+    class _TimerConfig {
     public:
-        _DelayAndWidthAndInvert(int delay, int width, bool invert) : 
+        _TimerConfig(int delay, int width, bool invert) : 
            _delay(delay), 
            _width(width),
            _invert(invert) {}
-        _DelayAndWidthAndInvert() : _delay(0), _width(0), _invert(false) {}
+        _TimerConfig() : _delay(0), _width(0), _invert(false) {}
         int delay() const { return _delay; }
         int width() const { return _width; }
         int invert() const { return _invert; }
@@ -411,7 +411,7 @@ protected:
     /**
      * vector of delay/width pairs for our 8 SD3C timers
      */
-    _DelayAndWidthAndInvert _timers[N_SD3C_TIMERS];
+    _TimerConfig _timerConfigs[N_SD3C_TIMERS];
     /// radar PRT in _adc_clock/2 counts
     unsigned int _prtCounts;
     /// second PRT of staggered PRT in _adc_clock/2 counts
