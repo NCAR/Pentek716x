@@ -1089,7 +1089,7 @@ p7142sd3cDn::makeSimData(int n) {
                     _simFifo.push_back(iq[j]);
                 }
             }
-            _simPulseNum += _nsum;
+            _simPulseNum += 1;
             if (_simPulseNum > MAX_CI_PULSE_NUM) {
                 _simPulseNum = 0;
             }
