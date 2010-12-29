@@ -166,7 +166,7 @@ public:
     }
     
     /// @return Time of the given transmit pulse.
-    boost::posix_time::ptime timeOfPulse(unsigned long pulseNum) const;
+    boost::posix_time::ptime timeOfPulse(long long nPulsesSinceStart) const;
     
     /// @returns The length in bytes of IQ data in each beam that the
     /// is returned by getBeam(). The user of p7142sd3cDn should
@@ -177,10 +177,10 @@ public:
     /// Get one or two beams of data. For free run and
     /// pulse tagger mode, one beam is returned. For the coherent integrator
     /// mode, an even and an odd beam are returned.
-    /// @param pulsenum The pulse number is returned here. For raw data,
-    /// the pulse number will be 0.
+    /// @param nPulsesSinceStart[out] the number of pulses since the
+    ///   xmitter was started up - allows computation of the time
     /// @return A pointer to one beam of data.
-    char* getBeam(unsigned int& pulsenum);
+    char* getBeam(long long& nPulsesSinceStart);
     
     /// Return our gate count. For burst sampling channels, this may be
     /// different from the gate count set for our p7142sd3c object.
@@ -226,16 +226,18 @@ protected:
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
-    /// @param pulsenum The pulse number is returned here.
+    /// @param nPulsesSinceStart: the number of pulses since the
+    ///   xmitter was started up - allows computation of the time
     /// @returns Pointer to the start of the beam.
-    char* ptBeamDecoded(unsigned int& pulseNum);
+    char* ptBeamDecoded(long long& nPulsesSinceStart);
     /// Return the next synchronized beam of coherent integrator data.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
-    /// @param pulsenum The pulse number is returned here.
+    /// @param nPulsesSinceStart: the number of pulses since the
+    ///   xmitter was started up - allows computation of the time
     /// @returns Pointer to the start of the beam.
-    char* ciBeamDecoded(unsigned int& pulseNum);
+  char* ciBeamDecoded(long long& nPulsesSinceStart);
     /// Return the next beam of free run data. This
     /// is a misnomer, since there aren't really beams in free run mode.
     /// Think of them as blocks. The caller can access beamLength() bytes.
@@ -339,8 +341,12 @@ protected:
     /// The last pulse sequence number that we received. Used to keep
     /// track of dropped pulses.
     int _lastPulse;
+    /// The number of pulses since the xmitter was started.
+    /// In conjunction with the PRF and start time, this allows the
+    /// pulse time to be computed. See timeOfPulse().
+    long long _nPulsesSinceStart;
     /// An estimate of dropped pulses. It may be in error
-    /// if the pulse tag rolls over by more than the 14 bit
+    /// if the pulse tag rolls over by more than the
     /// total that it can hold. This test is only made if the
     /// channel number passes the validity test.
     unsigned long _droppedPulses;

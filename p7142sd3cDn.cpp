@@ -36,6 +36,7 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
         _simPauseMS(simPauseMS),
         _simWaitCounter(0),
         _lastPulse(0),
+        _nPulsesSinceStart(0),
         _droppedPulses(0),
         _syncErrors(0),
         _firstRawBeam(true),
@@ -584,18 +585,18 @@ void p7142sd3cDn::fifoConfig() {
 }
 
 //////////////////////////////////////////////////////////////////////
-ptime p7142sd3cDn::timeOfPulse(unsigned long pulseNum) const {
+ptime p7142sd3cDn::timeOfPulse(long long nPulsesSinceStart) const {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // Figure out offset since transmitter start based on the pulse
     // number and PRT(s).
     double offsetSeconds;
     if (_sd3c._staggeredPrt) {
-        unsigned long prt1Count = pulseNum / 2 + pulseNum % 2;
-        unsigned long prt2Count = pulseNum / 2;
+        unsigned long prt1Count = nPulsesSinceStart / 2 + nPulsesSinceStart % 2;
+        unsigned long prt2Count = nPulsesSinceStart / 2;
         offsetSeconds =  prt1Count /_sd3c._prf + prt2Count / _sd3c._prf2;
     } else {
-        offsetSeconds = pulseNum / _sd3c._prf;
+        offsetSeconds = nPulsesSinceStart / _sd3c._prf;
     }
     // Translate offsetSeconds to a boost::posix_time::time_duration
     double remainder = offsetSeconds;
@@ -661,7 +662,7 @@ p7142sd3cDn::read(char* buf, int n) {
 //////////////////////////////////////////////////////////////////////////////////
 
 char*
-p7142sd3cDn::getBeam(unsigned int& pulsenum) {
+p7142sd3cDn::getBeam(long long& nPulsesSinceStart) {
 
     // perform the simulation wait if necessary
     if (isSimulating()) {
@@ -670,12 +671,12 @@ p7142sd3cDn::getBeam(unsigned int& pulsenum) {
 
     switch (_sd3c._operatingMode()) {
         case p7142sd3c::MODE_FREERUN:
-            pulsenum = 0;
+            nPulsesSinceStart = 0;
             return frBeam();
         case p7142sd3c::MODE_PULSETAG:
-            return ptBeamDecoded(pulsenum);
+            return ptBeamDecoded(nPulsesSinceStart);
         case p7142sd3c::MODE_CI:
-            return ciBeamDecoded(pulsenum);
+            return ciBeamDecoded(nPulsesSinceStart);
         default:
             std::cerr << __PRETTY_FUNCTION__ << ": unhandled mode " << 
                 _sd3c._operatingMode() << std::endl;
@@ -692,7 +693,7 @@ p7142sd3cDn::beamLength() {
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
-p7142sd3cDn::ptBeamDecoded(unsigned int& pulseNum) {
+p7142sd3cDn::ptBeamDecoded(long long& nPulsesSinceStart) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // get the beam
@@ -701,7 +702,7 @@ p7142sd3cDn::ptBeamDecoded(unsigned int& pulseNum) {
 
     // unpack the channel number and pulse sequence number.
     // Unpack the 4-byte channel id/pulse number
-    unsigned int chan;
+    unsigned int chan, pulseNum;
     unpackPtChannelAndPulse(pulseTag, chan, pulseNum);
     if (int(chan) != _chanId) {
         std::cerr << "p7142sd3cdnThread for channel " << _chanId <<
@@ -743,6 +744,10 @@ p7142sd3cDn::ptBeamDecoded(unsigned int& pulseNum) {
             //    delta - 1 << " pulses" << std::endl;
         }
     }
+
+    _nPulsesSinceStart += delta;
+    nPulsesSinceStart = _nPulsesSinceStart;
+
     _droppedPulses += (delta - 1);
     _lastPulse = pulseNum;
 
@@ -792,10 +797,11 @@ p7142sd3cDn::ptBeam(char* pulseTag) {
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
-p7142sd3cDn::ciBeamDecoded(unsigned int& pulseNum) {
+p7142sd3cDn::ciBeamDecoded(long long& nPulsesSinceStart) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // get the beam
+    unsigned int pulseNum;
     char* buf = ciBeam(pulseNum);
 
     // Initialize _lastPulse if this is the first pulse we've seen
@@ -816,6 +822,7 @@ p7142sd3cDn::ciBeamDecoded(unsigned int& pulseNum) {
             std::cout << "Pulse number rollover" << std::endl;
 
         delta += MAX_CI_PULSE_NUM + 1;
+
     }
 
     if (delta == 0) {
@@ -832,6 +839,10 @@ p7142sd3cDn::ciBeamDecoded(unsigned int& pulseNum) {
             //    delta - 1 << " pulses" << std::endl;
         }
     }
+
+    _nPulsesSinceStart += delta;
+    nPulsesSinceStart = _nPulsesSinceStart;
+
     _droppedPulses += (delta - 1);
     _lastPulse = pulseNum;
 
