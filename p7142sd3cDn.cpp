@@ -79,7 +79,12 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
     // TODO: Configure the channel intbufsize for roughly 10 Hz interrupts
     // (and bufsize to ~2*intbufsize)
     BUFFER_CFG bufConfig;
-    ioctl(fd(), BUFGET, &bufConfig);
+    if (isSimulating()) {
+        bufConfig.intbufsize = 32768;
+        bufConfig.bufsize = 524288;
+    } else {
+        ioctl(fd(), BUFGET, &bufConfig);
+    }
     
     int interruptBytes = 4 * bufConfig.intbufsize;  // intbufsize is in 4-byte words
     double chanDataRate = (4 * _gates) / _sd3c.prt();   // @TODO this only works for single PRT
