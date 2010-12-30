@@ -132,7 +132,10 @@ public:
     /// @ return the time in seconds.
     double countsToTime(int counts) const;
     
-    /// Control the timers.
+    /// Start or stop the 8 SD3C timers. If starting the timers, actual timer
+    /// start will occur at the next trigger event (which may be internal or
+    /// external, depending on the setting of externalStartTrigger at 
+    /// construction.
     /// @param start Set true to start, set false to stop.
     void timersStartStop(bool start);
     
