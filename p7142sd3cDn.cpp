@@ -957,7 +957,6 @@ p7142sd3cDn::ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq) {
     ///  --! bit     24  0=I, 1=Q        0-1 (1 bit)
     ///  --! bits 23:00  Sequence number     (24 bits)
 
-    unsigned char* p = (unsigned char*)&seq;
     int Odd = odd? 1:0;
     int IQ   =  Q? 1:0;
     uint32_t tag =
