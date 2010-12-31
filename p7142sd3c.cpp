@@ -12,6 +12,8 @@
 #include <iostream>
 
 namespace Pentek {
+    
+using namespace boost::posix_time;
 
 /*
  * Timer identifier bits for the SD3C timers.
@@ -216,7 +218,7 @@ void p7142sd3c::timersStartStop(bool start) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (_simulate) {
-        setXmitStartTime(boost::posix_time::microsec_clock::universal_time());
+        setXmitStartTime(microsec_clock::universal_time());
         return;
     }
 
@@ -227,56 +229,58 @@ void p7142sd3c::timersStartStop(bool start) {
     }
         
     // Turn on Write Strobes
-    _pp.offset = MT_WR;
-    _pp.value = WRITE_ON;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
+    _controlIoctl(FIOREGSET, MT_WR, WRITE_ON);
 
     // configure each timer
     for (int i = 0; i < 8; i++) {
-
 	    // Control Register
-	    _pp.offset = MT_ADDR;
-	    _pp.value = CONTROL_REG | SD3C_TIMER_BITS[i];
-	    ioctl(ctrlFd(), FIOREGSET, &_pp);
+        _controlIoctl(FIOREGSET, MT_ADDR, CONTROL_REG | SD3C_TIMER_BITS[i]);
 	
 	    // Enable/Disable Timer
-	    _pp.offset = MT_DATA;
-	    if (start) {
-	        _pp.value = TIMER_ON;
-	    } else {
-	        _pp.value = 0;
-	    }
-	    if (_timerInvert(i)) {
-	    	_pp.value |= TIMER_NEG;
-	    }
-	    ioctl(ctrlFd(), FIOREGSET, &_pp);
+        unsigned int value = (start ? TIMER_ON : 0) | 
+                (_timerInvert(i) ? TIMER_NEG : 0);
+        _controlIoctl(FIOREGSET, MT_DATA, value);
+    }
+    // Get current time
+    ptime now(microsec_clock::universal_time());
+    //
+    // Actually start or stop the timers now
+    //
+    if (start) {
+        if (_externalStartTrigger) {
+            // We assume here that the external trigger is a 1 PPS signal, 
+            // e.g., from GPS.
+            //
+            // Sleep until ~0.2 seconds after the top of a second. This gives
+            // us a comfortable fraction of a second to set up timer start and 
+            // know at precisely which second the timers will start. It also 
+            // allows for our system clock to be off by up to 0.2 seconds.
+            
+            // sleep until the next 0.2 second mark
+            int wake_uSec = 200000; // wake at 0.2 seconds after the top of a second
+            int usecNow = now.time_of_day().total_microseconds() % 1000000;
+            int sleep_uSec = (1000000 + wake_uSec - usecNow) % 1000000;
+            // Timers will start at the top of the next second after we wake
+            setXmitStartTime(now + microseconds(1000000 + sleep_uSec - wake_uSec));
+            // Now sleep
+            usleep(sleep_uSec);
+            // Set the wait-for-trigger bit so timers start at the next
+            // trigger.
+            _controlIoctl(FIOREGSET, MT_ADDR, ALL_SD3C_TIMER_BITS | GPS_EN);
+        } else {
+            // Internal trigger: timers start immediately.
+            setXmitStartTime(now);
+            _controlIoctl(FIOREGSET, MT_ADDR, ALL_SD3C_TIMER_BITS | ADDR_TRIG);
+        }
+        
+        std::cout << "Timers/radar start time " << _xmitStartTime << std::endl;
+    } else {
+        _controlIoctl(FIOREGSET, MT_ADDR, ALL_SD3C_TIMER_BITS);
+        std::cout << "Timers stopped at " << now << std::endl;
     }
     
-    _pp.offset = MT_ADDR; // Address
-    if (start) {
-        if (_externalStartTrigger)
-            _pp.value = ALL_SD3C_TIMER_BITS | GPS_EN;     // external trigger
-        else
-            _pp.value = ALL_SD3C_TIMER_BITS | ADDR_TRIG;  // internal trigger
-    } else {
-        _pp.value = ALL_SD3C_TIMER_BITS;
-    }
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-
     // Turn off Write Strobes
-    _pp.offset = MT_WR;
-    _pp.value = WRITE_OFF;
-    ioctl(ctrlFd(), FIOREGSET, &_pp);
-
-    if (start) {
-        std::cout << "timers started" << std::endl;
-    } else {
-        std::cout << "timers stopped" << std::endl;
-        //exit (1);
-    }
-
-    // Get current system time as xmit start time
-    setXmitStartTime(boost::posix_time::microsec_clock::universal_time());
+    _controlIoctl(FIOREGSET, MT_WR, WRITE_OFF);
 }
 
 //////////////////////////////////////////////////////////////////////
