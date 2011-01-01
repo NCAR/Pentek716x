@@ -590,7 +590,7 @@ void p7142sd3cDn::fifoConfig() {
 }
 
 //////////////////////////////////////////////////////////////////////
-ptime p7142sd3cDn::timeOfPulse(long long nPulsesSinceStart) const {
+ptime p7142sd3cDn::timeOfPulse(int64_t nPulsesSinceStart) const {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // Figure out offset since transmitter start based on the pulse
@@ -667,7 +667,7 @@ p7142sd3cDn::read(char* buf, int n) {
 //////////////////////////////////////////////////////////////////////////////////
 
 char*
-p7142sd3cDn::getBeam(long long& nPulsesSinceStart) {
+p7142sd3cDn::getBeam(int64_t& nPulsesSinceStart) {
 
     // perform the simulation wait if necessary
     if (isSimulating()) {
@@ -698,7 +698,7 @@ p7142sd3cDn::beamLength() {
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
-p7142sd3cDn::ptBeamDecoded(long long& nPulsesSinceStart) {
+p7142sd3cDn::ptBeamDecoded(int64_t& nPulsesSinceStart) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // get the beam
@@ -802,7 +802,7 @@ p7142sd3cDn::ptBeam(char* pulseTag) {
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
-p7142sd3cDn::ciBeamDecoded(long long& nPulsesSinceStart) {
+p7142sd3cDn::ciBeamDecoded(int64_t& nPulsesSinceStart) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // get the beam

@@ -166,7 +166,7 @@ public:
     }
     
     /// @return Time of the given transmit pulse.
-    boost::posix_time::ptime timeOfPulse(long long nPulsesSinceStart) const;
+    boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart) const;
     
     /// @returns The length in bytes of IQ data in each beam that the
     /// is returned by getBeam(). The user of p7142sd3cDn should
@@ -180,7 +180,7 @@ public:
     /// @param nPulsesSinceStart[out] the number of pulses since the
     ///   xmitter was started up - allows computation of the time
     /// @return A pointer to one beam of data.
-    char* getBeam(long long& nPulsesSinceStart);
+    char* getBeam(int64_t& nPulsesSinceStart);
     
     /// Return our gate count. For burst sampling channels, this may be
     /// different from the gate count set for our p7142sd3c object.
@@ -229,7 +229,7 @@ protected:
     /// @param nPulsesSinceStart: the number of pulses since the
     ///   xmitter was started up - allows computation of the time
     /// @returns Pointer to the start of the beam.
-    char* ptBeamDecoded(long long& nPulsesSinceStart);
+    char* ptBeamDecoded(int64_t& nPulsesSinceStart);
     /// Return the next synchronized beam of coherent integrator data.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
@@ -237,7 +237,7 @@ protected:
     /// @param nPulsesSinceStart: the number of pulses since the
     ///   xmitter was started up - allows computation of the time
     /// @returns Pointer to the start of the beam.
-  char* ciBeamDecoded(long long& nPulsesSinceStart);
+  char* ciBeamDecoded(int64_t& nPulsesSinceStart);
     /// Return the next beam of free run data. This
     /// is a misnomer, since there aren't really beams in free run mode.
     /// Think of them as blocks. The caller can access beamLength() bytes.
@@ -344,7 +344,7 @@ protected:
     /// The number of pulses since the xmitter was started.
     /// In conjunction with the PRF and start time, this allows the
     /// pulse time to be computed. See timeOfPulse().
-    long long _nPulsesSinceStart;
+    int64_t _nPulsesSinceStart;
     /// An estimate of dropped pulses. It may be in error
     /// if the pulse tag rolls over by more than the
     /// total that it can hold. This test is only made if the
