@@ -88,17 +88,17 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
     
     int interruptBytes = 4 * bufConfig.intbufsize;  // intbufsize is in 4-byte words
     double chanDataRate = (4 * _gates) / _sd3c.prt();   // @TODO this only works for single PRT
-    double dataInterruptPeriod = interruptBytes / chanDataRate;
+    _dataInterruptPeriod = interruptBytes / chanDataRate;
 
     // Warn if data latency is greater than 1 second, and bail completely if
     // it's greater than 5 seconds.
-    if (dataInterruptPeriod > 1.0) {
+    if (_dataInterruptPeriod > 1.0) {
         std::cerr << "interruptBytes " << interruptBytes << std::endl;
         std::cerr << "chanDataRate " << chanDataRate << std::endl;
         std::cerr << "Warning: Estimated max data latency for channel " << 
-        _chanId << " is " << dataInterruptPeriod << " s!" << std::endl;
+        _chanId << " is " << _dataInterruptPeriod << " s!" << std::endl;
     }
-    if (dataInterruptPeriod > 5.0) {
+    if (_dataInterruptPeriod > 5.0) {
         abort();
     }
     

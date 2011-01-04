@@ -193,6 +193,9 @@ public:
     unsigned long syncErrors();
     /// Return the name of the DDC type being used.
     std::string ddcTypeName() const;
+    /// Return the estimated data interrupt period, which is a good estimate
+    /// of the maximum data latency time.
+    double dataInterruptPeriod() const { return _dataInterruptPeriod; }
 
 protected:
 
@@ -359,12 +362,16 @@ protected:
     bool _firstRawBeam;
     /// Set false at startup, true after the first beam has been received.
     bool _firstBeam;
+    /// Estimated period between data interrupts, in seconds
+    /// This provides a reasonable guess at the maximum data latency time
+    /// for the channel.
+    double _dataInterruptPeriod;
     /// A fifo that simulated data is built up by makeSimData() while in
     /// simulation mode. The read() function then draws out of this fifo.
     /// This is done so that makeSimData() can fill the buffer with
     /// multibyte objects such as shorts and ints, but the read function
     /// can draw out of it a byte at a time if necessary. This is required for
-    /// re-synchroniation.
+    /// re-synchronization.
     std::deque<char> _simFifo;
 };
 
