@@ -507,7 +507,11 @@ int p7142sd3cDn::filterSetup() {
 
     if (!loadFilters(gaussian, kaiser)) {
         std::cerr << "Unable to load filters\n";
-//        return -1;
+        if (! usingInternalClock()) {
+            std::cerr << "Is the external clock source connected?" << std::endl;
+            std::cerr << "Is the clock signal strength at least +3 dBm?" << 
+                std::endl;
+        }
         exit(1);
     }
 
