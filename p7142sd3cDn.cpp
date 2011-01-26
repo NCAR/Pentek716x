@@ -40,7 +40,8 @@ p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId,
         _droppedPulses(0),
         _syncErrors(0),
         _firstRawBeam(true),
-        _firstBeam(true)
+        _firstBeam(true),
+        _dataInterruptPeriod(0.0)
 {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
