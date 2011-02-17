@@ -37,6 +37,13 @@ unsigned int ddc4_1_0[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 unsigned int ddc10_0_5[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
         0, 0, 0, 0, 0, 0, 1, 10, 70, 385, 1584, 4914, 11487, 20233, 26853
         };
+
+// Gaussian filter coefficients for the decimate by 10 down converter -- flat passband
+unsigned int ddc10_0_5_flat[] = {262125, 262080, 262044, 262042, 262095, 61, 198, 301, 299,
+                                 139, 261975, 261610, 261349, 261374, 261793, 418, 1301, 1907,
+                                 1828, 827, 261161, 259077, 257593, 257677, 260039, 2667, 9240,
+                                 16338, 22348, 257930
+};
 /////////////////////////////////////////////////////////////////////////////
 BuiltinGaussian::BuiltinGaussian() {
 	init("ddc8_0_2", ddc8_0_2, sizeof(ddc8_0_2) / sizeof(unsigned int));
@@ -49,6 +56,7 @@ BuiltinGaussian::BuiltinGaussian() {
 
 	init("ddc4_1_0", ddc4_1_0, sizeof(ddc4_1_0) / sizeof(unsigned int));
     
+    init("ddc10_0_5_flat", ddc10_0_5_flat, sizeof(ddc10_0_5_flat)/ sizeof(unsigned int));
     init("ddc10_0_5", ddc10_0_5, sizeof(ddc10_0_5) / sizeof(unsigned int));
 }
 
