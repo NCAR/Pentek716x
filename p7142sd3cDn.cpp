@@ -196,76 +196,86 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
 
     if (isSimulating())
         return true;
-
-    bool kaiserLoaded;
-    bool gaussianLoaded;
-
-    int attempt;
+    
+    int ddcSelect = _chanId << 14;
 
     // program kaiser coefficients
 
-    int ddcSelect = _chanId << 14;
-    attempt = 0;
+    bool kaiserLoaded = true;
+    
+    for (unsigned int i = 0; i < kaiser.size(); i++) {
 
-    do {
-        kaiserLoaded = true;
-        for (unsigned int i = 0; i < kaiser.size(); i++) {
-            unsigned int readBack;
+        // Set up to write this coefficient
+        int ramAddr = 0;
+        int ramSelect = 0;
+        switch (_sd3c.ddcType()) {
+        case p7142sd3c::DDC10DECIMATE:
+            ramAddr = i / 10;
+            ramSelect = (i % 10) << 4;
+            break;
+        case p7142sd3c::DDC8DECIMATE:
+            ramAddr = i / 8;
+            ramSelect = (i % 8) << 4;
+            break;
+        case p7142sd3c::DDC4DECIMATE:
+            ramAddr = i / 4;
+            ramSelect = (i % 4) << 4;
+            break;
+        case p7142sd3c::BURST:   // Burst mode uses no filters
+            break;    
+        }
+        
+        _sd3c._controlIoctl(FIOREGSET, KAISER_ADDR, 
+                ddcSelect | DDC_STOP | ramSelect | ramAddr);
 
-            int ramAddr = 0;
-            int ramSelect = 0;
-            switch (_sd3c.ddcType()) {
-            case p7142sd3c::DDC10DECIMATE:
-                ramAddr = i / 10;
-                ramSelect = (i % 10) << 4;
-                break;
-            case p7142sd3c::DDC8DECIMATE:
-                ramAddr = i / 8;
-                ramSelect = (i % 8) << 4;
-                break;
-            case p7142sd3c::DDC4DECIMATE:
-                ramAddr = i / 4;
-                ramSelect = (i % 4) << 4;
-                break;
-            case p7142sd3c::BURST:   // Burst mode uses no filters
-                break;    
-            }
-            _sd3c._controlIoctl(FIOREGSET, KAISER_ADDR, 
-                    ddcSelect | DDC_STOP | ramSelect | ramAddr);
-
+        // Try up to a few times to program this filter coefficient and
+        // read it back successfully.
+        bool coeffLoaded = false;
+        for (int attempt = 0; attempt < 5; attempt++) {
             // write the value
             // LS word first
             _sd3c._controlIoctl(FIOREGSET, KAISER_DATA_LSW, kaiser[i] & 0xFFFF);
-
+    
             // then the MS word -- since coefficients are 18 bits and FPGA 
             // registers are 16 bits!
             _sd3c._controlIoctl(FIOREGSET, KAISER_DATA_MSW, 
                     (kaiser[i] >> 16) & 0x3);
-
+    
             // latch coefficient
             _sd3c._controlIoctl(FIOREGSET, KAISER_WR, 0x1);
-
+    
             // disable writing (kaiser readback only succeeds if we do this)
             _sd3c._controlIoctl(FIOREGSET, KAISER_WR, 0x0);
-
+    
             // read back the programmed value; we need to do this in two words 
             // as above.
+            unsigned int readBack;
             readBack = _sd3c._controlIoctl(FIOREGGET, KAISER_READ_LSW) | 
                    (_sd3c._controlIoctl(FIOREGGET, KAISER_READ_MSW) << 16);
 
-            if (readBack != kaiser[i]) {
-                std::cout << "kaiser readback failed for coefficient "
-                        << std::dec << i << std::hex << ", wrote " << kaiser[i]
-                        << ", read " << readBack << std::dec << std::endl;
-
-                kaiserLoaded = false;
+            if (readBack == kaiser[i]) {
+                coeffLoaded = true;
+                if (attempt != 0) {
+                    std::cout << ":" << std::hex << readBack << std::dec <<
+                            " -- OK" << std::endl;
+                }
+                break;
             } else {
-                // std::cout << "programmed kaiser " << i << std::endl;
+                if (attempt == 0) {
+                    std::cout << "kaiser[" << i << "] = " << std::hex <<
+                            kaiser[i] << ", readbacks: " << readBack <<
+                            std::dec;
+                } else {
+                    std::cout << ":" << std::hex << readBack << std::dec;
+                }
             }
-
         }
-        attempt++;
-    } while (!kaiserLoaded && attempt < 1); // was 50
+        if (! coeffLoaded) {
+            std::cout << " -- FAILED!" << std::endl;
+        }
+        
+        kaiserLoaded |= coeffLoaded;
+    }
 
     if (kaiserLoaded) {
         std::cout << kaiser.size()
@@ -275,74 +285,89 @@ bool p7142sd3cDn::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
     }
 
     // program gaussian coefficients
-    attempt = 0;
-
     // Note that the DDC select is accomplished in the kaiser filter coefficient
     // address register, which was done during the previous kaiser filter load.
-    do {
-        gaussianLoaded = true;
-        for (unsigned int i = 0; i < gaussian.size(); i++) {
 
-            unsigned int readBack;
-            int ramAddr = 0;
-            int ramSelect = 0;
-            switch (_sd3c.ddcType()) {
-            case p7142sd3c::DDC10DECIMATE:
-                ramAddr = i % 10;
-                ramSelect = (i / 10) << 4;
-                break;
-            case p7142sd3c::DDC8DECIMATE:
-                ramAddr = i % 8;
-                ramSelect = (i / 8) << 4;
-                break;    
-            case p7142sd3c::DDC4DECIMATE:
-                ramAddr = i % 12;
-                ramSelect = (i / 12) << 4;
-                break;
-            case p7142sd3c::BURST:   // Burst mode uses no filters
-                break;    
-            }
-            /// @todo early versions of the gaussian filter programming required
-            /// the ds select bits to be set in the gaussian address register.
-            /// We can take this out when we get a working bitstream with this
-            /// fixed
+    bool gaussianLoaded = true;
+    
+    for (unsigned int i = 0; i < gaussian.size(); i++) {
 
+        // Set up to write this coefficient
+        int ramAddr = 0;
+        int ramSelect = 0;
+        switch (_sd3c.ddcType()) {
+        case p7142sd3c::DDC10DECIMATE:
+            ramAddr = i % 10;
+            ramSelect = (i / 10) << 4;
+            break;
+        case p7142sd3c::DDC8DECIMATE:
+            ramAddr = i % 8;
+            ramSelect = (i / 8) << 4;
+            break;    
+        case p7142sd3c::DDC4DECIMATE:
+            ramAddr = i % 12;
+            ramSelect = (i / 12) << 4;
+            break;
+        case p7142sd3c::BURST:   // Burst mode uses no filters
+            break;    
+        }
+        /// @todo early versions of the gaussian filter programming required
+        /// the ds select bits to be set in the gaussian address register.
+        /// We can take this out when we get a working bitstream with this
+        /// fixed
+
+        // Try up to a few times to program this filter coefficient and
+        // read it back successfully.
+        bool coeffLoaded = false;
+        for (int attempt = 0; attempt < 5; attempt++) {
             // set the address
             _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_ADDR, 
                     ddcSelect | ramSelect | ramAddr);
-
+    
             // write the value
             // LS word first
             _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_DATA_LSW, 
                     gaussian[i] & 0xFFFF);
-
+    
             // then the MS word -- since coefficients are 18 bits and FPGA 
             // registers are 16 bits!
             _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_DATA_MSW, 
                     (gaussian[i] >> 16) & 0x3);
-
+    
             // latch coefficient
             _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_WR, 0x1);
-
+    
             // disable writing (gaussian readback only succeeds if we do this)
             _sd3c._controlIoctl(FIOREGSET, GAUSSIAN_WR, 0x0);
-
+    
             // read back the programmed value; we need to do this in two words 
             // as above.
+            unsigned int readBack;
             readBack = _sd3c._controlIoctl(FIOREGGET, GAUSSIAN_READ_LSW) |
                     (_sd3c._controlIoctl(FIOREGGET, GAUSSIAN_READ_MSW) << 16);
-            if (readBack != gaussian[i]) {
-                std::cout << "gaussian readback failed for coefficient "
-                        << std::dec << i << std::hex << ", wrote "
-                        << gaussian[i] << ", read " << readBack << std::endl;
-
-                gaussianLoaded = false;
+            if (readBack == gaussian[i]) {
+                coeffLoaded = true;
+                if (attempt != 0) {
+                    std::cout << ":" << std::hex << readBack << std::dec <<
+                            " -- OK" << std::endl;
+                }
+                break;
             } else {
-                // std::cout << "programmed gaussian " << i << std::endl;
+                if (attempt == 0) {
+                    std::cout << "gaussian[" << i << "] = " << std::hex <<
+                            gaussian[i] << ", readbacks: " << readBack <<
+                            std::dec;
+                } else {
+                    std::cout << ":" << std::hex << readBack << std::dec;
+                }
             }
         }
-        attempt++;
-    } while (!gaussianLoaded && attempt < 1); //was 50
+        if (! coeffLoaded) {
+            std::cout << " -- FAILED!" << std::endl;
+        }
+        
+        gaussianLoaded |= coeffLoaded;
+    }
 
     if (gaussianLoaded) {
         std::cout << gaussian.size()
