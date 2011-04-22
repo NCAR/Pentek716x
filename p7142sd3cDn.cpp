@@ -11,6 +11,7 @@
 #include "FilterSpec.h"
 #include <sys/ioctl.h>
 #include <cerrno>
+#include <cmath>
 
 using namespace boost::posix_time;
 
@@ -650,6 +651,48 @@ ptime p7142sd3cDn::timeOfPulse(int64_t nPulsesSinceStart) const {
     // Finally, add the offset to the _xmitStartTime to get the absolute
     // pulse time
     return(_sd3c._xmitStartTime + offset);
+}
+
+//////////////////////////////////////////////////////////////////////
+int64_t p7142sd3cDn::pulseAtTime(ptime time) const {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+    
+    // First get the time since transmit start, in seconds
+    double timeSinceStart = 1.0e-6 * (time - _sd3c._xmitStartTime).total_microseconds();
+    
+    // Now figure out the pulse number. Note that this should work even for
+    // times before the radar start time (yielding negative pulse number).
+    int64_t pulseNum = 0;
+    if (_sd3c._staggeredPrt) {
+        // First count the complete pairs of PRT1 and PRT2
+        double prt1 = _sd3c.prt();
+        double prt2 = _sd3c.prt2();
+        double coupletTime = prt1 + prt2;
+        pulseNum = 2 * int64_t(timeSinceStart / coupletTime);
+        // Then work with the remaining time that's a fraction of (PRT1 + PRT2)
+        double remainingTime = fmod(timeSinceStart, coupletTime);
+        double absRemainingTime = fabs(remainingTime);
+        int sign = (remainingTime < 0) ? -1 : 1;
+        
+        if (absRemainingTime > (prt1 + 0.5 * prt2)) {
+            pulseNum += sign * 2;
+        } else if (absRemainingTime > (0.5 * prt1)) {
+            // If the remainder is greater than halfway between 0 and PRT1,
+            // add 1 to the pulse count
+            pulseNum += sign;
+        }
+    } else {
+        double prt1 = _sd3c.prt();
+        pulseNum = int64_t(timeSinceStart / prt1);
+        double remainingTime = fmod(timeSinceStart, prt1);
+        int sign = (remainingTime < 0) ? -1 : 1;
+        // If the remainder is more than 1/2 a PRT, add another pulse
+        if (fabs(remainingTime) > (0.5 * prt1)) {
+            pulseNum += sign;
+        }
+    }
+    
+    return(pulseNum);
 }
 
 //////////////////////////////////////////////////////////////////////////////////

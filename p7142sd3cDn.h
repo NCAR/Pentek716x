@@ -168,6 +168,9 @@ public:
     /// @return Time of the given transmit pulse.
     boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart) const;
     
+    /// @return The closest pulse number to a given time.
+    int64_t pulseAtTime(boost::posix_time::ptime time) const;
+    
     /// @returns The length in bytes of IQ data in each beam that the
     /// is returned by getBeam(). The user of p7142sd3cDn should
     /// verify that this matches their expectations. The beam length
