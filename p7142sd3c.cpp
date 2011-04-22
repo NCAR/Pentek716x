@@ -555,4 +555,78 @@ int p7142sd3c::dataRate() {
     return rate;
 }
 
+//////////////////////////////////////////////////////////////////////
+ptime p7142sd3c::timeOfPulse(int64_t nPulsesSinceStart) const {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    // Figure out offset since transmitter start based on the pulse
+    // number and PRT(s).
+    double offsetSeconds;
+    if (_staggeredPrt) {
+        unsigned long prt1Count = nPulsesSinceStart / 2 + nPulsesSinceStart % 2;
+        unsigned long prt2Count = nPulsesSinceStart / 2;
+        offsetSeconds =  prt1Count /_prf + prt2Count / _prf2;
+    } else {
+        offsetSeconds = nPulsesSinceStart / _prf;
+    }
+    // Translate offsetSeconds to a boost::posix_time::time_duration
+    double remainder = offsetSeconds;
+    int hours = (int)(remainder / 3600);
+    remainder -= (3600 * hours);
+    int minutes = (int)(remainder / 60);
+    remainder -= (60 * minutes);
+    int seconds = (int)remainder;
+    remainder -= seconds;
+    int nanoseconds = (int)(1.0e9 * remainder);
+    int fractionalSeconds = (int)(nanoseconds *
+        (time_duration::ticks_per_second() / 1.0e9));
+    time_duration offset(hours, minutes, seconds,
+            fractionalSeconds);
+    // Finally, add the offset to the _xmitStartTime to get the absolute
+    // pulse time
+    return(_xmitStartTime + offset);
+}
+
+//////////////////////////////////////////////////////////////////////
+int64_t p7142sd3c::pulseAtTime(ptime time) const {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+    
+    // First get the time since transmit start, in seconds
+    double timeSinceStart = 1.0e-6 * (time - _xmitStartTime).total_microseconds();
+    
+    // Now figure out the pulse number. Note that this should work even for
+    // times before the radar start time (yielding negative pulse number).
+    int64_t pulseNum = 0;
+    if (_staggeredPrt) {
+        // First count the complete pairs of PRT1 and PRT2
+        double prt1 = 1.0 / _prf;
+        double prt2 = 1.0 / _prf2;
+        double pairTime = prt1 + prt2;
+        pulseNum = 2 * int64_t(timeSinceStart / pairTime);
+        // Then work with the remaining time that's a fraction of (PRT1 + PRT2)
+        double remainingTime = fmod(timeSinceStart, pairTime);
+        double absRemainingTime = fabs(remainingTime);
+        int sign = (remainingTime < 0) ? -1 : 1;
+        
+        if (absRemainingTime > (prt1 + 0.5 * prt2)) {
+            pulseNum += sign * 2;
+        } else if (absRemainingTime > (0.5 * prt1)) {
+            // If the remainder is greater than halfway between 0 and PRT1,
+            // add 1 to the pulse count
+            pulseNum += sign;
+        }
+    } else {
+        double prt1 = 1.0 / _prf;
+        pulseNum = int64_t(timeSinceStart / prt1);
+        double remainingTime = fmod(timeSinceStart, prt1);
+        int sign = (remainingTime < 0) ? -1 : 1;
+        // If the remainder is more than 1/2 a PRT, add another pulse
+        if (fabs(remainingTime) > (0.5 * prt1)) {
+            pulseNum += sign;
+        }
+    }
+    
+    return(pulseNum);
+}
+
 } // end namespace Pentek

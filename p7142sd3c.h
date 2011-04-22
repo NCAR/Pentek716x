@@ -272,6 +272,12 @@ public:
     /// in bytes per second
     int dataRate();
     
+    /// @return Time of the given transmit pulse.
+    boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart) const;
+    
+    /// @return The closest pulse number to a given time.
+    int64_t pulseAtTime(boost::posix_time::ptime time) const;
+    
     friend class p7142sd3cDn;
     
 protected:
