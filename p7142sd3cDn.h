@@ -165,6 +165,9 @@ public:
         return(0.5 * SPEED_OF_LIGHT * rcvrFirstGateDelay());
     }
     
+    /// @return Time of the given transmit pulse.
+    boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart) const;
+    
     /// @returns The length in bytes of IQ data in each beam that the
     /// is returned by getBeam(). The user of p7142sd3cDn should
     /// verify that this matches their expectations. The beam length

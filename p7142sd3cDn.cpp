@@ -621,6 +621,38 @@ void p7142sd3cDn::fifoConfig() {
 
 }
 
+//////////////////////////////////////////////////////////////////////
+ptime p7142sd3cDn::timeOfPulse(int64_t nPulsesSinceStart) const {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    // Figure out offset since transmitter start based on the pulse
+    // number and PRT(s).
+    double offsetSeconds;
+    if (_sd3c._staggeredPrt) {
+        unsigned long prt1Count = nPulsesSinceStart / 2 + nPulsesSinceStart % 2;
+        unsigned long prt2Count = nPulsesSinceStart / 2;
+        offsetSeconds =  prt1Count /_sd3c._prf + prt2Count / _sd3c._prf2;
+    } else {
+        offsetSeconds = nPulsesSinceStart / _sd3c._prf;
+    }
+    // Translate offsetSeconds to a boost::posix_time::time_duration
+    double remainder = offsetSeconds;
+    int hours = (int)(remainder / 3600);
+    remainder -= (3600 * hours);
+    int minutes = (int)(remainder / 60);
+    remainder -= (60 * minutes);
+    int seconds = (int)remainder;
+    remainder -= seconds;
+    int nanoseconds = (int)(1.0e9 * remainder);
+    int fractionalSeconds = (int)(nanoseconds *
+        (time_duration::ticks_per_second() / 1.0e9));
+    time_duration offset(hours, minutes, seconds,
+            fractionalSeconds);
+    // Finally, add the offset to the _xmitStartTime to get the absolute
+    // pulse time
+    return(_sd3c._xmitStartTime + offset);
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 //
 // ******    Buffer management and data handling in the following section    *****
