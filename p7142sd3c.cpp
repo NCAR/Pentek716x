@@ -569,19 +569,23 @@ ptime p7142sd3c::timeOfPulse(int64_t nPulsesSinceStart) const {
     } else {
         offsetSeconds = nPulsesSinceStart / _prf;
     }
-    // Translate offsetSeconds to a boost::posix_time::time_duration
-    double remainder = offsetSeconds;
-    int hours = (int)(remainder / 3600);
-    remainder -= (3600 * hours);
-    int minutes = (int)(remainder / 60);
-    remainder -= (60 * minutes);
-    int seconds = (int)remainder;
-    remainder -= seconds;
-    int nanoseconds = (int)(1.0e9 * remainder);
-    int fractionalSeconds = (int)(nanoseconds *
-        (time_duration::ticks_per_second() / 1.0e9));
-    time_duration offset(hours, minutes, seconds,
-            fractionalSeconds);
+    
+    // Convert the integer portion of the offset time to hours, minutes, and 
+    // seconds
+    int64_t iRemainder = int64_t(offsetSeconds); // truncate subseconds for h:m:s
+    int hours = iRemainder / 3600;
+    iRemainder -= (3600 * hours);
+    int minutes = iRemainder / 60;
+    iRemainder -= (60 * minutes);
+    int seconds = iRemainder;
+
+    // Convert subseconds to boost::posix_time::time_duration "ticks"
+    double subseconds = fmod(offsetSeconds, 1.0);
+    int fractionalSeconds = (int)(subseconds * time_duration::ticks_per_second());
+    
+    // Now build a boost::posix_time::time_duration to represent the offset
+    time_duration offset(hours, minutes, seconds, fractionalSeconds);
+    
     // Finally, add the offset to the _xmitStartTime to get the absolute
     // pulse time
     return(_xmitStartTime + offset);
