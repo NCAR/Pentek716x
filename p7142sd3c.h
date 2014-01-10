@@ -1,10 +1,3 @@
-/*
- * p7172sd3c.h
- *
- *  Created on: Jan 26, 2009
- *      Author: sd3c
- */
-
 #ifndef P7142SD3C_H_
 #define P7142SD3C_H_
 
@@ -22,9 +15,11 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
+
 namespace Pentek {
 
-/// A p7142 class specialized for cards running the SD3C firmware.
+/// @brief A p7142 class specialized for cards running the SD3C firmware.
 ///
 /// <h2>The SD3C firmware</h2>
 /// The Pentek 7142 and the associated SD3C firmware support four 
@@ -47,9 +42,7 @@ public:
         DDC10DECIMATE, DDC8DECIMATE, DDC4DECIMATE, BURST
     } DDCDECIMATETYPE;
 
-    /// Constructor.
-    /// @param devName The top level device name (e.g.,
-    /// /dev/pentek/p7142/0. Use ok() to verify successful construction.
+    /// @brief Constructor.
     /// @param simulate Set true for simulation mode.
     /// @param tx_delay the delay for the tx pulse in seconds
     /// @param tx_pulsewidth the length of the transmit pulse in seconds
@@ -72,16 +65,35 @@ public:
     /// @param externalStartTrigger If true, an external trigger source
     ///     (generally a 1 PPS signal from a GPS clock) is used to start the 
     ///     radar.
-    p7142sd3c(std::string devName, bool simulate, double tx_delay, 
-        double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
-        unsigned int gates, unsigned int nsum, bool freeRun,
-        DDCDECIMATETYPE simulateDDCType, bool externalStartTrigger = false);
+    /// @param simPauseMS The number of milliseconds to wait between beams
+    ///     simulated data when calling read()
+    /// @param useFirstCard If true, use the first card in the system. Otherwise,
+    ///     the next card will be searched for.
+    /// @param rim If true, we are operating in RIM mode.
+    p7142sd3c(
+    		bool simulate,
+    		double tx_delay,
+    		double tx_pulsewidth,
+    		double prt,
+    		double prt2,
+    		bool staggeredPrt,
+    		unsigned int gates,
+    		unsigned int nsum,
+    		bool freeRun,
+    		DDCDECIMATETYPE simulateDDCType,
+    		bool externalStartTrigger = false,
+    		double simPauseMS = 50,
+    		bool useFirstCard = false,
+    		bool rim = false
+    		);
     
     /// Destructor.
     virtual ~p7142sd3c();
     
-    /// Construct and add a downconverter for one of our receiver channels.
+    /// @brief Construct and add a downconverter for one of our receiver channels.
     /// @param chanId The channel identifier (0-3)
+    /// @param dmaDescSize Size of a DMA descriptor. This is the spacing, in
+    ///     bytes, between user-space interrupts to read DMA memory.
     /// @param burstSampling Set true if burst sampling should be used for this 
     ///     channel. Burst sampling implies that gates will be as short as the 
     ///     card's sampling clock will allow. The rx_pulsewidth and the sampling
@@ -96,188 +108,308 @@ public:
     ///     filter parameters
     /// @param kaiserFile Name of the file containing the Kaiser
     ///     filter parameters
-    /// @param simPauseMS The number of milliseconds to wait between beams
-    ///     simulated data when calling read()
     /// @param simWaveLength The wavelength of the simulated data, in sample 
     ///     counts
     /// @param internalClock Set to true if the Pentek card's internal clock
     ///     should be used
     virtual p7142sd3cDn * addDownconverter(
             int chanId, 
+            uint32_t dmaDescSize,
             bool burstSampling,
             int tsLength,
             double rx_delay, 
             double rx_pulse_width,
             std::string gaussianFile, 
             std::string kaiserFile,
-            double simPauseMS = 0.1,
             int simWaveLength = 5000,
             bool internalClock = false);
     
+    /// @return The sd3c firmware revision number.
+    int sd3cRev() const;
+
+    /// @brief Stop the DMA for a specified downconverter
+    /// @param chan The desired channel
+    void stopDMA(int chan);
+
+    /// @brief Return the ADC clock frequency in Hz.
     /// @return The ADC clock frequency in Hz.
     double adcFrequency() const {
         return _adc_clock;
     }
     
-    /// Convert a time in seconds to integer timer counts, which are in units
+    /// @brief Convert a time in seconds to integer timer counts, which are in units
     /// of (2 / _adc_clock).
     /// @ param time the time to be converted, in seconds
     /// @ return the time in integer timer counts, which are in units of
     /// (2 / _adc_clock) seconds.
     int timeToCounts(double time) const;
     
-    /// Convert a time in (2 / _adc_clock) integer timer counts to
+    /// @brief Convert a time in (2 / _adc_clock) integer timer counts to
     /// a time in seconds.
     /// @ param time the time to be converted, in (2 / _adc_clock) counts.
     /// @ return the time in seconds.
     double countsToTime(int counts) const;
     
-    /// Start or stop the 8 SD3C timers. If starting the timers, actual timer
+    /// @brief Start or stop the 8 SD3C timers.
+    ///
+    /// If starting the timers, actual timer
     /// start will occur at the next trigger event (which may be internal or
     /// external, depending on the setting of externalStartTrigger at 
     /// construction.
     /// @param start Set true to start, set false to stop.
     void timersStartStop(bool start);
     
+    /// @brief Return the time of the first transmit pulse.
     /// @return Time of first transmit pulse
     boost::posix_time::ptime xmitStartTime() const {
         return _xmitStartTime;
     }
 
+    /// @brief Return the first PRT, in seconds.
     /// @return The first PRT, in seconds
     double prt() const {
         return countsToTime(_prtCounts);
     }
     
+    /// @brief Return the first PRT, in units of (2 / adcFrequency())
     /// @return The first PRT, in units of (2 / adcFrequency())
     unsigned int prtCounts() const {
         return _prtCounts;
     }
     
+    /// @brief Return the second PRT, in seconds. Return zero if not
+    /// running with staggered PRT.
     /// @return The second PRT, in seconds, or zero if not running staggered
     /// PRT.
     double prt2() const {
         return countsToTime(_prt2Counts);
     }
     
+    /// @brief Return the second PRT, in units of (2 / adcFrequency()), or
+    ///     zero if not running staggered PRT.
     /// @return The second PRT, in units of (2 / adcFrequency()), or
     ///     zero if not running staggered PRT.
     unsigned int prt2Counts() const {
         return(_staggeredPrt ? _prt2Counts : 0);
     }
     
-    /// @return The FPGA firmware software repository revision number.
-    unsigned int fpgaRepoRevision() const { return _fpgaRepoRev; }
-
-    /// Set the time of the first transmit pulse.
+    /// @brief Set the time of the first transmit pulse.
     /// @param startTime The boost::posix_time::ptime of the first transmit
     ///    pulse.
     void setXmitStartTime(boost::posix_time::ptime startTime) {
         _xmitStartTime = startTime;
     }
-    /// Read the ttl input lines from the fpga
+
+    /// @brief Are we operating in range imaging mode?
+    /// @return True if operating in RIM mode.
+    bool rim();
+
+    /// @brief Read the ttl input lines from the fpga
     /// @return The input line values.
     unsigned short int TTLIn();
 
-    /// Set the ttl output lines on the FPGA.
+    /// @brief Set the ttl output lines on the FPGA.
     /// @param data The value to be written.
     void TTLOut(unsigned short int data);
 
-    /// Return our DDC type
+    /// @brief Return the DDC type instantiated in our card's firmware
     /// @return the DDC type instantiated in our card's firmware
-    DDCDECIMATETYPE ddcType() const { return _ddcType; }
-    
-    /// Return the name of the firmware DDC type
-    /// @return the name of the firmware DDC type
-    std::string ddcTypeName() const { return ddcTypeName(_ddcType); }
-    
-    /// Return the name of the given DDCDECIMATETYPE
-    static std::string ddcTypeName(DDCDECIMATETYPE type) {
-        switch (type) {
-        case DDC10DECIMATE:
-            return std::string("DDC10DECIMATE");
-        case DDC8DECIMATE:
-            return std::string("DDC8DECIMATE");
-        case DDC4DECIMATE:
-            return std::string("DDC4DECIMATE");
-        case BURST:
-            return std::string("BURST");
-        default:
-            return std::string("Unknown");
-        }
-    }
+    DDCDECIMATETYPE ddcType() const { return(_ddcType); }
 
-    /// Set the filter start bit, which starts the data flow for all channels.
+    /// @brief Return the DDC decimation factor associated with the currently
+    /// loaded firmware.
+    /// @return the DDC decimation factor associated with the currently
+    /// loaded firmware.
+    uint16_t ddcDecimation() const;
+    
+    /// @brief Return the name of the firmware DDC type
+    /// @return the name of the firmware DDC type
+    std::string ddcTypeName() const;
+    
+    /// @brief Return the name of the given DDCDECIMATETYPE
+    /// @return the name of the given DDCDECIMATETYPE
+    static std::string ddcTypeName(DDCDECIMATETYPE type);
+
+    /// @brief Start the fifos and the filters.
+    /// Enable the gate generator, which will enable all of the fen
+    /// generators at the same time. This  is how the downconverters are all
+    /// phase synchronized.Follow this with clear the filter stop bit,
+    /// which starts the filter coefficient counters running.
     void startFilters();
 
-    /// Stop the filters
+    /// @brief Stop the fifos and filters.
+    /// Set the filter stop bit, which stops the filter coefficient
+    /// counters and resets them. Follow this with disabling the gate generator,
+    /// which will disable all of the fen generators at the same time.
     void stopFilters();
     
-    /// The transmit pulse width, in seconds
+    /// @brief Return the transmit pulse width, in seconds
     /// @return the transmit pulse width, in seconds
-    double txPulseWidth() const { return countsToTime(txPulseWidthCounts()); }
+    double txPulseWidth() const;
     
-    /// Return the transmit pulse width, in local counts, which are units of 
+    /// @brief Return the transmit pulse width, in local counts, which are units of
     /// (2 / adc_freq) seconds.
-    int txPulseWidthCounts() const { return _timerWidth(TX_PULSE_TIMER); }
+    int txPulseWidthCounts() const;
     
-    /// Set up general purpose timer 0. This timer is not used internally by
+    /// @brief Set up general purpose timer 0. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
     /// @param invert true if the timer output should be inverted
-    void setGPTimer0(double delay, double width, bool invert = false) {
-        _setTimer(GP_TIMER_0, timeToCounts(delay), timeToCounts(width), true, invert);
-    }
+    void setGPTimer0(double delay, double width, bool invert = false);
     
-    /// Set up general purpose timer 1. This timer is not used internally by
+    /// @brief Set up general purpose timer 1. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
     /// @param invert true if the timer output should be inverted
-    void setGPTimer1(double delay, double width, bool invert = false) {
-        _setTimer(GP_TIMER_1, timeToCounts(delay), timeToCounts(width), true, invert);
-    }
+    void setGPTimer1(double delay, double width, bool invert = false);
     
-    /// Set up general purpose timer 2. This timer is not used internally by
+    /// @brief Set up general purpose timer 2. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
     /// @param invert true if the timer output should be inverted
-    void setGPTimer2(double delay, double width, bool invert = false) {
-        _setTimer(GP_TIMER_2, timeToCounts(delay), timeToCounts(width), true, invert);
-    }
+    void setGPTimer2(double delay, double width, bool invert = false);
     
-    /// Set up general purpose timer 3. This timer is not used internally by
+    /// @brief Set up general purpose timer 3. This timer is not used internally by
     /// SD3C, but is made available on an external pin.
     /// @param delay the delay for the timer, in seconds
     /// @param width the width for the timer pulse, in seconds
-    void setGPTimer3(double delay, double width, bool invert = false) {
-        _setTimer(GP_TIMER_3, timeToCounts(delay), timeToCounts(width), true, invert);
-    }
+    /// @param invert true if the timer output should be inverted
+    void setGPTimer3(double delay, double width, bool invert = false);
     
-    /// Return the number of gates being sampled by our non-burst downconverters.
+    /// @brief Return the number of gates being sampled by our non-burst downconverters.
     /// @return the number of gates being sampled by our non-burst 
     ///     downconverters
-    unsigned int gates() const { return _gates; }
+    unsigned int gates() const;
     
-    /// Return the number of pulses to sum for coherent integration, used by
-    /// all of our non-burst downconverters. It represents the number of
+    /// @brief Return the number of pulses to sum for coherent integration, used by
+    /// all of our non-burst downconverters.
+    ///
+    /// It represents the number of
     /// beams which go into an even beam accumulation, and likewise the
     /// number of beams which go into an odd beam accumulation.
     /// If nsum == 1, coherent integration is disabled.
-    unsigned int nsum() const { return _nsum; }
+    unsigned int nsum() const;
     
+    /// @brief Return the expected data bandwidth from a (non-burst) receiver channel
+    /// in bytes per second
     /// @return The expected data bandwidth from a (non-burst) receiver channel 
     /// in bytes per second
     int dataRate();
-    
+
+    ////////////////////////////////////////////////////////////////////////
+    /// @brief Return the time of the given transmit pulse.
     /// @return Time of the given transmit pulse.
-    boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart) const;
+    /// This method is inlined because it gets called a lot,
+    /// and removing the call overhead helps things noticeably.
+
+    inline boost::posix_time::ptime
+      timeOfPulse(int64_t nPulsesSinceStart) const {
+
+        // Figure out offset since transmitter start based on the pulse
+        // number and PRT(s).
+        //
+        // NOTE: nPulsesSinceStart is 1-based
+
+        double offsetSeconds;
+        int64_t count = nPulsesSinceStart - 1;
+        if (_staggeredPrt) {
+          unsigned long prt2Count = count / 2;
+          unsigned long prt1Count = prt2Count + count % 2;
+          offsetSeconds = (prt1Count * _prt) + (prt2Count * _prt2);
+        } else {
+          offsetSeconds = count * _prt;
+        }
+
+        // Convert subseconds to boost::posix_time::time_duration "ticks"
+        double subseconds = fmod(offsetSeconds, 1.0);
+        int fractionalSeconds = 
+            (int)(subseconds * 
+                  boost::posix_time::time_duration::ticks_per_second());
+
+        // Now construct a boost::posix_time::time_duration from the
+        // seconds and fractional seconds
+        boost::posix_time::time_duration
+          offset(0, 0, long(offsetSeconds), fractionalSeconds);
+
+        // Finally, add the offset to the _xmitStartTime to get the absolute
+        // pulse time
+
+        return(_xmitStartTime + offset);
+
+    }
     
+    ////////////////////////////////////////////////////////////////////////
+    /// @brief Return the time of the given transmit pulse.
+    /// @return Time of the given transmit pulse.
+    /// Also sets the time in seconds and nano seconds
+
+    inline boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart,
+                                                int64_t &secondsSinceEpoch,
+                                                int64_t &secondsSinceStart,
+                                                int64_t &nanoSeconds) const
+    {
+
+      // Figure out offset since transmitter start based on the pulse
+      // number and PRT(s).
+      //
+      // NOTE: nPulsesSinceStart is 1-based
+      
+      double offsetSeconds;
+      int64_t count = nPulsesSinceStart - 1;
+      if (_staggeredPrt) {
+        unsigned long prt2Count = count / 2;
+        unsigned long prt1Count = prt2Count + count % 2;
+        offsetSeconds = (prt1Count * _prt) + (prt2Count * _prt2);
+      } else {
+        offsetSeconds = count * _prt;
+      }
+      
+      // Compute seconds and nanoseconds
+
+      secondsSinceStart = (int64_t) offsetSeconds;
+      double subseconds = fmod(offsetSeconds, 1.0);
+      nanoSeconds = (int64_t) (subseconds * 1.0e9 + 0.5);
+
+      int fractionalSeconds = 
+        (int)(subseconds *
+              boost::posix_time::time_duration::ticks_per_second());
+      
+      // Now construct a boost::posix_time::time_duration from the
+      // seconds and fractional seconds
+
+      boost::posix_time::time_duration
+        offset(0, 0, long(offsetSeconds), fractionalSeconds);
+      
+      // Finally, add the offset to the _xmitStartTime to get the absolute
+      // pulse time
+
+      boost::posix_time::ptime pulseTime =
+        _xmitStartTime + offset;
+      boost::posix_time::time_duration
+        timeFromEpoch = pulseTime - Epoch1970;
+      secondsSinceEpoch = timeFromEpoch.total_seconds();
+
+      return pulseTime;
+
+    }
+    
+    /// @brief Return the closest pulse number to a given time.
     /// @return The closest pulse number to a given time.
+
     int64_t pulseAtTime(boost::posix_time::ptime time) const;
     
+    /// @brief Momentarily set the "zero motor counts" bit in the TTL_OUT1
+    /// register. This causes the firmware to zero the quadrature counts for all
+    /// motors being monitored.
+    void zeroMotorCounts();
+
+    /// Epoch - 1970-01-01 00:00:00 UTC
+
+    static const boost::posix_time::ptime Epoch1970;
+
     friend class p7142sd3cDn;
     
 protected:
@@ -334,9 +466,7 @@ protected:
      *     interest
      * @return the timer delay in counts
      */
-    int _timerDelay(int timerNdx) const {
-        return(_timerConfigs[timerNdx].delay());
-    }
+    int timerDelay(int timerNdx) const;
     
     /**
      * Return timer width in counts for the selected timer. While
@@ -346,9 +476,7 @@ protected:
      *     interest
      * @return the timer width in counts
      */
-    int _timerWidth(int timerNdx) const {
-        return(_timerConfigs[timerNdx].width());
-    }
+    int timerWidth(int timerNdx) const;
     
     /**
      * Return timer invert flag for the selected timer. While
@@ -358,38 +486,25 @@ protected:
      *     interest
      * @return true if the timer is inverted
      */
-    bool _timerInvert(int timerNdx) const {
-        return(_timerConfigs[timerNdx].invert());
-    }
+    bool timerInvert(int timerNdx) const;
     
-    /**
-     * Set delay and width values for the selected timer. Note that values
-     * set here are not actually loaded onto the card until the timers are 
-     * started with timersStartStop().
-     * 
-     * @param ndx the TimerIndex for the timer to be set
-     * @param delay the delay in counts for the timer
-     * @param width the width in counts for the timer to be held on
-     * @param verbose set to true for verbose output
-     * @param invert set true to invert the timer output
-     */
-    void _setTimer(TimerIndex ndx, int delay, int width, bool verbose = true, bool invert = false);
+    /// Set delay and width values for the selected timer. Note that values
+    /// set here are not actually loaded onto the card until the timers are
+    /// started with timersStartStop().
+    /// @param ndx the TimerIndex for the timer to be set
+    /// @param delay the delay in counts for the timer
+    /// @param width the width in counts for the timer to be held on
+    /// @param verbose set to true for verbose output
+    /// @param invert set true to invert the timer output
+    void setTimer(TimerIndex ndx, int delay, int width, bool verbose = true, bool invert = false);
     
     /// Load configured timer values onto the device.
     /// @return true if successful, false otherwise.
-    bool _initTimers();
+    bool initTimers();
     
-    /**
-     * Load the device's FREERUN register.
-     */
-    void _loadFreeRun();
-
-    /// @return Read the type of DDC instantiated in the firmware
-    DDCDECIMATETYPE _readDDCType();
-    
-    /// @return Read and return the FPGA firmware software repository revision 
-    /// number from the card.
-    unsigned int _readFpgaRepoRevision();
+    /// If _freerun is true, set the FREERUN bit in the
+    /// transceiver control register. Otherwise clear it.
+    void loadFreeRun();
 
     /**
      * Simple class to hold integer delay and width for a timer.
@@ -410,16 +525,29 @@ protected:
         bool _invert;
     };
     
-    /// The three operating modes: free run, pulse tag and coherent integration
-    typedef enum { MODE_FREERUN, MODE_PULSETAG, MODE_CI } OperatingMode;
+    /// The three operating modes: free run, pulse tag, coherent integration, and coherent integration with RIM.
+    typedef enum { MODE_FREERUN, MODE_PULSETAG, MODE_CI, MODE_CI_RIM} OperatingMode;
     
     /// Return our operating mode: free run, pulse tag and coherent integration.
     /// @return operating mode: free run, pulse tag and coherent integration.
     OperatingMode _operatingMode() const { return _mode; }
     
-    /**
-     * vector of delay/width pairs for our 8 SD3C timers
-     */
+    /// @return The sd3c DDC type and software repository revision
+    /// number, as read from the FPGA.
+    unsigned int _sd3cTypeAndRev();
+
+    /// @brief Unpack the DDC type instantiated in our card's firmware
+    /// @return the DDC type instantiated in our card's firmware
+    DDCDECIMATETYPE _unpackDdcType();
+
+    /// @brief Unpack the SD3C firmware revision number.
+    /// @return the unpacked sd3c firmware revision number.
+    int _unpackSd3cRev();
+
+    /// Pointer to the sd3c transceiver control register in the fpga.
+    uint32_t* tcvrCtrlReg;
+
+     /// Vector of delay/width pairs for our 8 SD3C timers
     _TimerConfig _timerConfigs[N_SD3C_TIMERS];
     /// radar PRT in _adc_clock/2 counts
     unsigned int _prtCounts;
@@ -433,10 +561,12 @@ protected:
     bool _freeRun;
     /// Time of the first xmit pulse.
     boost::posix_time::ptime _xmitStartTime;
-    /// peek-poke structure pointer
-    ARG_PEEKPOKE _pp;
     /// The adc clock rate in Hz
     double _adc_clock;
+    /// The prt in seconds
+    double _prt;
+    /// The dual prt in seconds
+    double _prt2;
     /// The prf(s) in Hz
     double _prf;
     /// The dual prf in Hz.
@@ -450,12 +580,14 @@ protected:
     DDCDECIMATETYPE _ddcType;
     /// DDC type to use when simulating (default DDC8DECIMATE).
     DDCDECIMATETYPE _simulateDDCType;
+    /// The SD3C firmware revision number
+    int _sd3cRev;
     /// The three operating modes: free run, pulse tag and coherent integration
     OperatingMode _mode;
-    /// The revision number reported by the FPGA firmware
-    unsigned int _fpgaRepoRev;
     /// Does radar start wait for an external trigger?
     bool _externalStartTrigger;
+    /// Are we operating in range imaging mode?
+    bool _rim;
 };
 
 }

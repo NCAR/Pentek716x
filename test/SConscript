@@ -7,12 +7,14 @@ boost_date_time
 boost_program_options
 doxygen
 qt4
+logx
 """)
 
 sources = Split("""
 capture.cpp
 dactest.cpp
 dacdump.cpp
+toggle_7142_leds.cpp
 """)
 
 headers = Split("""
@@ -20,7 +22,7 @@ headers = Split("""
 
 env = Environment(tools = ['default'] + tools)
 
-html = env.Apidocs(sources + headers, DOXYFILE_FILE = "Doxyfile")
+html = env.Apidocs(sources + headers)
 
 capture = env.Program('capture', 'capture.cpp')
 
@@ -28,5 +30,9 @@ dactest = env.Program('dactest', 'dactest.cpp')
 
 dacdump = env.Program('dacdump', 'dacdump.cpp')
 
-Default(capture, dactest, dacdump, html)
+toggle_7142_leds = env.Program('toggle_7142_leds', 'toggle_7142_leds.cpp')
+
+# TODO dacdump does not currently compile!
+#Default(capture, dactest, dacdump, toggle_7142_leds, html)
+Default(capture, dactest, toggle_7142_leds, html)
 

@@ -5,31 +5,20 @@ import eol_scons
 
 # Any environment setting will be the default, but it can be overridden by
 # setting the configuration variable.
-PENTEK_ROOT = "/opt/Pentek/P7140driver-2.3/Linux"
-try:
-    PENTEK_ROOT = os.environ['PENTEK_ROOT']
-except KeyError:
-    pass
 
 variables = eol_scons.GlobalVariables()
-variables.AddVariables(PathVariable('PENTEK_ROOT', 'PENTEK_ROOT directory.', 
-                                    PENTEK_ROOT))
-
-PENTEK_INCLUDE = os.path.join('$PENTEK_ROOT', 'include')
 
 tools = Split("""
 boost_mutex
+readyflow
 doxygen
 """)
 
 env = Environment(tools = ['default'] + tools)
 
 variables.Update(env)
-env.AppendUnique(CPPPATH   =[PENTEK_INCLUDE,])
-env.AppendUnique(CPPDEFINES=['PENTEK_LINUX',])
 
 libsources = Split("""
-p71xx.cpp
 p7142.cpp
 p7142Dn.cpp
 p7142Up.cpp
@@ -48,7 +37,6 @@ p7142Dn.h
 p7142Up.h
 p7142sd3c.h
 p7142sd3cDn.h
-p71xx.h
 BuiltinFilters.h
 BuiltinGaussian.h
 BuiltinKaiser.h
@@ -58,18 +46,20 @@ SingleMutex.h
 """)
 
 libpentek = env.Library('pentek', libsources)
+Default(libpentek)
 
-html = env.Apidocs(libsources + headers, DOXYFILE_FILE = "Doxyfile")
-
-Default(libpentek, html)
+html = env.Apidocs(libsources + headers, DOXYFILE_DICT={'PROJECT_NAME':'pentek', 'PROJECT_NUMBER':'1.0'})
+Default(html)
 
 thisdir = env.Dir('.').srcnode().abspath
 def pentek(env):
-    env.AppendUnique(CPPPATH   =[thisdir, PENTEK_INCLUDE,])
-    env.AppendUnique(CPPDEFINES=['PENTEK_LINUX',])
+    env.AppendUnique(CPPPATH   =[thisdir,])
     env.AppendLibrary('pentek')
+    env.AppendLibrary('boost_thread-mt')
+    env.AppendLibrary('pthread')
     env.AppendDoxref('pentek')
     env.Require(tools)
 
 Export('pentek')
 
+SConscript("test/SConscript")

@@ -196,10 +196,11 @@ int main(int argc, char** argv) {
 	makeRealTime();
 
     // Instantiate our p7142 object and create the downconverter on it
-	Pentek::p7142sd3c sd3c(_devRoot, false, 0, _pulseWidth, _prt, _prt2, 
+	Pentek::p7142sd3c sd3c(false, 0, _pulseWidth, _prt, _prt2, 
 	        _stgrPrt, _gates, _nsum, _freeRun, Pentek::p7142sd3c::DDC8DECIMATE);
-	Pentek::p7142sd3cDn & downConverter = *sd3c.addDownconverter(_chanId, false, 
-	        _tsLength, 0, _pulseWidth, _gaussianFile, _kaiserFile);
+	Pentek::p7142sd3cDn & downConverter = *sd3c.addDownconverter(_chanId, 
+	        4 * 512 * 1024, false, _tsLength, 0, _pulseWidth, _gaussianFile, 
+	        _kaiserFile);
 	
 
 	sd3c.startFilters();
@@ -230,13 +231,10 @@ int main(int argc, char** argv) {
 				double elapsed = nowTime() - startTime;
 				double bw = (total / elapsed) / 1.0e6;
 
-				int overruns = downConverter.overUnderCount();
-
 				std::cout
 				<< "total "   << std::setw(5) << mb << " MB,  "
 				<< "elapsed " << std::setw(8) << elapsed << " s, "
-				<< "BW "      << std::setprecision(4) << std::setw(5) << bw << " MB/s, "
-				<< "overruns: " << overruns << "\n";
+				<< "BW "      << std::setprecision(4) << std::setw(5) << bw << " MB/s, ";
 			}
 
 		}

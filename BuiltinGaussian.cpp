@@ -31,7 +31,7 @@ unsigned int ddc8_1_0[] = { 4, 8, 15, 26, 45, 77, 126, 202, 314,
 // Gaussian filter coefficients for the decimate by 4 down converter
 unsigned int ddc4_1_0[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 		3, 6, 14, 32, 66, 132, 249, 450, 772, 1262, 1964, 2910, 4105, 5513,
-		7048, 8579, 9941, 10968, 1152};
+		7048, 8579, 9941, 10968, 11521};
         
 // Gaussian filter coefficients for the decimate by 10 down converter
 unsigned int ddc10_0_5[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
