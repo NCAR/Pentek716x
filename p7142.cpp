@@ -199,7 +199,9 @@ p7142::_initReadyFlow() {
     DWORD dwStatus = PTK714X_LibInit();
     if (dwStatus != PTK714X_STATUS_OK)
     {
-      ELOG << "Failed to initialize the PTK714X library. Make sure that windrvr6 is loaded (did you do a kernel upgrade recently?).";
+      ELOG << "Failed to initialize the PTK714X library.";
+      ELOG << "Make sure that windrvr6 is loaded (did you do a kernel upgrade recently?).";
+      ELOG << "Also make sure you have read permission on /dev/windrvr6.";
       return false;
     }
 
