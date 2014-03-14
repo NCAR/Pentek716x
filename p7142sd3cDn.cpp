@@ -1351,6 +1351,10 @@ p7142sd3cDn::makeSimData(int n) {
             for (int i = 0; i < 4; i++) {
                 _simFifo.push_back(p[i]);
             }
+            // Add all-zero metadata
+            for (int i = 0; i < ptMetadataLen(); i++) {
+                _simFifo.push_back(0);
+            }
             // Add IQ data. Occasionally drop some data
             bool doBadSync = ((1.0 * rand())/RAND_MAX) < 5.0e-6;
             doBadSync = false;
