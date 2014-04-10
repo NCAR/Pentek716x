@@ -379,7 +379,7 @@ void p7142sd3c::timersStartStop(bool start) {
             P7142_REG_WRITE(_BAR2Base + MT_ADDR, ALL_SD3C_TIMER_BITS | ADDR_TRIG);
             usleep(p7142::P7142_IOCTLSLEEPUS);
         }
-        DLOG << "Timers/radar start time " << _xmitStartTime;
+        DLOG << "Timers/radar start time " << _radarStartTime;
     } else {
     	P7142_REG_WRITE(_BAR2Base + MT_ADDR, ALL_SD3C_TIMER_BITS);
         usleep(p7142::P7142_IOCTLSLEEPUS);
@@ -703,7 +703,7 @@ int64_t p7142sd3c::pulseAtTime(ptime time) const {
     boost::recursive_mutex::scoped_lock guard(_p7142Mutex);
     
     // First get the time since transmit start, in seconds
-    double timeSinceStart = 1.0e-6 * (time - _xmitStartTime).total_microseconds();
+    double timeSinceStart = 1.0e-6 * (time - _radarStartTime).total_microseconds();
     
     // Now figure out the pulse number. Note that this should work even for
     // times before the radar start time (yielding negative pulse number).

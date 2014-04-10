@@ -159,10 +159,10 @@ public:
     /// @param start Set true to start, set false to stop.
     void timersStartStop(bool start);
     
-    /// @brief Return the time of the first transmit pulse.
-    /// @return Time of first transmit pulse
-    boost::posix_time::ptime xmitStartTime() const {
-        return _xmitStartTime;
+    /// @brief Return the time of the first pulse sample.
+    /// @return Time of first pulse sample
+    boost::posix_time::ptime radarStartTime() const {
+        return _radarStartTime;
     }
 
     /// @brief Return the first PRT, in seconds.
@@ -197,7 +197,7 @@ public:
     /// @param startTime The boost::posix_time::ptime of the first transmit
     ///    pulse.
     void setXmitStartTime(boost::posix_time::ptime startTime) {
-        _xmitStartTime = startTime;
+        _radarStartTime = startTime;
     }
 
     /// @brief Are we operating in range imaging mode?
@@ -348,10 +348,10 @@ public:
         boost::posix_time::time_duration
           offset(0, 0, long(offsetSeconds), fractionalSeconds);
 
-        // Finally, add the offset to the _xmitStartTime to get the absolute
+        // Finally, add the offset to the _radarStartTime to get the absolute
         // pulse time
 
-        return(_xmitStartTime + offset);
+        return(_radarStartTime + offset);
 
     }
 
@@ -395,11 +395,11 @@ public:
       boost::posix_time::time_duration
         offset(0, 0, long(offsetSeconds), fractionalSeconds);
       
-      // Finally, add the offset to the _xmitStartTime to get the absolute
+      // Finally, add the offset to the _radarStartTime to get the absolute
       // pulse time
 
       boost::posix_time::ptime pulseTime =
-        _xmitStartTime + offset;
+        _radarStartTime + offset;
       boost::posix_time::time_duration
         timeFromEpoch = pulseTime - Epoch1970;
       secondsSinceEpoch = timeFromEpoch.total_seconds();
@@ -572,7 +572,7 @@ protected:
     /// gating.
     bool _freeRun;
     /// Time of the first xmit pulse.
-    boost::posix_time::ptime _xmitStartTime;
+    boost::posix_time::ptime _radarStartTime;
     /// The adc clock rate in Hz
     double _adc_clock;
     /// The prt in seconds
