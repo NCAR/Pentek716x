@@ -299,15 +299,13 @@ public:
     /// in bytes per second
     int dataRate();
 
-    ////////////////////////////////////////////////////////////////////////
-    /// @brief Return the time of the given transmit pulse.
-    /// @return Time of the given transmit pulse.
-    /// This method is inlined because it gets called a lot,
-    /// and removing the call overhead helps things noticeably.
-
-    inline boost::posix_time::ptime
-      timeOfPulse(int64_t nPulsesSinceStart) const {
-
+    /// @brief Return the offset time of the given pulse, in seconds since
+    /// the radar start time. This method is inlined because it is called
+    /// *very* frequently.
+    /// @param nPulsesSinceStart the pulse number for which the time is wanted
+    /// @return the offset time of the given pulse, in seconds since
+    /// the radar start time.
+    inline double offsetSecondsOfPulse(uint64_t nPulsesSinceStart) const {
         // Figure out offset since transmitter start based on the pulse
         // number and PRT(s).
         //
@@ -322,6 +320,22 @@ public:
         } else {
           offsetSeconds = count * _prt;
         }
+        
+        return(offsetSeconds);
+    }
+    
+    ////////////////////////////////////////////////////////////////////////
+    /// @brief Return the time of the given transmit pulse.
+    /// @param nPulsesSinceStart the pulse number for which the time is wanted
+    /// @return Time of the given transmit pulse.
+    /// This method is inlined because it gets called a lot,
+    /// and removing the call overhead helps things noticeably.
+
+    inline boost::posix_time::ptime
+      timeOfPulse(int64_t nPulsesSinceStart) const {
+
+        // Get the offset since radar start.
+        double offsetSeconds = offsetSecondsOfPulse(nPulsesSinceStart);
 
         // Convert subseconds to boost::posix_time::time_duration "ticks"
         double subseconds = fmod(offsetSeconds, 1.0);
@@ -340,38 +354,36 @@ public:
         return(_xmitStartTime + offset);
 
     }
-    
+
     ////////////////////////////////////////////////////////////////////////
-    /// @brief Return the time of the given transmit pulse.
+    /// @brief Return the time of the given transmit pulse, and set the values
+    /// of the given references to the pulse's (integer) seconds since Epoch, 
+    /// (integer) seconds since radar start time, and (integer) nanoseconds 
+    /// into the second for each of those values.
+    /// @param[in] nPulsesSinceStart the pulse number for which the time is wanted
+    /// @param[out] secondsSinceEpoch pulse time in integer seconds since the
+    /// Epoch
+    /// @param[out] secondsSinceStart pulse time in integer seconds since radar
+    /// start
+    /// @param[out] nanoSeconds pulse time subsecond time, in nanoseconds since
+    /// the top of the second
     /// @return Time of the given transmit pulse.
-    /// Also sets the time in seconds and nano seconds
 
     inline boost::posix_time::ptime timeOfPulse(int64_t nPulsesSinceStart,
                                                 int64_t &secondsSinceEpoch,
                                                 int64_t &secondsSinceStart,
                                                 int64_t &nanoSeconds) const
     {
+      // Get the offset since radar start.
+        
+      double offsetSeconds = offsetSecondsOfPulse(nPulsesSinceStart);
 
-      // Figure out offset since transmitter start based on the pulse
-      // number and PRT(s).
-      //
-      // NOTE: nPulsesSinceStart is 1-based
-      
-      double offsetSeconds;
-      int64_t count = nPulsesSinceStart - 1;
-      if (_staggeredPrt) {
-        unsigned long prt2Count = count / 2;
-        unsigned long prt1Count = prt2Count + count % 2;
-        offsetSeconds = (prt1Count * _prt) + (prt2Count * _prt2);
-      } else {
-        offsetSeconds = count * _prt;
-      }
       
       // Compute seconds and nanoseconds
 
-      secondsSinceStart = (int64_t) offsetSeconds;
+      secondsSinceStart = int64_t(offsetSeconds);
       double subseconds = fmod(offsetSeconds, 1.0);
-      nanoSeconds = (int64_t) (subseconds * 1.0e9 + 0.5);
+      nanoSeconds = int64_t(subseconds * 1.0e9 + 0.5);
 
       int fractionalSeconds = 
         (int)(subseconds *
