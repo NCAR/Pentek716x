@@ -9,7 +9,7 @@ import eol_scons
 variables = eol_scons.GlobalVariables()
 
 tools = Split("""
-boost_mutex
+boost_thread
 readyflow
 doxygen
 """)
