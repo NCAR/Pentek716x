@@ -21,7 +21,6 @@ headers = Split("""
 """)
 
 env = Environment(tools = ['default'] + tools)
-env.Append(LIBS = ['boost_thread-mt'])
 
 html = env.Apidocs(sources + headers)
 
