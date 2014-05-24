@@ -51,7 +51,7 @@ p7142sd3cDn::p7142sd3cDn(
         _dataInterruptPeriod(0.0)
 {
     boost::recursive_mutex::scoped_lock guard(_mutex);
-
+    
     // Get gate count and coherent integration sum count from our card
     _gates = _sd3c.gates();
     _nsum = _sd3c.nsum();
@@ -521,10 +521,31 @@ int p7142sd3cDn::filterSetup() {
             }
             break;
         }
-        case p7142sd3c::DDC4DECIMATE: {    // pulse_width in 24 MHz counts
-            pulsewidthUs = 1.0;
+        case p7142sd3c::DDC4DECIMATE: {
+        	// pulse_width in 24 MHz counts
+            // Set a default filter spec.
+        	pulsewidthUs = 1.00;
             gaussianFilterName = "ddc4_1_0";
-            break;
+            switch ((int)(_sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)) * 1.0e7)) {
+				case 5:
+		        	pulsewidthUs = 0.5;
+		            gaussianFilterName = "ddc4_0_5";
+					break;
+				case 10:
+		        	pulsewidthUs = 1.00;
+		            gaussianFilterName = "ddc4_1_0";
+					break;
+				case 20:
+		        	pulsewidthUs = 2.00;
+		            gaussianFilterName = "ddc4_2_0";
+					break;
+				default:
+					ELOG << "chip width specification of "
+                          << _sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)
+                          << " is not recognized, filter will be configured for a "
+                          << pulsewidthUs << " uS pulse\n";
+                break;
+            }
         }
         case p7142sd3c::DDC10DECIMATE: {    // pulse_width in 50 MHz counts
             pulsewidthUs = 0.5;

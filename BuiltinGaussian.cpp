@@ -29,9 +29,17 @@ unsigned int ddc8_1_0[] = { 4, 8, 15, 26, 45, 77, 126, 202, 314,
 		7975, 8428, 8664 };
 
 // Gaussian filter coefficients for the decimate by 4 down converter
+unsigned int ddc4_0_5[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 19, 92, 365, 1186, 3168, 6955, 12543,
+		18584, 22620 };
+
 unsigned int ddc4_1_0[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 		3, 6, 14, 32, 66, 132, 249, 450, 772, 1262, 1964, 2910, 4105, 5513,
-		7048, 8579, 9941, 10968, 11521};
+		7048, 8579, 9941, 10968, 11521 };
+
+unsigned int ddc4_2_0[] = { 3, 4, 6, 9, 13, 19, 28, 39, 56, 78, 107, 145, 195,
+		259, 339, 439, 561, 708, 883, 1089, 1325, 1593, 1892, 2220, 2572, 2945,
+		3330, 3719, 4103, 4471, 4813, 5118, 5376, 5578, 5717, 5787 };
         
 // Gaussian filter coefficients for the decimate by 10 down converter
 unsigned int ddc10_0_5[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -54,7 +62,9 @@ BuiltinGaussian::BuiltinGaussian() {
 	init("ddc8_0_8", ddc8_0_8, sizeof(ddc8_0_8) / sizeof(unsigned int));
 	init("ddc8_1_0", ddc8_1_0, sizeof(ddc8_1_0) / sizeof(unsigned int));
 
+	init("ddc4_0_5", ddc4_0_5, sizeof(ddc4_1_0) / sizeof(unsigned int));
 	init("ddc4_1_0", ddc4_1_0, sizeof(ddc4_1_0) / sizeof(unsigned int));
+	init("ddc4_2_0", ddc4_2_0, sizeof(ddc4_1_0) / sizeof(unsigned int));
     
     init("ddc10_0_5_flat", ddc10_0_5_flat, sizeof(ddc10_0_5_flat)/ sizeof(unsigned int));
     init("ddc10_0_5", ddc10_0_5, sizeof(ddc10_0_5) / sizeof(unsigned int));
