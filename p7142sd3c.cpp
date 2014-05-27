@@ -32,7 +32,8 @@ p7142sd3c::p7142sd3c(bool simulate, double tx_delay,
     unsigned int gates, unsigned int nsum, bool freeRun, 
     DDCDECIMATETYPE simulateDDCType, bool externalStartTrigger, double simPauseMS,
     bool useFirstCard,
-    bool rim) :
+    bool rim,
+	int codeLength) :
         p7142(simulate, simPauseMS, useFirstCard),
         _staggeredPrt(staggeredPrt),
         _freeRun(freeRun),
@@ -42,7 +43,8 @@ p7142sd3c::p7142sd3c(bool simulate, double tx_delay,
         _nsum(nsum),
         _simulateDDCType(simulateDDCType),
         _externalStartTrigger(externalStartTrigger),
-        _rim(rim){
+        _rim(rim),
+        _codeLength(codeLength) {
 
 	boost::recursive_mutex::scoped_lock guard(_p7142Mutex);
 
@@ -824,6 +826,12 @@ unsigned int p7142sd3c::gates() const
 unsigned int p7142sd3c::nsum() const
 {
 	return _nsum;
+}
+
+//////////////////////////////////////////////////////////////////////
+int p7142sd3c::codeLength() const
+{
+	return _codeLength;
 }
 
 //////////////////////////////////////////////////////////////////////

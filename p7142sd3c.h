@@ -70,6 +70,8 @@ public:
     /// @param useFirstCard If true, use the first card in the system. Otherwise,
     ///     the next card will be searched for.
     /// @param rim If true, we are operating in RIM mode.
+    /// @param codeLength If complementary coding is being used, it is
+    ///     set to the length of the code.
     p7142sd3c(
     		bool simulate,
     		double tx_delay,
@@ -84,7 +86,8 @@ public:
     		bool externalStartTrigger = false,
     		double simPauseMS = 50,
     		bool useFirstCard = false,
-    		bool rim = false
+    		bool rim = false,
+    		int codeLength = 0
     		);
     
     /// Destructor.
@@ -293,6 +296,10 @@ public:
     /// If nsum == 1, coherent integration is disabled.
     unsigned int nsum() const;
     
+    /// @return The length of the complimentary code. 0 means that the code
+    /// is not being used.
+    int codeLength() const;
+
     /// @brief Return the expected data bandwidth from a (non-burst) receiver channel
     /// in bytes per second
     /// @return The expected data bandwidth from a (non-burst) receiver channel 
@@ -600,6 +607,8 @@ protected:
     bool _externalStartTrigger;
     /// Are we operating in range imaging mode?
     bool _rim;
+    /// The complimentary code length, if coding is being used
+    int _codeLength;
 };
 
 }

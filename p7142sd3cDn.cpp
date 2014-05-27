@@ -522,28 +522,40 @@ int p7142sd3cDn::filterSetup() {
             break;
         }
         case p7142sd3c::DDC4DECIMATE: {
-        	// pulse_width in 24 MHz counts
-            // Set a default filter spec.
-        	pulsewidthUs = 1.00;
+
+            // Set a default filter spec, in case we don't have a set of coefficients for the
+        	// specified tx pulse. Note that the tx pulse width is the length of a coded pulse.
+        	double filterWidthUs = 1.00;
             gaussianFilterName = "ddc4_1_0";
-            switch ((int)(_sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)) * 1.0e7)) {
-				case 5:
-		        	pulsewidthUs = 0.5;
+
+            // Figure out the filter bandwidth, in milliseconds
+            int fwidth_ms = (int)(
+            		(_sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))*1.0e9)/_sd3c.codeLength()
+            		);
+
+            // Find the gaussian filter coefficient set corresponding to this filter width
+            switch (fwidth_ms) {
+				case 500:
+					// 0.5 uS (75m gate)
+					filterWidthUs = 0.5;
 		            gaussianFilterName = "ddc4_0_5";
 					break;
-				case 10:
-		        	pulsewidthUs = 1.00;
+				case 1000:
+					// 1.0 uS (150m gate)
+					filterWidthUs = 1.00;
 		            gaussianFilterName = "ddc4_1_0";
 					break;
-				case 20:
-		        	pulsewidthUs = 2.00;
+				case 2000:
+					// 2.0 uS (300m gate)
+					filterWidthUs = 2.00;
 		            gaussianFilterName = "ddc4_2_0";
 					break;
 				default:
 					ELOG << "chip width specification of "
-                          << _sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)
-                          << " is not recognized, filter will be configured for a "
-                          << pulsewidthUs << " uS pulse\n";
+                          << _sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)/_sd3c.codeLength()
+                          << " (" << _sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))/_sd3c.codeLength()
+                          << "s) is not recognized, filter will be configured for a "
+                          << filterWidthUs << " uS pulse\n";
                 break;
             }
         }
