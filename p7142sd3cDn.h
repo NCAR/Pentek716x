@@ -109,7 +109,7 @@ public:
     ///     interrupt buffer size, so that we have reasonable responsiveness in 
     ///     the data stream.
     /// @param rx_delay the delay to the first rx gate in seconds
-    /// @param rx_pulsewidth the total length of time to sample data
+    /// @param rx_pulsewidth the rx gate width
     /// @param gaussianFile Name of the file containing the Gaussian filter 
     ///     parameters
     /// @param kaiserFile Name of the file containing the Kaiser filter 

@@ -55,7 +55,9 @@ public:
         /// @return the current bypass divider decimation factor
         int bypassDivider() const;
         ///
-        /// Set the bypass divider decimation factor
+        /// Set the bypass divider decimation factor. This establishes the
+        /// rx gate width in the downconverter (by setting the FPGA
+        /// FEN frequency.)
         /// @param bypassdiv the desired bypass divider decimation factor
         /// @return true if decimation is set successfully
         bool setBypassDivider(int bypassdiv) const;

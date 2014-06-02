@@ -164,7 +164,8 @@ p7142sd3cDn::p7142sd3cDn(
     if (isSimulating())
         return;
 
-    /// Set the bypass divider (decimation) for our receiver channel
+    // Set the bypass divider (decimation) for our receiver channel
+    // ** This establishes the gate width in the downconverter. **
     int bypassOk = _isBurst ?
             setBypassDivider(2) : setBypassDivider(2 * rxPulsewidthCounts);
     if (!bypassOk) {
