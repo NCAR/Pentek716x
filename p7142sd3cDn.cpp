@@ -702,13 +702,13 @@ p7142sd3cDn::_simulatedRead(char* buf, int n) {
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart, float & angle1,
-        float & angle2) {
+        float & angle2, bool & xmitPolHorizontal) {
     // This method only works for pulse-tagged data
     if (_sd3c._operatingMode() != p7142sd3c::MODE_PULSETAG) {
         ELOG << __PRETTY_FUNCTION__ << " only works for MODE_PULSETAG";
         abort();
     }
-    return(ptBeamDecoded(nPulsesSinceStart, angle1, angle2));
+    return(ptBeamDecoded(nPulsesSinceStart, angle1, angle2, xmitPolHorizontal));
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -751,13 +751,14 @@ char*
 p7142sd3cDn::ptBeamDecoded(int64_t & nPulsesSinceStart) {
     float angle1;
     float angle2;
-    return(ptBeamDecoded(nPulsesSinceStart, angle1, angle2));
+    bool xmitPolHorizontal;
+    return(ptBeamDecoded(nPulsesSinceStart, angle1, angle2, xmitPolHorizontal));
 }
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
-        float & angle2) {
+        float & angle2, bool & xmitPolHorizontal) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // get the beam
@@ -785,7 +786,7 @@ p7142sd3cDn::ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
 
     // Unpack the metadata
     if (ptMetadataLen()) {
-        unpackPtMetadata(pulseMetadata, angle1, angle2);
+        unpackPtMetadata(pulseMetadata, angle1, angle2, xmitPolHorizontal);
     }
 
     // Initialize _lastPulse if this is the first pulse we've seen
@@ -1517,7 +1518,7 @@ p7142sd3cDn::unpackPtChannelAndPulse(const char* buf, unsigned int & chan,
 //////////////////////////////////////////////////////////////////////////////////
 void
 p7142sd3cDn::unpackPtMetadata(const char* buf, float & angle1,
-        float & angle2) {
+        float & angle2, bool & xmitPolHorizontal) {
     // The angles are packed in the first two 32-bit words of the metadata.
     const uint32_t * ui32vals = reinterpret_cast<const uint32_t *>(buf);
     // The first 32-bit word is the rotation/azimuth angle
@@ -1528,6 +1529,10 @@ p7142sd3cDn::unpackPtMetadata(const char* buf, float & angle1,
     if (angle2 > 180.0) {
         angle2 -= 360.0;
     }
+    // Polarization bit is LSB of word 2: 0 if vertical polarization,
+    // 1 if horizontal
+    xmitPolHorizontal = (ui32vals[2] & 0x1) == 1;
+
 }
 
 //////////////////////////////////////////////////////////////////////////////////

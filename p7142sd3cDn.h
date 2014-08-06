@@ -168,7 +168,10 @@ public:
     ///   was started up - allows computation of the time
     /// @param[out] angle1 rotation or azimuth angle of the beam
     /// @param[out] angle2 tilt or elevation angle of the beam
-    char* getBeam(int64_t& nPulsesSinceStart, float& angle1, float& angle2);
+    /// @param[out] xmitPolHorizontal true if the transmit pulse was
+    ///   horizontally polarized, false if vertically polarized.
+    char* getBeam(int64_t& nPulsesSinceStart, float& angle1, float& angle2,
+            bool & xmitPolHorizontal);
 
     /// Return our gate count. For burst sampling channels, this may be
     /// different from the gate count set for our p7142sd3c object.
@@ -213,9 +216,11 @@ protected:
     ///   xmitter was started up - allows computation of the time
     /// @param[out] angle1 the rotation/azimuth angle for this beam of data
     /// @param[out] angle2 the tilt/elevation angle for this beam of data
+    /// @param[out] xmitPolHorizontal true if the transmit pulse was
+    ///   horizontally polarized, false if vertically polarized.
     /// @returns Pointer to the start of the beam.
     char* ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
-            float & angle2);
+            float & angle2, bool & xmitPolHorizontal);
     /// Return the next synchronized beam of pulse tagger data, without extra
     /// metadata.
     /// The pulse number in the beam is checked for dropped beams.
@@ -320,8 +325,10 @@ protected:
     ///     [-180,180] degrees
     /// @param[out] angle2 the unpacked tilt/elevation angle, in range
     ///     [-180,180] degrees
+    /// @param[out] xmitPolHorizontal true if the transmit pulse was
+    ///      horizontally polarized, false if vertically polarized.
     static void unpackPtMetadata(const char* buf, float & angle1,
-            float & angle2);
+            float & angle2, bool & xmitPolHorizontal);
     /// Print the size and the leading data in _simFifo.
     /// @param label A label.
     /// @param n The number of items to print
