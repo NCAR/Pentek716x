@@ -1529,9 +1529,9 @@ p7142sd3cDn::unpackPtMetadata(const char* buf, float & angle1,
     if (angle2 > 180.0) {
         angle2 -= 360.0;
     }
-    // Polarization bit is LSB of word 2: 0 if vertical polarization,
-    // 1 if horizontal
-    xmitPolHorizontal = (ui32vals[2] & 0x1) == 1;
+    // Polarization bit is LSB of word 2: 0 if horizontal polarization,
+    // 1 if vertical
+    xmitPolHorizontal = (ui32vals[2] & 0x1) == 0;
 
 }
 
