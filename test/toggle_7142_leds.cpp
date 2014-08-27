@@ -122,9 +122,6 @@ main(int argc, char** argv)
   P7142_REG_ADDR p7142Regs;  /* 7142 register table */
   P7142InitRegAddr(BAR0Base, BAR2Base, &p7142Regs);
 
-  P7142_BAR0_REG_ADDR bar0 = p7142Regs.BAR0RegAddr;
-  P7142_BAR2_REG_ADDR bar2 = p7142Regs.BAR2RegAddr;
-  
   // check if module is a 7142
 
   unsigned int moduleId;
