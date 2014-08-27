@@ -231,6 +231,18 @@ namespace Pentek {
 
             /// get the index of the card in use
             int getCardIndex() const { return _cardIndex; }
+            
+            /// @brief Return a pointer to the downconverter for the given
+            /// channel, or NULL if there is no downconverter for the channel.
+            /// @return a pointer to the downconverter for the given
+            /// channel, or NULL if there is no downconverter for the channel.
+            const p7142Dn* downconverter(int chanId) const {
+                if (_downconverters.find(chanId) != _downconverters.end()) {
+                    return(_downconverters.find(chanId)->second._dn);
+                } else {
+                    return(NULL);
+                }
+            }
 
             // We make our associated downconverter and upconverter classes 
             // friends so that they have access to BAR registers, etc.
