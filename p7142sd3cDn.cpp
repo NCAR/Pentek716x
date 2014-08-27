@@ -18,18 +18,10 @@ using namespace boost::posix_time;
 namespace Pentek {
 
 ////////////////////////////////////////////////////////////////////////////////
-p7142sd3cDn::p7142sd3cDn(
-		p7142sd3c * p7142sd3cPtr,
-		int chanId,
-		uint32_t dmaDescSize,
-                bool isBurst,
-                int tsLength,
-                double rx_delay,
-                double rx_pulsewidth,
-                std::string gaussianFile,
-                std::string kaiserFile,
-                int simWaveLength,
-                bool internalClock) :
+p7142sd3cDn::p7142sd3cDn(p7142sd3c * p7142sd3cPtr, int chanId, 
+        uint32_t dmaDescSize, bool isBurst, int tsLength, double rx_delay,
+        double rx_pulsewidth, std::string gaussianFile, std::string kaiserFile,
+        int simWaveLength, bool internalClock) :
         p7142Dn(p7142sd3cPtr, 
                 chanId, 
                 dmaDescSize,
@@ -102,7 +94,8 @@ p7142sd3cDn::p7142sd3cDn(
         ELOG << "PRT ERROR";
         ELOG << "PRT: " << _sd3c.prt() << " sec, "
              <<  _sd3c.prtCounts() << " counts";
-        ELOG << "rx pulse width: " << rx_pulsewidth << " sec, "
+        ELOG << "rx pulse width: " 
+             << _sd3c.countsToTime(rxPulsewidthCounts) << " sec, "
              << rxPulsewidthCounts << " counts";
         ELOG << "n gates: " << _sd3c.gates();
         ELOG << "rx pulse width: " << rx_pulsewidth;
@@ -216,6 +209,12 @@ double p7142sd3cDn::rcvrFirstGateDelay() const {
 
     return(_sd3c.countsToTime(rxDelayCounts - txDelayCounts));
 }
+
+////////////////////////////////////////////////////////////////////////////////
+double p7142sd3cDn::gateSpacing() const {
+    return(0.5 * SPEED_OF_LIGHT * rcvrPulseWidth());
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 bool p7142sd3cDn::config() {
     boost::recursive_mutex::scoped_lock guard(_mutex);
