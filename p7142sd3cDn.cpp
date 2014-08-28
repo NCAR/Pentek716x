@@ -188,18 +188,15 @@ std::string p7142sd3cDn::ddcTypeName() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 double p7142sd3cDn::rcvrPulseWidth() const {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
     // Note that Channels 0 and 1 share RX_01_TIMER, and channels 2 and 3 
     // share RX_23_TIMER.
     p7142sd3c::TimerIndex rxTimerNdx = (_chanId <= 1) ? 
             p7142sd3c::RX_01_TIMER : p7142sd3c::RX_23_TIMER;
-    return(_sd3c.countsToTime(_sd3c.timerWidth(rxTimerNdx)));
+    return(_sd3c.countsToTime(_sd3c.timerWidth(rxTimerNdx)) / _gates);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 double p7142sd3cDn::rcvrFirstGateDelay() const {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
-
     int txDelayCounts = _sd3c.timerDelay(p7142sd3c::TX_PULSE_TIMER);
     // Note that Channels 0 and 1 share RX_01_TIMER, and channels 2 and 3 
     // share RX_23_TIMER.
