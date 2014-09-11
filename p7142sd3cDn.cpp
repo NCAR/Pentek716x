@@ -555,6 +555,7 @@ int p7142sd3cDn::filterSetup() {
                           << filterWidthUs << " uS pulse\n";
                 break;
             }
+            break;
         }
         case p7142sd3c::DDC10DECIMATE: {    // pulse_width in 50 MHz counts
             pulsewidthUs = 0.5;
