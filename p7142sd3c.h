@@ -53,11 +53,9 @@ public:
     ///     downconverters
     /// @param nsum The number of pulses to sum for coherent integration by all
     ///     non-burst downconverters. If nsum == 1, coherent integration is 
-    ///     disabled. Note that this is the number of beams which will go into
-    ///     the even or odd sum; i.e. the even beam integration will collect
-    ///     nsum beams and the odd beam integration will collect nsum beams.
-    ///     Thus it is half of the effective PRF decimation rate. Profiler
-    ///     configurations usually specify two times this value.
+    ///     disabled. Note that this is the total number of beams which will go into
+    ///     the even and odd sums; i.e. the even beam integration will collect
+    ///     nsum/2 beams and the odd beam integration will collect nsum/2 beams.
     /// @param freeRun If true, the firmware will be configured to ignore the 
     ///     PRT gating.
     /// @param simulateDDCType The DDC type to use when running in simulation
