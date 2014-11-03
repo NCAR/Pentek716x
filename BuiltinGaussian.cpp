@@ -29,7 +29,7 @@ unsigned int ddc8_1_0[] = { 4, 8, 15, 26, 45, 77, 126, 202, 314,
 		7975, 8428, 8664 };
 
 // Gaussian filter coefficients for the decimate by 4 down converter
-unsigned int ddc4_0_5[] = {
+unsigned int ddc4_0_500[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 2, 11, 59, 264,
@@ -41,7 +41,7 @@ unsigned int ddc4_0_667[] = {
 		0, 0, 0, 2, 6, 24, 80, 236, 617, 1431,
 		2943, 5368, 8682, 12452, 15835, 17858 };
 
-unsigned int ddc4_1_0[] = {
+unsigned int ddc4_1_000[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 1, 3, 8,
 		20, 44, 93, 185, 352, 634, 1083, 1752, 2687, 3907,
@@ -60,7 +60,7 @@ unsigned int ddc4_2_667[] = {
 		4054, 4209, 4337, 4436, 4504, 4538 };
         
 // Gaussian filter coefficients for the decimate by 4 down converter for use when pulse coding is active.
-unsigned int ddc4_0_5_pulsecode[] = {
+unsigned int ddc4_0_500_pulsecode[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 2, 19, 116,
@@ -72,7 +72,7 @@ unsigned int ddc4_0_667_pulsecode[] = {
 		0, 0, 0, 0, 1, 7, 29, 108, 342, 940,
 		2236, 4604, 8204, 12654, 16891, 19516 };
 
-unsigned int ddc4_1_0_pulsecode[] = {
+unsigned int ddc4_1_000_pulsecode[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 1, 2,
 		6, 15, 38, 88, 189, 384, 730, 1301, 2175, 3411,
@@ -101,6 +101,7 @@ unsigned int ddc10_0_5_flat[] = {262125, 262080, 262044, 262042, 262095, 61, 198
                                  1828, 827, 261161, 259077, 257593, 257677, 260039, 2667, 9240,
                                  16338, 22348, 25793
 };
+
 /////////////////////////////////////////////////////////////////////////////
 BuiltinGaussian::BuiltinGaussian() {
 	init("ddc8_0_2", ddc8_0_2, sizeof(ddc8_0_2) / sizeof(unsigned int));
@@ -111,19 +112,19 @@ BuiltinGaussian::BuiltinGaussian() {
 	init("ddc8_0_8", ddc8_0_8, sizeof(ddc8_0_8) / sizeof(unsigned int));
 	init("ddc8_1_0", ddc8_1_0, sizeof(ddc8_1_0) / sizeof(unsigned int));
 
-	init("ddc4_0_5",   ddc4_0_5,   sizeof(ddc4_0_5)   / sizeof(unsigned int));
+	init("ddc4_0_500", ddc4_0_500, sizeof(ddc4_0_500) / sizeof(unsigned int));
 	init("ddc4_0_667", ddc4_0_667, sizeof(ddc4_0_667) / sizeof(unsigned int));
-	init("ddc4_1_0",   ddc4_1_0,   sizeof(ddc4_1_0)   / sizeof(unsigned int));
+	init("ddc4_1_000", ddc4_1_000, sizeof(ddc4_1_000) / sizeof(unsigned int));
 	init("ddc4_1_333", ddc4_1_333, sizeof(ddc4_1_333) / sizeof(unsigned int));
-	init("ddc4_2_0",   ddc4_2_667, sizeof(ddc4_2_667) / sizeof(unsigned int));
+	init("ddc4_2_667", ddc4_2_667, sizeof(ddc4_2_667) / sizeof(unsigned int));
     
-	init("ddc4_0_5_pulsecode",   ddc4_0_5,   sizeof(ddc4_0_5_pulsecode)   / sizeof(unsigned int));
-	init("ddc4_0_667_pulsecode", ddc4_0_667, sizeof(ddc4_0_667_pulsecode) / sizeof(unsigned int));
-	init("ddc4_1_0_pulsecode",   ddc4_1_0,   sizeof(ddc4_1_0_pulsecode)   / sizeof(unsigned int));
-	init("ddc4_1_333_pulsecode", ddc4_1_333, sizeof(ddc4_1_333_pulsecode) / sizeof(unsigned int));
-	init("ddc4_2_0_pulsecode",   ddc4_2_667, sizeof(ddc4_2_667_pulsecode) / sizeof(unsigned int));
+	init("ddc4_0_500_pulsecode", ddc4_0_500_pulsecode, sizeof(ddc4_0_500_pulsecode) / sizeof(unsigned int));
+	init("ddc4_0_667_pulsecode", ddc4_0_667_pulsecode, sizeof(ddc4_0_667_pulsecode) / sizeof(unsigned int));
+	init("ddc4_1_000_pulsecode", ddc4_1_000_pulsecode, sizeof(ddc4_1_000_pulsecode) / sizeof(unsigned int));
+	init("ddc4_1_333_pulsecode", ddc4_1_333_pulsecode, sizeof(ddc4_1_333_pulsecode) / sizeof(unsigned int));
+	init("ddc4_2_667_pulsecode", ddc4_2_667_pulsecode, sizeof(ddc4_2_667_pulsecode) / sizeof(unsigned int));
 
-    init("ddc10_0_5_flat", ddc10_0_5_flat, sizeof(ddc10_0_5_flat)/ sizeof(unsigned int));
-    init("ddc10_0_5", ddc10_0_5, sizeof(ddc10_0_5) / sizeof(unsigned int));
+    init("ddc10_0_5_flat", ddc10_0_5_flat, sizeof(ddc10_0_5_flat) / sizeof(unsigned int));
+    init("ddc10_0_5",      ddc10_0_5,      sizeof(ddc10_0_5)      / sizeof(unsigned int));
 }
 

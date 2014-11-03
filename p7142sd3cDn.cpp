@@ -532,29 +532,44 @@ int p7142sd3cDn::filterSetup() {
 
             // Find the gaussian filter coefficient set corresponding to this filter width
             switch (fwidth_ms) {
-				case 500:
-					// 0.5 uS (75m gate)
-					filterWidthUs = 0.5;
-		            gaussianFilterName = "ddc4_0_5";
-					break;
-				case 1000:
-					// 1.0 uS (150m gate)
-					filterWidthUs = 1.00;
-		            gaussianFilterName = "ddc4_1_0";
-					break;
-				case 2000:
-					// 2.0 uS (300m gate)
-					filterWidthUs = 2.00;
-		            gaussianFilterName = "ddc4_2_0";
-					break;
-				default:
-					ELOG << "chip width specification of "
-                          << _sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)/_sd3c.codeLength()
-                          << " (" << _sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))/_sd3c.codeLength()
-                          << "s) is not recognized, filter will be configured for a "
-                          << filterWidthUs << " uS pulse\n";
-                break;
+			case 500:
+				// 0.5 uS (75m gate)
+				filterWidthUs = 0.5;
+	            gaussianFilterName = "ddc4_0_500";
+				break;
+			case 667:
+				// 0.667 uS (100m gate)
+				filterWidthUs = 0.667;
+	            gaussianFilterName = "ddc4_0_667";
+				break;
+			case 1000:
+				// 1.0 uS (150m gate)
+				filterWidthUs = 1.00;
+				gaussianFilterName = "ddc4_1_000";
+				break;
+			case 1333:
+				// 1.333 uS (200m gate)
+				filterWidthUs = 1.333;
+				gaussianFilterName = "ddc4_1_333";
+				break;
+			case 2667:
+				// 2.667 uS (400m gate)
+				filterWidthUs = 2.667;
+				gaussianFilterName = "ddc4_2_667";
+				break;
+			default:
+				ELOG << "chip width specification of "
+					  << _sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)/_sd3c.codeLength()
+					  << " (" << _sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))/_sd3c.codeLength()
+					  << "s) is not recognized, filter will be configured for a "
+					  << filterWidthUs << " uS pulse\n";
+			break;
             }
+            if (_sd3c.codeLength() > 1) {
+            	// If we are using pulse coding, choose the gaussian filter variant for that.
+            	gaussianFilterName += "_pulsecode";
+            }
+
             break;
         }
         case p7142sd3c::DDC10DECIMATE: {    // pulse_width in 50 MHz counts
