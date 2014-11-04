@@ -523,12 +523,14 @@ int p7142sd3cDn::filterSetup() {
             // Set a default filter spec, in case we don't have a set of coefficients for the
         	// specified tx pulse. Note that the tx pulse width is the length of a coded pulse.
         	double filterWidthUs = 1.00;
-            gaussianFilterName = "ddc4_1_0";
+            gaussianFilterName = "ddc4_1_000";
 
             // Figure out the filter bandwidth, in milliseconds
             int fwidth_ms = (int)(
             		(_sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))*1.0e9)/_sd3c.codeLength()
             		);
+
+            std::cout << "fwidth_ms: " << fwidth_ms << std::endl;
 
             // Find the gaussian filter coefficient set corresponding to this filter width
             switch (fwidth_ms) {
@@ -537,7 +539,7 @@ int p7142sd3cDn::filterSetup() {
 				filterWidthUs = 0.5;
 	            gaussianFilterName = "ddc4_0_500";
 				break;
-			case 667:
+			case 666:
 				// 0.667 uS (100m gate)
 				filterWidthUs = 0.667;
 	            gaussianFilterName = "ddc4_0_667";
@@ -552,7 +554,7 @@ int p7142sd3cDn::filterSetup() {
 				filterWidthUs = 1.333;
 				gaussianFilterName = "ddc4_1_333";
 				break;
-			case 2667:
+			case 2666:
 				// 2.667 uS (400m gate)
 				filterWidthUs = 2.667;
 				gaussianFilterName = "ddc4_2_667";
@@ -561,8 +563,8 @@ int p7142sd3cDn::filterSetup() {
 				ELOG << "chip width specification of "
 					  << _sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER)/_sd3c.codeLength()
 					  << " (" << _sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))/_sd3c.codeLength()
-					  << "s) is not recognized, filter will be configured for a "
-					  << filterWidthUs << " uS pulse\n";
+					  << "s) is not recognized\n";
+				exit(1);
 			break;
             }
             if (_sd3c.codeLength() > 1) {
