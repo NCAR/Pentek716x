@@ -530,8 +530,6 @@ int p7142sd3cDn::filterSetup() {
             		(_sd3c.countsToTime(_sd3c.timerWidth(p7142sd3c::TX_PULSE_TIMER))*1.0e9)/_sd3c.codeLength()
             		);
 
-            std::cout << "fwidth_ms: " << fwidth_ms << std::endl;
-
             // Find the gaussian filter coefficient set corresponding to this filter width
             switch (fwidth_ms) {
 			case 500:
