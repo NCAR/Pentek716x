@@ -216,6 +216,14 @@ p7142::_initReadyFlow() {
     /* Initialize 7142 register address tables */
     P7142InitRegAddr (_BAR0Base, _BAR2Base, &_p7142Regs);
 
+    // Reset the board so we start in pristine condition
+    PCI7142_SET_BD_CHAN_RST_BOARD_RESET(_p7142Regs.BAR0RegAddr.bdChanReset,
+            PCI7142_BD_CHAN_RST_BOARD_RESET);
+    usleep(1000);
+    PCI7142_SET_BD_CHAN_RST_BOARD_RESET(_p7142Regs.BAR0RegAddr.bdChanReset,
+            PCI7142_BD_CHAN_RST_BOARD_RUN);
+    usleep(1000);
+    
     /* check if module is a 7142 */
     P7142_GET_MODULE_ID(_p7142Regs.BAR2RegAddr.idReadout, _moduleId);
     if (_moduleId != P7142_MODULE_ID)
