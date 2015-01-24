@@ -19,31 +19,31 @@ env = Environment(tools = ['default'] + tools)
 variables.Update(env)
 
 libsources = Split("""
-p7142.cpp
-p7142Dn.cpp
-p7142Up.cpp
-p7142sd3c.cpp
-p7142sd3cDn.cpp
-FilterSpec.cpp
-BuiltinFilters.cpp
-BuiltinGaussian.cpp
-BuiltinKaiser.cpp
-SingleMutex.cpp
+p716x.cpp
 """)
+# p7142Dn.cpp
+# p7142Up.cpp
+# p7142sd3c.cpp
+# p7142sd3cDn.cpp
+# FilterSpec.cpp
+# BuiltinFilters.cpp
+# BuiltinGaussian.cpp
+# BuiltinKaiser.cpp
+# SingleMutex.cpp
 
 headers = Split("""
-p7142.h
-p7142Dn.h
-p7142Up.h
-p7142sd3c.h
-p7142sd3cDn.h
-BuiltinFilters.h
-BuiltinGaussian.h
-BuiltinKaiser.h
-FilterSpec.h
-DDCregisters.h
-SingleMutex.h
+p716x.h
 """)
+# p7142Dn.h
+# p7142Up.h
+# p7142sd3c.h
+# p7142sd3cDn.h
+# BuiltinFilters.h
+# BuiltinGaussian.h
+# BuiltinKaiser.h
+# FilterSpec.h
+# DDCregisters.h
+# SingleMutex.h
 
 libpentek = env.Library('pentek', libsources)
 Default(libpentek)
