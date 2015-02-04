@@ -377,17 +377,19 @@ namespace Pentek {
             /// Index for this instance of p716x.
             uint16_t _cardIndex;
             /// ReadyFlow PCI BAR0 base address.
-            DWORD                 _BAR0Base;
+            BAR_ADDR              _BAR0Base;
             /// ReadyFlow PCI BAR2 base address.
-            DWORD                 _BAR2Base;
+            BAR_ADDR              _BAR2Base;
             /// ReadyFlow PCI BAR4 base address.
-            DWORD                 _BAR4Base;
+            BAR_ADDR              _BAR4Base;
             /// ReadyFlow PCI slot number.
             DWORD                 _pciSlot;
             /// ReadyFlow module identifier.
             unsigned int          _moduleId;
             /// ReadyFlow 716x register addresses in PCI space.
-            P716x_BOARD_RESOURCE        _p716xBoardResource;
+            P716x_BOARD_RESOURCE  _p716xBoardResource;
+            /// ReadyFlow 716x hardware register address struct
+            P716x_REG_ADDR        _p716xRegAddr;
             /// ReadyFlow parameters for PCI configuration.
             P716X_PCI_PARAMS      _p716xPciParams;
             /// ReadyFlow parameters for DMA configuration.
