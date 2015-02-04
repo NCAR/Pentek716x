@@ -55,6 +55,7 @@ uint16_t p716x::_NumOpenCards = 0;
 ////////////////////////////////////////////////////////////////////////////////////////
 p716x::p716x(bool simulate, double simPauseMS, bool useFirstCard):
 _cardIndex(_NumOpenCards),
+_moduleId(P71620_MODULE_ID),    // 71620 is the only one we support right now
 _simulate(simulate),
 _p716xMutex(),
 _isReady(false),
@@ -195,7 +196,7 @@ p716x::_initReadyFlow() {
 
     _deviceHandle = NULL;
 
-    /* initialize the PTK716X library */
+    // initialize the PTK716X library
     DWORD dwStatus = PTK716X_LibInit();
     if (dwStatus != PTK716X_STATUS_OK)
     {
@@ -205,41 +206,45 @@ p716x::_initReadyFlow() {
       return false;
     }
 
-    /* Find and open the next PTK716X device */
-    _deviceHandle = PTK716X_DeviceFindAndOpen(&_Next716xSlot, &_BAR0Base, &_BAR2Base,
-            &_BAR4Base, 71620);
+    // Find and open the next PTK716X device
+    _deviceHandle = PTK716X_DeviceFindAndOpen(&_Next716xSlot, &_BAR0Base, 
+            &_BAR2Base, &_BAR4Base, _moduleId);
     if (_deviceHandle == NULL)
     {
       ELOG << "Pentek 716x device not found when opening card " << 
         _NumOpenCards;
     }
 
-    /* Initialize 716x register address tables */
-    P716xInitRegAddr(_BAR0Base, _BAR2Base, &_p716xBoardResource);
+    // Initialize 716x register address tables
+    P716xInitRegAddr(_BAR0Base, &_p716xRegAddr, &_p716xBoardResource, _moduleId);
 
     // Reset the board so we start in pristine condition
-    PCI716x_SET_BD_CHAN_RST_BOARD_RESET(_p716xBoardResource.BAR0RegAddr.bdChanReset,
-            PCI716x_BD_CHAN_RST_BOARD_RESET);
+    P716xSetGlobalResetState(_p716xRegAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
     usleep(1000);
-    PCI716x_SET_BD_CHAN_RST_BOARD_RESET(_p716xBoardResource.BAR0RegAddr.bdChanReset,
-            PCI716x_BD_CHAN_RST_BOARD_RUN);
+    P716xSetGlobalResetState(_p716xRegAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
     usleep(1000);
+
+    // Reset board registers to power-on default states
+    P716xResetRegs(&_p716xRegAddr);
     
+    // Put working default settings into p716xGlobalParams
+    P716x_GLOBAL_PARAMS _p716xGlobalParams;
+    P716xSetGlobalDefaults(&_p716xBoardResource, &_p716xGlobalParams);
+
+
     /* check if module is a 716x */
-    P716x_GET_MODULE_ID(_p716xBoardResource.BAR2RegAddr.idReadout, _moduleId);
-    if (_moduleId != P716x_MODULE_ID)
+    unsigned int id = P716xGetModuleId(_p716xRegAddr.boardId);
+    if (id != _moduleId)
     {
-      ELOG << "Pentek card " << _NumOpenCards + 1 << " is not a 716x!";
-      ELOG << "Expected 0x" << std::hex << P716x_MODULE_ID << 
-        ", and got 0x" << _moduleId << std::dec;
-      return false;
+        ELOG << "Module id of Pentek card " << _NumOpenCards + 1 << " is " <<
+                std::hex << id << ", but a " << _moduleId << " is expected";
+        return false;
     }
 
     DLOG << "Pentek 716x device";
     DLOG << std::hex << " BAR0: 0x" << (void *)_BAR0Base;
     DLOG << std::hex << " BAR2: 0x" << (void *)_BAR2Base;
-    DLOG << std::dec;
-
+    DLOG << std::hex << " BAR4: 0x" << (void *)_BAR4Base;
 
     /// @todo Although we follow the normal ReadyFlow protocol
     /// for configuring the DAC (P716xSetDac5687Defaults()
@@ -249,10 +254,7 @@ p716x::_initReadyFlow() {
     /// P716xInitDac5687Regs() to perform the correct configuration,
     /// so that it can be pulled out of p716xUp().
 
-    // Reset board registers to default values
-    P716xResetRegs(&_p716xBoardResource);
-
-    /* Load parameter tables with default values */
+    // Load parameter tables with default values
     P716xSetPciDefaults(&_p716xPciParams);
     P716xSetDmaDefaults(&_p716xDmaParams);
     P716xSetBoardDefaults(&_p716xBoardParams);
