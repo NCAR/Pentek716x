@@ -154,8 +154,8 @@ namespace Pentek {
 	class p716x {
 
 		public:
-            /// A P716x card has 4 receive channels available.
-            static const int P716X_NCHANNELS = 4;
+            /// A P716x card has 3 receive channels available.
+            static const int P716X_NCHANNELS = 3;
             /// (Suggested) time to sleep after P716x ioctl calls, in microseconds
             static const int P716X_IOCTLSLEEPUS = 100;
             
@@ -182,7 +182,7 @@ namespace Pentek {
             /// Turn on the global FIFO gate enable.
             void enableGateGen();
             /// Turn off the global FIFO gate enable
-            void disableGateGen();
+            void disableSyncAndGateGen();
 
             /// @brief Construct and add a downconverter for one of our receiver channels.
             /// @param chanId The channel identifier (used to select /dn/*B)
@@ -292,7 +292,7 @@ namespace Pentek {
             /// @return 0 on success, -1 on failure.
             static int _bufset(int fd, int intbufsize, int bufN);
             /// Configure the board parameters, in p716xBoardParams
-            void _configBoardParameters();
+            void _configSyncBusParameters();
             /// Configure the down conversion path parameters
             void _configInParameters();
             /// Configure the up conversion path parameters
@@ -403,7 +403,7 @@ namespace Pentek {
             /// ReadyFlow parameters for the DDR memory.
             P716X_DDR_MEM_PARAMS  _p716xMemParams;
             /// ReadyFlow parameters for DAC configuration.
-            P716X_DAC5686_PARAMS  _p716xDac5686Params;
+            DAC5688_PARAMS        _p716xDac5688Params;
             /// The PCI address of the GateFlow gate generation control register.
             volatile unsigned int *_gateGenReg;
             /// set true if in simulation mode

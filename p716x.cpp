@@ -1,5 +1,5 @@
 #include "p716x.h"
-//#include "p716xDn.h"
+#include "p716xDn.h"
 //#include "p716xUp.h"
 #include <fcntl.h>
 #include <iostream>
@@ -228,8 +228,8 @@ p716x::_initReadyFlow() {
     P716xResetRegs(&_p716xRegAddr);
     
     // Put working default settings into p716xGlobalParams
-    P716x_GLOBAL_PARAMS _p716xGlobalParams;
-    P716xSetGlobalDefaults(&_p716xBoardResource, &_p716xGlobalParams);
+    P716x_GLOBAL_PARAMS p716xGlobalParams;
+    P716xSetGlobalDefaults(&_p716xBoardResource, &p716xGlobalParams);
 
 
     /* check if module is a 716x */
@@ -254,109 +254,48 @@ p716x::_initReadyFlow() {
     /// P716xInitDac5687Regs() to perform the correct configuration,
     /// so that it can be pulled out of p716xUp().
 
-    // Load parameter tables with default values
-    P716xSetPciDefaults(&_p716xPciParams);
-    P716xSetDmaDefaults(&_p716xDmaParams);
-    P716xSetBoardDefaults(&_p716xBoardParams);
-    P716xSetDdrMemDefaults(&_p716xMemParams);
-    P716xSetInputDefaults(&_p716xInParams);
-    P716xSetOutputDefaults(&_p716xOutParams);
-    P716xSetDac5687Defaults(&_p716xDac5686Params);
-
-    // Apply our adjustments
-    _configBoardParameters();
+    // Apply our adjustments to _p716xGlobalParams
+    _configSyncBusParameters();
     _configInParameters();
     _configOutParameters();
 
-    /* Write parameter table values to the 716x registers */
-    P716xInitPciRegs(&_p716xPciParams,   &(_p716xBoardResource.BAR0RegAddr));
-    P716xInitDmaRegs(&_p716xDmaParams,   &(_p716xBoardResource.BAR0RegAddr));
-    P716xInitBoardRegs(&_p716xBoardParams, &(_p716xBoardResource.BAR2RegAddr));
-    P716xInitDdrMemRegs(&_p716xMemParams,   &(_p716xBoardResource.BAR2RegAddr));
-    P716xInitInputRegs(&_p716xInParams,    &(_p716xBoardResource.BAR2RegAddr));
-    P716xInitOutputRegs(&_p716xOutParams,   &(_p716xBoardResource.BAR2RegAddr));
-    P716xInitDac5687Regs(&_p716xOutParams,   &_p716xDac5686Params,   &(_p716xBoardResource.BAR2RegAddr));
+    // Write parameter table values to the 716x registers
+    P716xInitGlobalRegs(&p716xGlobalParams, &_p716xRegAddr);
 
     // Determine the gate generator register pointer
-    if (_p716xInParams.inputSyncBusSel == P716x_SYNC_BUS_SEL_A)
-        _gateGenReg = (volatile unsigned int *)(_p716xBoardResource.BAR2RegAddr.gateAGen);
-    else
-        _gateGenReg = (volatile unsigned int *)(_p716xBoardResource.BAR2RegAddr.gateBGen);
-
-    // Disable the gate generator so that the fifos don't run asynchronously,
-    disableGateGen();
+    _gateGenReg = P716xGetGateGenState(_p716xRegAddr.gateAGenerate) ?
+            _p716xRegAddr.gateAGenerate : _p716xRegAddr.gateBGenerate;
 
     return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-void p716x::_configBoardParameters() {
+void p716x::_configSyncBusParameters() {
 
-    // Board customization
-
-    _p716xBoardParams.busAMaster      = P716x_MSTR_CTRL_MASTER;
-    _p716xBoardParams.busATermination = P716x_MSTR_CTRL_TERMINATED;
-
-    _p716xBoardParams.busASelectClock = P716x_MSTR_CTRL_SEL_CLK_EXT_CLK;
-    _p716xBoardParams.busAClockSource = P716x_MSTR_CTRL_CLK_SRC_SEL_CLK;
-
-    _p716xBoardParams.busASelectSync  = P716x_MSTR_CTRL_SEL_SYNC_REGISTER;
-    _p716xBoardParams.busASyncSource  = P716x_MSTR_CTRL_SYNC_SRC_SEL_SYNC;
-
-    _p716xBoardParams.busASelectGate  = P716x_MSTR_CTRL_SEL_GATE_REGISTER;
-    _p716xBoardParams.busAGateSource  = P716x_MSTR_CTRL_GATE_SRC_SEL_GATE;
-
-    /* Bus B parameters */
-
-    _p716xBoardParams.busBMaster      = P716x_MSTR_CTRL_MASTER;
-    _p716xBoardParams.busBTermination = P716x_MSTR_CTRL_TERMINATED;
-
-    _p716xBoardParams.busBSelectClock = P716x_MSTR_CTRL_SEL_CLK_EXT_CLK;
-    _p716xBoardParams.busBClockSource = P716x_MSTR_CTRL_CLK_SRC_SEL_CLK;
-
-    _p716xBoardParams.busBSelectSync  = P716x_MSTR_CTRL_SEL_SYNC_REGISTER;
-    _p716xBoardParams.busBSyncSource  = P716x_MSTR_CTRL_SYNC_SRC_SEL_SYNC;
-
-    _p716xBoardParams.busBSelectGate  = P716x_MSTR_CTRL_SEL_GATE_REGISTER;
-    _p716xBoardParams.busBGateSource  = P716x_MSTR_CTRL_GATE_SRC_SEL_GATE;
-
-    _p716xBoardParams.endianness = P716x_MISC_CTRL_ENDIANNESS_LE;
-
+    // Turn off output from the internal clock's VCXO, and use the external 
+    // clock directly
+    P716xSetSBusCtrl1VcxoOutDisable(_p716xRegAddr.syncBusControl1,
+                                    P716x_SBUS_CTRL1_VCXO_OUT_DISABLE);
+    P716xSetSBusCtrl1ClkSel(_p716xRegAddr.syncBusControl1,
+                            P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK);
+    
+    // Disable sync and gate generation on both the A and B bus
+    P716xSetSyncGenState(_p716xRegAddr.syncAGenerate, P716x_SYNC_INACTIVE);
+    P716xSetSyncGenState(_p716xRegAddr.syncBGenerate, P716x_SYNC_INACTIVE);
+    
+    P716xSetGateGenState(_p716xRegAddr.gateAGenerate, P716x_GATE_INACTIVE);
+    P716xSetGateGenState(_p716xRegAddr.gateBGenerate, P716x_GATE_INACTIVE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void p716x::_configInParameters() {
 
-    // Sync Bus select
-    _p716xInParams.inputSyncBusSel = P716x_SYNC_BUS_SEL_A;
-
     // set the down conversion FIFO parameters
 
-    for (int adchan = 0; adchan < 4; adchan++) {
-        // select data packing mode.  It can be unpacked or time-packed.
-        // The program define is located at the top of the program.
-        //
-        _p716xInParams.adcFifo[adchan].fifoPackMode = P716x_FIFO_ADC_PACK_MODE_TIME_PACK;
-
-        // set the FIFO decimation.  This allows the input data rate to the
-        // FIFO to be reduced.  It can be a value from 0 to 0xFFF.  Actual
-        // decimation is this value plus one.
-
-        // set to decimation by 1 here, but will almost always be modified by the user
-        // to an appropriate value.
-        _p716xInParams.adcFifoDecimation[adchan] = 0;
-
-        // The FIFO Almost Full and Almost Empty levels are set to default
-        // values for all programs.  The values shown here are the default
-        // values and and are provided to show usage.  Their values must be
-        // chosen to work with the DMA channel maximum burst count value.
-        _p716xInParams.adcFifo[adchan].fifoAlmostEmptyLevel = 512;
-        _p716xInParams.adcFifo[adchan].fifoAlmostFullLevel  = 544;
-
-        // Enable gate control
-        _p716xInParams.adcFifo[adchan].fifoGateControl = P716x_FIFO_GATE_ENABLE;
-        _p716xInParams.adcFifo[adchan].fifoGateSelect = P716x_FIFO_GATE_SELECT_A;
-        _p716xInParams.adcFifo[adchan].fifoGateTrigSelect = P716x_FIFO_GATE_OPERATION;
+    for (int adchan = 0; adchan < P716X_NCHANNELS; adchan++) {
+        // Set data packing mode for the channel
+        P716xSetAdcDataCtrlPackMode(_p716xRegAddr.adcRegs[adchan].dataControl,
+                P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK);
 
     }
 
@@ -386,18 +325,12 @@ void p716x::_configOutParameters() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p716x::enableGateGen() {
-
-	P716x_SET_GATE_GEN(_gateGenReg, P716x_GATE_GEN_ENABLE);
-    DLOG << "GateGen enabled";
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-void
-p716x::disableGateGen() {
-
-	P716x_SET_GATE_GEN(_gateGenReg, P716x_GATE_GEN_DISABLE);
-    DLOG << "GateGen disabled";
+p716x::disableSyncAndGateGen() {
+    P716xSetGateGenState(_p716xRegAddr.gateAGenerate, P716x_GATE_INACTIVE);
+    P716xSetSyncGenState(_p716xRegAddr.syncAGenerate, P716x_SYNC_INACTIVE);
+    P716xSetGateGenState(_p716xRegAddr.gateBGenerate, P716x_GATE_INACTIVE);
+    P716xSetSyncGenState(_p716xRegAddr.syncBGenerate, P716x_SYNC_INACTIVE);
+    DLOG << "Gate and sync generation disabled";
 }
 
 ////////////////////////////////////////////////////////////////////////////////

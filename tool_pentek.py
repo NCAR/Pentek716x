@@ -20,6 +20,7 @@ variables.Update(env)
 
 libsources = Split("""
 p716x.cpp
+p716xDn.cpp
 """)
 # p7142Dn.cpp
 # p7142Up.cpp
@@ -33,6 +34,7 @@ p716x.cpp
 
 headers = Split("""
 p716x.h
+p716xDn.h
 """)
 # p7142Dn.h
 # p7142Up.h
@@ -54,7 +56,7 @@ Default(html)
 
 thisdir = env.Dir('.').srcnode().abspath
 def pentek(env):
-    env.AppendUnique(CPPPATH   =[thisdir,])
+    env.AppendUnique(CPPPATH = [thisdir])
     env.AppendLibrary('pentek')
     env.AppendDoxref('pentek')
     env.Require(tools)
