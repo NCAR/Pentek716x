@@ -53,7 +53,10 @@ DWORD p716x::_Next716xSlot = -2;
 uint16_t p716x::_NumOpenCards = 0;
 
 ////////////////////////////////////////////////////////////////////////////////////////
-p716x::p716x(bool simulate, double simPauseMS, bool useFirstCard):
+p716x::p716x(double clockFrequency, bool useInternalClock, bool useFirstCard,
+             bool simulate, double simPauseMS):
+_clockFrequency(clockFrequency),
+_useInternalClock(useInternalClock),
 _cardIndex(_NumOpenCards),
 _moduleId(P71620_MODULE_ID),    // 71620 is the only one we support right now
 _simulate(simulate),
@@ -153,7 +156,7 @@ int p716x::memWrite(int bank, int32_t* buf, int bytes) {
     int retval = bytes;
 
     int status = _ddrMemWrite(
-            &_p716xBoardResource,
+            &_boardResource,
             bank,
             bytes,
             (uint32_t*)buf,
@@ -173,7 +176,7 @@ int p716x::memRead(int bank, int32_t* buf, int bytes) {
     int retval = bytes;
 
     int status = _ddrMemRead(
-            &_p716xBoardResource,
+            &_boardResource,
             bank,
             bytes,
             (uint32_t*)buf,
@@ -215,25 +218,23 @@ p716x::_initReadyFlow() {
         _NumOpenCards;
     }
 
-    // Initialize 716x register address tables
-    P716xInitRegAddr(_BAR0Base, &_p716xRegAddr, &_p716xBoardResource, _moduleId);
-
     // Reset the board so we start in pristine condition
-    P716xSetGlobalResetState(_p716xRegAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
-    usleep(1000);
-    P716xSetGlobalResetState(_p716xRegAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
-    usleep(1000);
+    P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
+    usleep(P716X_IOCTLSLEEPUS);
+    P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
+    usleep(P716X_IOCTLSLEEPUS);
+
+    // Initialize 716x register address tables
+    P716xInitRegAddr(_BAR0Base, &_regAddr, &_boardResource, _moduleId);
 
     // Reset board registers to power-on default states
-    P716xResetRegs(&_p716xRegAddr);
+    P716xResetRegs(&_regAddr);
     
-    // Put working default settings into p716xGlobalParams
-    P716x_GLOBAL_PARAMS p716xGlobalParams;
-    P716xSetGlobalDefaults(&_p716xBoardResource, &p716xGlobalParams);
+    // Load parameter tables with default values
+    P716xSetGlobalDefaults(&_boardResource, &_globalParams);
 
-
-    /* check if module is a 716x */
-    unsigned int id = P716xGetModuleId(_p716xRegAddr.boardId);
+    // check if module is a 716x
+    unsigned int id = P716xGetModuleId(_regAddr.boardId);
     if (id != _moduleId)
     {
         ELOG << "Module id of Pentek card " << _NumOpenCards + 1 << " is " <<
@@ -246,6 +247,16 @@ p716x::_initReadyFlow() {
     DLOG << std::hex << " BAR2: 0x" << (void *)_BAR2Base;
     DLOG << std::hex << " BAR4: 0x" << (void *)_BAR4Base;
 
+    // Verify that the board has the Pentek DDC IP core
+    if (_boardResource.numDDC == 0) {
+        ELOG << "P716x card " << _NumOpenCards << 
+                " does not have the Pentek DDC IP core installed!";
+        return false;
+    }
+    
+    // Get the per-channel DDC register addresses
+    P716xInitDdcRegAddr(_BAR2Base, &_ddcRegAddr);
+    
     /// @todo Although we follow the normal ReadyFlow protocol
     /// for configuring the DAC (P716xSetDac5687Defaults()
     /// followed by P716xInitDac5687Regs()),
@@ -254,51 +265,46 @@ p716x::_initReadyFlow() {
     /// P716xInitDac5687Regs() to perform the correct configuration,
     /// so that it can be pulled out of p716xUp().
 
-    // Apply our adjustments to _p716xGlobalParams
-    _configSyncBusParameters();
-    _configInParameters();
-    _configOutParameters();
+    // Make adjustments to various register configuration parameters
+    _configClockParameters();
 
+    // Validate parameters before applying them
+    if (P716xValidateBrdClkFreq(&_globalParams, &_regAddr) != 0) {
+        ELOG << "ADC or DAC sampling frequency is incompatible with board " <<
+                "clock frequency of " << 1.0e-6 * _clockFrequency << " MHz";
+        return false;
+    }
+    
     // Write parameter table values to the 716x registers
-    P716xInitGlobalRegs(&p716xGlobalParams, &_p716xRegAddr);
-
-    // Determine the gate generator register pointer
-    _gateGenReg = P716xGetGateGenState(_p716xRegAddr.gateAGenerate) ?
-            _p716xRegAddr.gateAGenerate : _p716xRegAddr.gateBGenerate;
+    P716xInitGlobalRegs(&_globalParams, &_regAddr);
 
     return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-void p716x::_configSyncBusParameters() {
-
-    // Turn off output from the internal clock's VCXO, and use the external 
-    // clock directly
-    P716xSetSBusCtrl1VcxoOutDisable(_p716xRegAddr.syncBusControl1,
-                                    P716x_SBUS_CTRL1_VCXO_OUT_DISABLE);
-    P716xSetSBusCtrl1ClkSel(_p716xRegAddr.syncBusControl1,
-                            P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK);
+void p716x::_configClockParameters() {
+    // Set the clock frequency in the global params struct. This is the 
+    // frequency of the external source if an external clock is used, or the 
+    // frequency for which the card's onboard CDC7005 clock synthesizer will be
+    // configured. In turn, by the card's defaults, this will be the clock 
+    // frequency provided for both the ADC and DAC channels.
+    _globalParams.brdClkFreq = _clockFrequency;
     
-    // Disable sync and gate generation on both the A and B bus
-    P716xSetSyncGenState(_p716xRegAddr.syncAGenerate, P716x_SYNC_INACTIVE);
-    P716xSetSyncGenState(_p716xRegAddr.syncBGenerate, P716x_SYNC_INACTIVE);
-    
-    P716xSetGateGenState(_p716xRegAddr.gateAGenerate, P716x_GATE_INACTIVE);
-    P716xSetGateGenState(_p716xRegAddr.gateBGenerate, P716x_GATE_INACTIVE);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-void p716x::_configInParameters() {
-
-    // set the down conversion FIFO parameters
-
-    for (int adchan = 0; adchan < P716X_NCHANNELS; adchan++) {
-        // Set data packing mode for the channel
-        P716xSetAdcDataCtrlPackMode(_p716xRegAddr.adcRegs[adchan].dataControl,
-                P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK);
-
+    // Set up use of internal or external clock
+    if (_useInternalClock) {
+        // Enable the onboard VCXO
+        _globalParams.sbusParams.vcxoOutput = P716x_SBUS_CTRL1_VCXO_OUT_ENABLE;
+        // Have the CDC7005 clock synthesizer use the VCXO as its clock input,
+        // providing no reference clock to discipline it.
+        _globalParams.sbusParams.clockSelect = P716x_SBUS_CTRL1_CLK_SEL_VCXO_NO_REF;
+    } else {
+        // Turn off output from the onboard VCXO, since we'll use the external
+        // clock.
+        _globalParams.sbusParams.vcxoOutput = P716x_SBUS_CTRL1_VCXO_OUT_DISABLE;
+        // Have the CDC7005 clock synthesizer just pass the external clock
+        // directly through.
+        _globalParams.sbusParams.clockSelect = P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK;
     }
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -326,10 +332,10 @@ void p716x::_configOutParameters() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716x::disableSyncAndGateGen() {
-    P716xSetGateGenState(_p716xRegAddr.gateAGenerate, P716x_GATE_INACTIVE);
-    P716xSetSyncGenState(_p716xRegAddr.syncAGenerate, P716x_SYNC_INACTIVE);
-    P716xSetGateGenState(_p716xRegAddr.gateBGenerate, P716x_GATE_INACTIVE);
-    P716xSetSyncGenState(_p716xRegAddr.syncBGenerate, P716x_SYNC_INACTIVE);
+    P716xSetGateGenState(_regAddr.gateAGenerate, P716x_GATE_INACTIVE);
+    P716xSetSyncGenState(_regAddr.syncAGenerate, P716x_SYNC_INACTIVE);
+    P716xSetGateGenState(_regAddr.gateBGenerate, P716x_GATE_INACTIVE);
+    P716xSetSyncGenState(_regAddr.syncBGenerate, P716x_SYNC_INACTIVE);
     DLOG << "Gate and sync generation disabled";
 }
 
@@ -370,10 +376,10 @@ p716x::_resetDCM() {
 
     // cycle the digital clock manager
     // hold the dcm in reset for a short period
-    P716x_SET_DCM_CTRL_DCM_RST(_p716xBoardResource.BAR2RegAddr.dcmControl, P716x_DCM_CTRL_DCM_RST_RESET);
+    P716x_SET_DCM_CTRL_DCM_RST(_boardResource.BAR2RegAddr.dcmControl, P716x_DCM_CTRL_DCM_RST_RESET);
     usleep(1000);
     // take the dcm out of reset
-    P716x_SET_DCM_CTRL_DCM_RST(_p716xBoardResource.BAR2RegAddr.dcmControl, P716x_DCM_CTRL_DCM_RST_RUN);
+    P716x_SET_DCM_CTRL_DCM_RST(_boardResource.BAR2RegAddr.dcmControl, P716x_DCM_CTRL_DCM_RST_RUN);
     usleep(1000);
 
     DLOG << "DCM has been cycled.";
@@ -981,7 +987,7 @@ p716x::circuitBoardTemp() const {
 
     LM83_VALUES     tempMonValues;
     /* read the LM83 temperature registers */
-    Twsi_LM83GetValues((unsigned long)(_p716xBoardResource.BAR2RegAddr.twsiPort),
+    Twsi_LM83GetValues((unsigned long)(_boardResource.BAR2RegAddr.twsiPort),
             P716x_TWSI_ADDR_LM83, &tempMonValues);
     // The D3 temperature sensor is on the PCB.
     int temp = tempMonValues.D3Temp;
@@ -1001,7 +1007,7 @@ p716x::fpgaTemp() const {
 
     LM83_VALUES     tempMonValues;
     /* read the LM83 temperature registers */
-    Twsi_LM83GetValues((unsigned long)(_p716xBoardResource.BAR2RegAddr.twsiPort),
+    Twsi_LM83GetValues((unsigned long)(_boardResource.BAR2RegAddr.twsiPort),
             P716x_TWSI_ADDR_LM83, &tempMonValues);
     // The D2 temperature sensor is on the signal processing FPGA.
     int temp = tempMonValues.D2Temp;
@@ -1011,4 +1017,3 @@ p716x::fpgaTemp() const {
     	temp -= 256;
     return(temp);
 }
-

@@ -29,7 +29,7 @@ public:
     /// @param internalClock Set true if the internal clock should be
     /// used instead of an external clock source.
     p716xDn(p716x* p716x,
-            int chanId,
+            uint16_t chanId,
             uint32_t dmaDescSize,
             int bypassdivrate = 1,
             int simWaveLength = 5000,
@@ -38,34 +38,30 @@ public:
 
         /// Destructor
         virtual ~p716xDn();
+        
         /// Read bytes.
         /// @param buf read bytes into this buffer
         /// @param bufsize The number of bytes to read.
         /// @return The actual number of bytes read
         virtual int read(char* buf, int bufsize);
+        
         /// Return the number of bytes read by this downconverter
         /// since the last call to bytesRead().
         /// @return the number of bytes read by this downconverter
         /// since the last call to bytesRead().
         long bytesRead();
+        
         /// Are we using the card's internal clock?
         /// @return true iff this channel using the card's internal clock
-        bool usingInternalClock() const;
-        /// Get the current decimation factor
-        /// @return the current decimation factor
-        int decimation() const;
-        ///
-        /// Set the bypass divider decimation factor. This establishes the
-        /// rx gate width in the downconverter (by setting the FPGA
-        /// FEN frequency.)
-        /// @param bypassdiv the desired bypass divider decimation factor
-        /// @return true if decimation is set successfully
-        bool setDecimation(int bypassdiv) const;
-        ///
-        /// Return the channel id (0-3) for this downconverter.
-        /// @return the channel id (0-3) for this downconverter.
-        int chanId() const { return _chanId; }
-        /// Are we simulating existence of a real P716x card?
+        bool usingInternalClock() const {
+            return(_p716x.usingInternalClock());
+        }
+
+        /// @brief Return the ADC channel id (0-2) for this downconverter.
+        /// @return the ADC channel id (0-2) for this downconverter.
+        uint16_t chanId() const { return _chanId; }
+        
+        /// @brief Are we simulating existence of a real P716x card?
         /// @return true iff we are simulating a P716x card rather than using
         /// a real one.
         bool isSimulating() const { return _p716x.isSimulating(); }
@@ -87,15 +83,16 @@ public:
         /// DMA interrupts are cleared by the Kernel Device Driver.
         ///
         /// DMA interrupts are enabled when this routine is executed.
-        /// @param dmaHandle The DMA handle for the source channel
-        /// @param dmaChannel - number of the DMA channel generating the interrupt(0-3)
-        /// @param pData - Pointer to user defined data
-        /// @param pIntResult - Pointer to the interrupt results structure
+        /// @param deviceHandle the device handle of the source Pentek card
+        /// @param intType the type of the incoming interrupt
+        /// @param instancePointer pointer to p716xDn instance which should
+        /// handle the interrupt
+        /// @param pIntResult pointer to the interrupt results structure
         static void _staticDmaHandler(
-                PVOID dmaHandle,
-                unsigned int dmaChannel,
-                PVOID pData,
-                PTK714X_INT_RESULT *pIntResult);
+                PVOID deviceHandle,
+                unsigned int intType,
+                PVOID instancePointer,
+                PTK716X_INT_RESULT *intResult);
         /// @brief This method is called from the static method 
         /// _adcDmaIntHandler(), indicating that DMA data are ready for reading 
         /// for this downconverter's channel. Data are read from DMA and 
@@ -105,8 +102,8 @@ public:
         /// as well while this method is executing.
         void _dmaInterrupt();
 
-        /// @brief Initialize DMA for our ADC channel.
-        void _initDma();
+        /// @brief Set up the ADC channel parameter table
+        void _setAdcParams();
 
         /// @brief Read bytes from the ADC channel. If no data are
         /// available, the thread will be blocked. The request will not
@@ -131,7 +128,10 @@ public:
         /// The P716x which owns us...
         p716x& _p716x;
         /// Receiver channel number (0-3)
-        int _chanId;
+        unsigned int _chanId;
+        /// 
+        /// ADC parameters for our input channel
+        P716x_ADC_CHAN_PARAMS _adcChanParams;
         /// The number bytes in each DMA descriptor. This is the data interval
         /// between interrupts telling us to read data from DMA.
         const int _DmaDescSize;
@@ -146,10 +146,11 @@ public:
         /// Mutex for thread safety
         mutable boost::recursive_mutex _mutex;
         /// ReadyFlow DMA handle
-        PTK714X_DMA_HANDLE*   _dmaHandle;
+        PTK716X_DMA_HANDLE*   _dmaHandle;
         /// ReadyFlow DMA buffer address pointers, one for each of the 
         /// four "descriptors" the DMA cycles through
-        PTK714X_DMA_BUFFER    _dmaBuf[4];
+        static const uint16_t N_DMA_DESCRIPTORS = 4;
+        PTK716X_DMA_BUFFER    _dmaBuf[N_DMA_DESCRIPTORS];
         /// true if an AD channel is running
         bool _adcActive;
         /// Queue of free buffers available to hold data read from DMA

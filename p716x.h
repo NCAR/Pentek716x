@@ -20,6 +20,7 @@
 
 #include <ptk_osdep.h>
 #include <716x.h>
+#include <716xddc.h>
 
 #include <boost/thread/recursive_mutex.hpp>
 
@@ -156,6 +157,7 @@ namespace Pentek {
 		public:
             /// A P716x card has 3 receive channels available.
             static const int P716X_NCHANNELS = 3;
+            
             /// (Suggested) time to sleep after P716x ioctl calls, in microseconds
             static const int P716X_IOCTLSLEEPUS = 100;
             
@@ -163,12 +165,19 @@ namespace Pentek {
             /// Pentek 716x card in the system. The access order for
             /// cards is system-dependent, and specifically affected by cards'
             /// location on the PCI bus(es).
+            /// @param clockFrequency Master clock frequency, Hz
+            /// @param useInternalClock If true use the internal VCXO clock,
+            /// otherwise use the external clock signal
+            /// @param useFirstCard If true, use the first card in the system. Otherwise,
+            /// the next card will be searched for.
             /// @param simulate Set true if we operate in simulation mode.
             /// @param simPauseMS The number of milliseconds to wait,after
             /// every 100 requests for a simulated pulse number.
-            /// @param useFirstCard If true, use the first card in the system. Otherwise,
-            /// the next card will be searched for.
-            p716x(bool simulate = false, double simPauseMS = 50.0, bool useFirstCard=false);
+            p716x(double clockFrequency,
+                  bool useInternalClock,
+                  bool useFirstCard=false,
+                  bool simulate = false, 
+                  double simPauseMS = 50.0);
 			/// Destructor.
 			virtual ~p716x();
             /// @brief Tell if the P716x is successfully configured and ready
@@ -179,10 +188,6 @@ namespace Pentek {
             /// @brief Return true iff we're in simulation mode.
             /// @return true iff we're in simulation mode.
             bool isSimulating() const { return _simulate; }
-            /// Turn on the global FIFO gate enable.
-            void enableGateGen();
-            /// Turn off the global FIFO gate enable
-            void disableSyncAndGateGen();
 
             /// @brief Construct and add a downconverter for one of our receiver channels.
             /// @param chanId The channel identifier (used to select /dn/*B)
@@ -238,10 +243,18 @@ namespace Pentek {
                     return(NULL);
                 }
             }
+            
+            /// @brief Return true if we're using the Pentek's internal clock,
+            /// or false if we're using an external clock signal.
+            /// @return true if we're using the Pentek's internal clock,
+            /// or false if we're using an external clock signal
+            inline bool usingInternalClock() const {
+                uint clock = P716xGetSBusCtrl1ClkSel(_regAddr.syncBusControl1);
+                return(clock != P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK);
+            }
 
             // We make our associated downconverter and upconverter classes 
-            // friends so that they have access to BAR registers, etc.
-            // methods, etc.
+            // friends so that they have access to BAR registers, methods, etc.
             friend class p716xDn;
             friend class p716xUp;
 
@@ -292,11 +305,7 @@ namespace Pentek {
             /// @return 0 on success, -1 on failure.
             static int _bufset(int fd, int intbufsize, int bufN);
             /// Configure the board parameters, in p716xBoardParams
-            void _configSyncBusParameters();
-            /// Configure the down conversion path parameters
-            void _configInParameters();
-            /// Configure the up conversion path parameters
-            void _configOutParameters();
+            void _configClockParameters();
             /// Write to the selected memory bank.
             /// @param bank The selected bank -  0, 1 or 2
             /// @param buf Pointer to the buffer of bytes to be written.
@@ -372,40 +381,34 @@ namespace Pentek {
             /// many instances of this class are there so far).
             static uint16_t _NumOpenCards;
 
+            /// Master clock frequency, Hz
+            double _clockFrequency;
+            /// Are we using the card's internal VCXO clock?
+            bool _useInternalClock;
             /// ReadyFlow device descriptor.
             void* _deviceHandle;
             /// Index for this instance of p716x.
             uint16_t _cardIndex;
             /// ReadyFlow PCI BAR0 base address.
-            BAR_ADDR              _BAR0Base;
+            BAR_ADDR _BAR0Base;
             /// ReadyFlow PCI BAR2 base address.
-            BAR_ADDR              _BAR2Base;
+            BAR_ADDR _BAR2Base;
             /// ReadyFlow PCI BAR4 base address.
-            BAR_ADDR              _BAR4Base;
-            /// ReadyFlow PCI slot number.
-            DWORD                 _pciSlot;
+            BAR_ADDR _BAR4Base;
             /// ReadyFlow module identifier.
-            unsigned int          _moduleId;
+            unsigned int _moduleId;
             /// ReadyFlow 716x register addresses in PCI space.
-            P716x_BOARD_RESOURCE  _p716xBoardResource;
+            P716x_BOARD_RESOURCE _boardResource;
             /// ReadyFlow 716x hardware register address struct
-            P716x_REG_ADDR        _p716xRegAddr;
-            /// ReadyFlow parameters for PCI configuration.
-            P716X_PCI_PARAMS      _p716xPciParams;
-            /// ReadyFlow parameters for DMA configuration.
-            P716X_DMA_PARAMS      _p716xDmaParams;
-            /// ReadyFlow parameters for overall board configuration.
-            P716X_BOARD_PARAMS    _p716xBoardParams;
-            /// ReadyFlow parameters for the down conversion path configuration.
-            P716X_INPUT_PARAMS    _p716xInParams;
-            /// ReadyFlow parameters for the up conversion path configuration.
-            P716X_OUTPUT_PARAMS   _p716xOutParams;
-            /// ReadyFlow parameters for the DDR memory.
-            P716X_DDR_MEM_PARAMS  _p716xMemParams;
-            /// ReadyFlow parameters for DAC configuration.
-            DAC5688_PARAMS        _p716xDac5688Params;
-            /// The PCI address of the GateFlow gate generation control register.
-            volatile unsigned int *_gateGenReg;
+            P716x_REG_ADDR _regAddr;
+            /// struct containing per-channel digital downconverter (DDC) 
+            /// register addresses for Pentek DDC IP core
+            P716x_DDC_REG_ADDR _ddcRegAddr;
+            /// Global register configuration parameters. This includes 
+            /// separate structs containing CDC (clock synthesizer) parameters, 
+            /// sync bus parameters, LED parameters, test signal parameters, 
+            /// timestamp parameters, and system monitor parameters.
+            P716x_GLOBAL_PARAMS _globalParams;
             /// set true if in simulation mode
             bool _simulate;
             /// recursive mutex which provides us thread safety.

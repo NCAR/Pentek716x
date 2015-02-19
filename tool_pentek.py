@@ -10,6 +10,7 @@ variables = eol_scons.GlobalVariables()
 
 tools = Split("""
 boost_thread
+logx
 readyflow
 doxygen
 """)
@@ -54,6 +55,9 @@ env['DOXYFILE_DICT'].update({'PROJECT_NAME':'Pentek'})
 html = env.Apidocs(libsources + headers)
 Default(html)
 
+# Build the test programs if necessary when this tool is loaded
+SConscript("test/SConscript")
+
 thisdir = env.Dir('.').srcnode().abspath
 def pentek(env):
     env.AppendUnique(CPPPATH = [thisdir])
@@ -62,5 +66,3 @@ def pentek(env):
     env.Require(tools)
 
 Export('pentek')
-
-SConscript("test/SConscript")
