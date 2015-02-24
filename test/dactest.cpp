@@ -11,8 +11,8 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "p7142.h"
-#include "p7142Up.h"
+#include "p716x.h"
+#include "p716xUp.h"
 
 #define BASICSIZE   1024
 
@@ -43,9 +43,9 @@ int main(int argc, char** argv) {
 	double ncoFreq      = atof(argv[4]);
 	char mode           = atoi(argv[5]);
 
-	// create the p7142 and its upconverter
-	Pentek::p7142 card(65536, false);
-	Pentek::p7142Up & upConverter = *card.addUpconverter(sampleRate, ncoFreq, mode);
+	// create the p716x and its upconverter
+	Pentek::p716x card(65536, false);
+	Pentek::p716xUp & upConverter = *card.addUpconverter(sampleRate, ncoFreq, mode);
 
 	// create the signal
 	unsigned int n = 100;

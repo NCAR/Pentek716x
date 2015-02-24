@@ -6,7 +6,6 @@ qtt_qtconfig
 boost_date_time
 boost_program_options
 doxygen
-qt4
 logx
 """)
 
@@ -14,7 +13,7 @@ sources = Split("""
 capture.cpp
 dactest.cpp
 dacdump.cpp
-toggle_7142_leds.cpp
+toggle_716x_leds.cpp
 """)
 
 headers = Split("""
@@ -30,9 +29,9 @@ dactest = env.Program('dactest', 'dactest.cpp')
 
 dacdump = env.Program('dacdump', 'dacdump.cpp')
 
-toggle_7142_leds = env.Program('toggle_7142_leds', 'toggle_7142_leds.cpp')
+toggle_716x_leds = env.Program('toggle_716x_leds', 'toggle_716x_leds.cpp')
 
 # TODO dacdump does not currently compile!
 #Default(capture, dactest, dacdump, toggle_7142_leds, html)
-Default(capture, dactest, toggle_7142_leds, html)
+Default(capture, dactest, toggle_716x_leds, html)
 

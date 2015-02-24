@@ -9,10 +9,10 @@
 #include <sys/timeb.h>
 #include <boost/program_options.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <p716x_sd3c.h>
 // For configuration management
 #include <QtConfig.h>
 
-#include "p7142sd3c.h"
 
 #define BASICSIZE   1024
 
@@ -196,9 +196,9 @@ int main(int argc, char** argv) {
 	makeRealTime();
 
     // Instantiate our p7142 object and create the downconverter on it
-	Pentek::p7142sd3c sd3c(false, 0, _pulseWidth, _prt, _prt2, 
-	        _stgrPrt, _gates, _nsum, _freeRun, Pentek::p7142sd3c::DDC8DECIMATE);
-	Pentek::p7142sd3cDn & downConverter = *sd3c.addDownconverter(_chanId, 
+	Pentek::p716x_sd3c sd3c(false, 0, _pulseWidth, _prt, _prt2, 
+	        _stgrPrt, _gates, _nsum, _freeRun, Pentek::p716x_sd3c::DDC8DECIMATE);
+	Pentek::p716xDn_sd3c & downConverter = *sd3c.addDownconverter(_chanId, 
 	        4 * 512 * 1024, false, _tsLength, 0, _pulseWidth, _gaussianFile, 
 	        _kaiserFile);
 	
