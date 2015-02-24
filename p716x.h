@@ -105,10 +105,7 @@ namespace Pentek {
     ///
     /// <h1>Lineage</h1>
     /// The p716x class was mostly adapted from the ReadyFlow example
-    /// programs. Its C ancestry is obvious. There are many references
-    /// to the DAC5686. Our Pentek cards are customized, where the
-    /// DAC5686 was replaced by the DAC5687. We retained the DAC5686
-    /// nomenclature so as to match the ReadyFlow usage.
+    /// programs.
     ///
     /// <h1>ReadyFlow</h1>
     /// ReadyFlow seems to have two methods of configuration manipulation. At
@@ -194,14 +191,14 @@ namespace Pentek {
     		/// @param dmaDescSize DMA descriptor size to use for this channel. This
     		/// is the amount of data written to DMA by the Pentek before an interrupt
     		/// is generated indicating data should be read.
-            /// @param bypassdivrate The bypass divider (decimation) rate
+            /// @param decimation The decimation rate
             /// @param simWavelength The wave length, in timeseries points, for the
             /// simulated data. See p716xDn::read().
             /// @param sim4bytes Create 4 byte instead of 2 byte integers when
             /// in simulation mode. This simulates the output of the coherent 
             /// integrator.
             virtual p716xDn* addDownconverter(int chanId, uint32_t dmaDescSize,
-                    int bypassdivrate = 1, int simWavelength = 5000, 
+                    int decimation = 1, int simWavelength = 5000, 
                     bool sim4bytes = false);
             
             /// @brief Construct and add an upconverter for our device.
@@ -281,14 +278,17 @@ namespace Pentek {
             /// @return The value in the selected register.
             unsigned int _regget(unsigned int addr);
 
-            /// Reset the digital clock managers on the FPGA. Necessary since
-            /// some of the new DCMs we add in the firmware use the
-            /// CLKFX output, which won't lock at startup. <em>Downconverters
-            /// must call this method whenever they change their clock source
-            /// via the CLKSRCSET ioctl!</em>
-            void _resetDCM();
             /// Initialize the ReadyFlow library.
             bool _initReadyFlow();
+            
+            /// @brief Enable output from the ADCs (or ADC user blocks) to the 
+            /// output FIFOs.
+            void _enableAdcOutput();
+            
+            /// @brief Disable output from the ADCs (or ADC user blocks) to the 
+            /// output FIFOs.
+            void _disableAdcOutput();
+            
             /// Create a random number, with Gaussian distribution about a 
             /// selected mean and with selected standard deviation.
             /// Useful for simulation
@@ -296,6 +296,7 @@ namespace Pentek {
             /// @param[in] stdDev standard deviation of the Gaussian distribution
             /// @return the generated random number
             static double _gauss(double mean, double stdDev);
+            
             /// Set the dma buffer and interrupt buffersize. The
             /// buffersize must be at least 2x the interrupt buffer size.
             /// Perhaps it should be even more?
@@ -304,8 +305,10 @@ namespace Pentek {
             /// @param bufN The driver buffer will be this factor times intbufsize
             /// @return 0 on success, -1 on failure.
             static int _bufset(int fd, int intbufsize, int bufN);
+
             /// Configure the board parameters, in p716xBoardParams
-            void _configClockParameters();
+            virtual void _configGlobalParameters();
+            
             /// Write to the selected memory bank.
             /// @param bank The selected bank -  0, 1 or 2
             /// @param buf Pointer to the buffer of bytes to be written.
@@ -313,6 +316,7 @@ namespace Pentek {
             /// @return The number of bytes written. If an error occurs,
             /// minus one will be returned.
             int memWrite(int bank, int32_t* buf, int bytes);
+
             /// Read from the selected memory bank.
             /// @param bank The selected bank -  0, 1 or 2
             /// @param buf The data will be returned here.
@@ -321,6 +325,7 @@ namespace Pentek {
             /// @return The number of bytes read. If an error occurs,
             /// minus one will be returned.
             int memRead(int bank, int32_t* buf, int bytes);
+            
             /// Borrowed shamelessly from dmem_dac.c in the ReadyFlow examples
             /// (but heavily modified to work with shorter write lengths and
             /// write lengths that are not a multiple of 32 bytes)
@@ -346,6 +351,7 @@ namespace Pentek {
                              unsigned int    dataLen,
                              unsigned int   *dataBuf,
                              PVOID           hDev);
+            
             /// Lifted shamelessly from dmem_dac.c in the readyflow examples
             ///
             /// Read data to the selected DDR memory bank, using DMA Channel 7.
@@ -368,8 +374,9 @@ namespace Pentek {
                             unsigned int    dataLen,
                             unsigned int   *dataBuf,
                             void*           hDev);
+            
             /// Each 100 calls, sleep for simPauseMS milliseconds.
-            void simWait();
+            void _simWait();
             
             /// Keep track of the PCI slot of the last instantiated p716x.
             /// This is needed for calls to ReadyFlow's PTK714X_DeviceFindAndOpen() 
@@ -377,6 +384,7 @@ namespace Pentek {
             /// p716x we instantiate. (This change actually occurs at each call 
             /// from the constructor to PTK714X_DeviceFindAndOpen()).
             static DWORD _Next716xSlot;
+            
             /// Keep track of how many 716x cards we have open (i.e., how
             /// many instances of this class are there so far).
             static uint16_t _NumOpenCards;
@@ -401,9 +409,6 @@ namespace Pentek {
             P716x_BOARD_RESOURCE _boardResource;
             /// ReadyFlow 716x hardware register address struct
             P716x_REG_ADDR _regAddr;
-            /// struct containing per-channel digital downconverter (DDC) 
-            /// register addresses for Pentek DDC IP core
-            P716x_DDC_REG_ADDR _ddcRegAddr;
             /// Global register configuration parameters. This includes 
             /// separate structs containing CDC (clock synthesizer) parameters, 
             /// sync bus parameters, LED parameters, test signal parameters, 
@@ -430,10 +435,10 @@ namespace Pentek {
             boost::condition_variable _simPulseNumCondition;
             /// Mutex used with the simulated pulse number condition variable
             mutable boost::mutex _simPulseNumMutex;
-            /// The sim wait counter, which controls how often simWait() will
+            /// The sim wait counter, which controls how often _simWait() will
             /// actually sleep.
             unsigned int _simWaitCounter;
-            /// The number of milliseconds that simWait() will sleep
+            /// The number of milliseconds that _simWait() will sleep
             double _simPauseMS;
 
 	};

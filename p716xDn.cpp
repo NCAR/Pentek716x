@@ -26,7 +26,7 @@ p716xDn::p716xDn(
         bool internalClock) :
   _p716x(*p716x),
   _chanId(chanId),
-  _adcChanParams(),
+  _ifcArgs(),
   _DmaDescSize(dmaDescSize),
   _bytesRead(0),
   _simWaveLength(simWaveLength),
@@ -35,35 +35,35 @@ p716xDn::p716xDn(
   _mutex(),
   _adcActive(false),
   _readBufAvail(0),
-  _readBufOut(0)
+  _readBufOut(0),
+  _exiting(false)
 {
     // dma buffer size must be a multiple of 4
     if ((_DmaDescSize % 4) || (_DmaDescSize <= 0)) {
       ELOG << "DMA descriptor size must be a positive  multiple of 4 bytes, "
            <<  _DmaDescSize << " was specified";
-      abort();
+      raise(SIGINT);
     }
 
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
+    // Initialize ReadyFlow OS-dependent resources
+    PTKIFC_Init(&_ifcArgs);
+    
     if (isSimulating()) {
         _adcActive = true;
         return;
     }
 
-    // Put a set of _DmaDescSize char buffers in the free buffer queue
-    // for this channel. These buffers are used when pulling data 
-    // from DMA.
-    for (int i = 0; i < N_READYFLOW_DMA_BUFFERS; i++) {
-        _freeBuffers.push(new char[_DmaDescSize]);
-    }
-    
     // Size _readBuf appropriately.
     _readBuf.resize(2 * _DmaDescSize);
-
-    // Set up the ADC
-    _setAdcParams();
     
+    // Set up the ADC
+    _initAdc();
+    
+    // Create our DMA reader thread
+    _initDma();
+
     // Start DMA
     _start();
 }
@@ -71,8 +71,31 @@ p716xDn::p716xDn(
 ////////////////////////////////////////////////////////////////////////////////
 p716xDn::~p716xDn() {
     boost::recursive_mutex::scoped_lock guard(_mutex);
-    // Stop DMA and free DMA resources
+    // Set _exiting to true to terminate the DMA reading thread, then wait
+    // for the thread to complete.
+    ILOG << "Waiting for DMA reading thread to finish";
+    _exiting = true;
+    PTKIFC_ThreadWaitFinish(&_ifcArgs, _dmaThreadNum());
+
+    // Stop DMA
     _stop();
+    
+    // Free DMA resources
+    int status;
+    for (int d = 0; d < N_DMA_DESCRIPTORS; d++) {
+        status = PTK716X_DMAFreeMem(_dmaHandle, &_dmaBuf[d]);
+        if (status != PTK716X_STATUS_OK) {
+            ELOG << __PRETTY_FUNCTION__ <<
+                    ": DMA memory free failed for channel " << _chanId <<
+                    "/descriptor " << d;
+        }
+    }
+
+    status = PTK716X_DMAClose(_p716x._deviceHandle, _dmaHandle);
+    if (status != PTK716X_STATUS_OK) {
+        ELOG << __PRETTY_FUNCTION__ << ": DMA channel close failed";
+    }
+
     // Delete the buffers we allocated
     while (! _freeBuffers.empty()) {
         char * buf = _freeBuffers.front();
@@ -100,7 +123,7 @@ p716xDn::read(char* buf, int bufsize) {
     if ((bufsize % 4) != 0) {
       ELOG << __PRETTY_FUNCTION__ << ": " << bufsize << 
         " bytes requested, but Pentek reads must be a multiple of 4 bytes!";
-      abort();
+      raise(SIGINT);
     }
 
     int n = isSimulating() ? _simulatedRead(buf, bufsize) : _read(buf, bufsize);
@@ -162,60 +185,43 @@ p716xDn::bytesRead() {
     return retval;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 void
-p716xDn::_setAdcParams() {
-    // Initialize the ADC channel parameter table to working default values
-    P716xSetAdcDefaults(&_p716x._boardResource, &_adcChanParams);
-    
-    // Have the ADC put its data into the "user block", so that it will go 
-    // to our DDC running on the FPGA before being packed for output.
-    _adcChanParams.dataSource = P716x_ADC_DATA_CTRL_USR_DATA_SEL_USER;
-    
-    // Set ADC data packing mode to deliver I and Q data
-    _adcChanParams.dataPackMode = P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK;
-    
-    DWORD uStatus;  // unsigned
-    int status;     // signed
+p716xDn::_initDma() {
+    // Put a set of _DmaDescSize char buffers in the free buffer queue
+    // for this channel. These buffers are used when pulling data 
+    // from DMA.
+    for (int i = 0; i < N_READYFLOW_DMA_BUFFERS; i++) {
+        _freeBuffers.push(new char[_DmaDescSize]);
+    }
     
     // Open a DMA channel
+    DWORD uStatus;  // unsigned
     uStatus = PTK716X_DMAOpen(_p716x._deviceHandle, _chanId, &_dmaHandle);
     if (uStatus != PTK716X_STATUS_OK) {
         ELOG << __PRETTY_FUNCTION__ <<
                 ": Unable to open DMA for ADC channel " << _chanId;
-        abort();
+        raise(SIGINT);
     }
-
-    // Allocate DMA data buffers
-    for (int d = 0; d < N_DMA_DESCRIPTORS; d++) {
-        uStatus = PTK716X_DMAAllocMem(_dmaHandle, _DmaDescSize, &_dmaBuf[d], TRUE);
-        if (uStatus != PTK716X_STATUS_OK) {
-            ELOG << __PRETTY_FUNCTION__ << 
-            ": Unable to allocate a DMA buffer for ADC channel " << _chanId << 
-            "/descriptor " << d;
-            abort();
-        }
-    }
-
-    // Apply our ADC parameter table to the registers
-    status = P716xInitAdcRegs(&_adcChanParams, &_p716x._regAddr, _chanId);
-    if (status != 0) {
-        ELOG << __PRETTY_FUNCTION__ << ": Bad status " << status << 
-                " from P716xInitAdcRegs() for ADC channel " << _chanId;
-        abort();
-    }
-    
-    // DMA setup -------------------------------------------------------
 
     // reset the DMA linked list engine and FIFO
     P716xAdcDmaReset(&_p716x._regAddr, _chanId);
 
-    // Build a DMA descriptor chain to loop in a circle through 
-    // N_DMA_DESCRIPTORS descriptors.
+    // Build a DMA descriptor chain which circles through N_DMA_DESCRIPTORS 
+    // descriptors.
     P716x_ADC_DMA_LLIST_DESCRIPTOR descriptorParams;
     P716x_ADC_DMA_DESCRIPT_CWORD_PARAMS cwordParams;
     
     for (int d = 0; d < N_DMA_DESCRIPTORS; d++) {
+        // Allocate DMA memory space for the descriptor
+        uStatus = PTK716X_DMAAllocMem(_dmaHandle, _DmaDescSize, &_dmaBuf[d], TRUE);
+        if (uStatus != PTK716X_STATUS_OK) {
+            ELOG << __PRETTY_FUNCTION__ << 
+                    ": Unable to allocate a DMA buffer for ADC channel " << 
+                    _chanId << "/descriptor " << d;
+            raise(SIGINT);
+        }
+            
         // Set the DMA transfer length
         descriptorParams.xferLength = _DmaDescSize;
         
@@ -250,77 +256,93 @@ p716xDn::_setAdcParams() {
                                        d);
     }
 
-    // Flush the ADC Input FIFOs
-    P716xAdcFifoFlush(&_p716x._regAddr, _chanId);
+    // Create a semaphore used to indicate a DMA buffer has been written.
+    // We just use our ADC channel number as the semaphore number.
+    if (PTKIFC_SemaphoreCreate (&_ifcArgs, _dmaCompleteSemNum()) < 0) {
+        ELOG << __PRETTY_FUNCTION__ << 
+                ": Unable to create a 'DMA complete' semaphore for ADC " << 
+                _chanId;
+        raise(SIGINT);
+    }
 
-    // reset the DMA linked list engine
-    P716xAdcDmaReset(&_p716x._regAddr, _chanId);
-
-    // arm the DMA for a trigger
-    P716xAdcDmaStart(&_p716x._regAddr, _chanId);
+    // Bogus cast necessary because the signature for PTKIFC_ThreadCreate
+    // wants a threadFunc which takes no arguments, even though the function is 
+    // actually called with a single void* argument. If they ever fix this, we
+    // can just pass _StaticDmaThreadMainLoop as the 3rd argument below.
+    void (*threadFunc)(void) = 
+            reinterpret_cast<void (*)(void)>(_StaticDmaThreadMainLoop);
     
-    // Initialize our DMA chain index
-    _nextDesc = 0;
+    // Create/start our DMA reader thread. The thread executes static method
+    // _StaticDmaThreadMainLoop(this), which in turn executes 
+    // this->_dmaThreadMainLoop().
+    DWORD status = PTKIFC_ThreadCreate(&_ifcArgs, _dmaThreadNum(), threadFunc, this);
+    if (status != 0)
+    {
+        ELOG << __PRETTY_FUNCTION__ << 
+                ": PTKIFC_ThreadCreate failed with status " << status << 
+                " for ADC channel " << _chanId;
+        raise(SIGINT);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// This static method is called by WinDriver each time a DMA descriptor 
-// transfer is completed by an ADC channel (DMA channels 0-3).
-void 
-p716xDn::_staticDmaHandler(
-        PVOID deviceHandle,
-        unsigned int intType,
-        PVOID instancePointer,
-        PTK716X_INT_RESULT *intResult)
-{
-    // Cast instancePointer to p716xDn*
-    p716xDn * downconverter = static_cast<p716xDn *>(instancePointer);
-
-    // Call the dmaInterrupt member function in the p716xDn object
-    downconverter->_dmaInterrupt();
+void
+p716xDn::_initAdc() {
+    /// ADC parameters for our input channel
+    P716x_ADC_CHAN_PARAMS adcChanParams;
+    
+    // Apply our ADC parameter table to the registers
+    int status = P716xInitAdcRegs(&adcChanParams, &_p716x._regAddr, _chanId);
+    if (status != 0) {
+        ELOG << __PRETTY_FUNCTION__ << ": Bad status " << status << 
+                " from P716xInitAdcRegs() for ADC channel " << _chanId;
+        raise(SIGINT);
+    }
+    
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void
-p716xDn::_dmaInterrupt() {
-    boost::lock_guard<boost::mutex> lock(_bufMutex);
-    std::ostringstream msgStream;
-    
-    // Find out which DMA descriptor buffer is currently being written. We can 
-    // read everything up to that buffer.
-    uint32_t currDmaDesc = 0;
-    PCI716x_GET_DMA_CURR_XFER_CNTR_CURR_DESCPRT(
-            _p716x._p716xRegs.BAR0RegAddr.dmaCurrXferCounter[_chanId], currDmaDesc);
-    
-    if (currDmaDesc == _nextDesc) {
-        msgStream << "ERROR! Channel " << _chanId << 
-            " wants to read descriptor " << _nextDesc << 
-            " while DMA is in progress there! Likely overrun!\n";
-        ELOG << msgStream.str();
-        // Skip reading this descriptor, since the old data we want is being
-        // overwritten right now!
-        _nextDesc = (_nextDesc + 1) % 4;
-    }
+p716xDn::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
+    // Initialize the ADC channel parameter table to working default values
+    P716xSetAdcDefaults(&_p716x._boardResource, &adcChanParams); 
+}
 
-    // Read up to the descriptor buffer currently being written via DMA. When 
-    // things are running smoothly, we'll just read one buffer here, but 
-    // occasionally we may need to play catch up. As long as we are 3 or fewer 
-    // buffers behind, we should be OK...
-    int nBufsRead = 0;
-    while (_nextDesc != currDmaDesc) {
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p716xDn::_dmaSemaphorePost() {
+    if (PTKIFC_SemaphorePost(&_ifcArgs, _dmaCompleteSemNum()) < 0) {
+        ELOG << "Error posting 'DMA complete' semaphore for channel " << _chanId;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+void
+p716xDn::_dmaThreadMainLoop() {
+    // Loop until _exiting is set to true by the destructor
+    while (! _exiting) {
+        // Wait up to WAIT_MSECS ms for the 'DMA complete' semaphore
+        static const int WAIT_MSECS = 100;
+        bool fail = PTKIFC_SemaphoreWait(&_ifcArgs, _dmaCompleteSemNum(), 
+                                         IFC_WAIT_STATE_MILSEC(WAIT_MSECS));
+        if (fail) {
+            DLOG << "No DMA completion in " << WAIT_MSECS << " ms";
+            continue;
+        }
+
+        boost::lock_guard<boost::mutex> lock(_bufMutex);
+
         // Make sure we have a buffer available in _freeBuffers
         if (_freeBuffers.empty()) {
-            msgStream << "Dropping data on channel " << _chanId << 
-                ", no free buffers available!\n";
-            ELOG << msgStream.str();
-            break;
+            ELOG << "Dropping data on channel " << _chanId << 
+                ", no free buffers available!";
+            continue;
         }
 
         // Get the next free buffer and copy the data from DMA to the buffer
         char * buf = _freeBuffers.front();
         _freeBuffers.pop();
         memcpy(buf, (char*)_dmaBuf[_nextDesc].usrBuf, _DmaDescSize);
-        nBufsRead++;
         
         // Add the buffer to the filled buffers queue
         _filledBuffers.push(buf);
@@ -328,19 +350,12 @@ p716xDn::_dmaInterrupt() {
         // Use the condition variable to tell data consumer (i.e. _read())
         // that new data are available.
         _dataReadyCondition.notify_one();
-    
-        // Move to the next descriptor in the DMA chain
-        _nextDesc = (_nextDesc + 1) % 4;
+        
+        // Increment the next descriptor to read
+        _nextDesc = (_nextDesc + 1) % N_DMA_DESCRIPTORS;
     }
     
-    // Whine a little if we read more than one buffer in this call.
-    //if (nBufsRead > 1) {
-        //msgStream.clear();
-        //msgStream << "On channel " << _chanId << ", read " << nBufsRead <<
-        //    " DMA buffers at once (warning only)";
-        //ELOG << msgStream.str();
-    //}
-
+    PTKIFC_ThreadExit(&_ifcArgs);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -401,44 +416,37 @@ void
 p716xDn::_start() {
 
     if (_adcActive) {
-      ELOG << __FILE__ << ":" << __FUNCTION__ << ":" << 
-        " trying to start ADC channel " << _chanId <<
-        " when it is already active";
-      return;
+        ELOG << __PRETTY_FUNCTION__ << ": trying to start ADC channel " << 
+                _chanId << " when it is already active";
+        return;
     }
 
+    // Flush the ADC Input FIFOs
+    P716xAdcFifoFlush(&_p716x._regAddr, _chanId);
 
-    // apply the parameters to the DMA registers for this DMA channel
-    P716xDmaChanInit(&(_p716x._p716xDmaParams.dmaChan[_chanId]),
-                     &(_p716x._p716xRegs.BAR0RegAddr),
-                     _chanId);
+    // Reset the DMA linked list engine
+    P716xAdcDmaReset(&_p716x._regAddr, _chanId);
+    
+    // We'll start reading from the first DMA descriptor
+    _nextDesc = 0;
 
-    // enable the DMA interrupt, on descriptor finish.
-    // _dmaHandlerData contains a pointer to "this", as well
-    // as other details.
-    int status = PTK716X_intEnable(moduleResrc->hDev,
-                                   PTK716X_PCIE_INTR_ADC_ACQ_MOD1 << _chanId,
-                                   P716x_ADC_INTR_LINK_END,
-                                   this,
-                                   _staticIntHandler);
-
-    int status = PTK716X_DMAIntEnable(_dmaHandle,
-                                   PTK716X_DMA_DESCRIPTOR_FINISH,
-                                   this,
-                                   (PTK716X_INT_HANDLER)_staticDmaHandler);
-
-    if (status != PTK716X_STATUS_OK) {
-      ELOG << __FILE__ << ":" << __FUNCTION__ << 
-        ": Unable to enable DMA interrupt for channel " << _chanId;
-      raise(SIGINT);
+    // enable the DMA 'Link End' interrupt for this channel
+    DWORD uStatus = PTK716X_intEnable(_p716x._deviceHandle,
+                                      (PTK716X_PCIE_INTR_ADC_ACQ_MOD1 << _chanId),
+                                      P716x_ADC_INTR_LINK_END,
+                                      (PVOID)(&_ifcArgs),
+                                      _StaticIntHandler);
+    if (uStatus != PTK716X_STATUS_OK)
+    {
+        ELOG << __PRETTY_FUNCTION__ << 
+                ": Could not enable 'Link End' interrupt for ADC " << _chanId;
+        raise(SIGINT);
     }
-
-    DLOG << "DMA interrupt enabled for channel " << _chanId;
 
     // Enable the DMA. Transfers will not occur however until the GateFlow
-    // FIFOs start receiveing data, which will take place when the sd3c
+    // FIFOs start receiving data, which will take place when the sd3c
     // timers are started.
-    P716xDmaStart(&(_p716x._p716xRegs.BAR0RegAddr), _chanId);
+    P716xAdcDmaStart(&_p716x._regAddr, _chanId);
 
     // Mark this channel as active.
     _adcActive = true;
@@ -447,8 +455,8 @@ p716xDn::_start() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716xDn::_stop() {
-    DLOG << "Halting DMA for card " << _p716x._cardIndex << "/channel " << 
-      _chanId << " and freeing resources";
+    DLOG << "Halting DMA for card " << _p716x._cardIndex << 
+            "/channel " << _chanId;
     if (_p716x.isSimulating()) {
         return;
     }
@@ -457,35 +465,20 @@ p716xDn::_stop() {
         return;
     }
 
-    int status;
-
     // Abort any existing transfers
     P716xAdcDmaAbort(&_p716x._regAddr, _chanId);
 
-    // Disable DMA Interrupt for this channel
-    status = PTK716x_DMAIntDisable(_dmaHandle);
-    if (status != PTK716X_STATUS_OK) {
-      ELOG << __FILE__ << ":" << __FUNCTION__ <<
-        ": DMA interrupt disable failed";
+    // Disable the DMA 'Link End' interrupt for this channel
+    DWORD uStatus = PTK716X_intDisable(_p716x._deviceHandle,
+                                       (PTK716X_PCIE_INTR_ADC_ACQ_MOD1 << _chanId),
+                                       P716x_ADC_INTR_LINK_END);
+    if (uStatus != PTK716X_STATUS_OK)
+    {
+        ELOG << __PRETTY_FUNCTION__ << 
+                ": Could not disable 'Link End' interrupt for ADC " << _chanId;
+        raise(SIGINT);
     }
-    
-    for (int desc = 0; desc < 4; desc++) {
-      status = PTK716X_DMAFreeMem(_dmaHandle, &_dmaBuf[desc]);
-        if (status != PTK716X_STATUS_OK) {
-          ELOG << __FILE__ << ":" << __FUNCTION__ <<
-            ": DMA memory free failed";
-        }
-    }
-
-    status = PTK716X_DMAClose(_p716x._deviceHandle, _dmaHandle);
-    if (status != PTK716X_STATUS_OK) {
-      ELOG << __FILE__ << ":" << __FUNCTION__ <<
-        ": DMA channel close failed";
-    }
-
-    _adcActive = false;
 
     DLOG << "DMA terminated for ADC channel " << _chanId;
-
 }
 
