@@ -4,17 +4,14 @@
 #include <boost/program_options.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <csignal>
-#include <logx/Logging.h>
 #include "p716x.h"
 
 using namespace std;
 using namespace boost::posix_time;
 namespace po = boost::program_options;
 
-LOGGING("toggleP716xLEDs")
-
-double _runTimeSecs = 20.0;
-double _waitSecs = 0.5;  ///< Wait between ids (secs)
+double _runTimeSecs = 10.0;
+double _waitSecs = 0.05;  ///< Wait between LED state toggles (secs)
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -31,9 +28,9 @@ void parseOptions(int argc, char** argv)
   descripts.add_options()
     ("help", "Describe options")
     ("runTimeSecs", po::value<double>(&_runTimeSecs),
-     "Program run time (secs) (default 20)")
+     "Program run time (secs) (default 10)")
     ("waitSecs", po::value<double>(&_waitSecs), 
-     "Wait between toggles (secs) (default 0.5)")
+     "Wait between toggles (secs) (default 0.05)")
     ;
 
   po::variables_map vm;
@@ -89,9 +86,6 @@ int
 main(int argc, char** argv)
 {
 
-  // Let logx get and strip out its arguments
-  logx::ParseLogArgs(argc, argv);
-  
   // parse the command line options, substituting for config params.
   parseOptions(argc, argv);
 
@@ -114,7 +108,7 @@ main(int argc, char** argv)
   DWORD BAR4Base;
   DWORD slot = -1; // forces user interaction if more than 1 pentek
   void *hDev = PTK716X_DeviceFindAndOpen(&slot, &BAR0Base, &BAR2Base, 
-                                         &BAR4Base, 71620);
+                                         &BAR4Base, 0x71620);
   if (hDev == NULL) {
     return (exitHandler (2, hDev));
   }
@@ -145,44 +139,22 @@ main(int argc, char** argv)
     return -1;
   }
 
-  // print status
-
-  cerr << "Found Pentek 716x device";
-  cerr << "  device addr: " << hex << hDev << endl;
-  cerr << "  slot: " << dec << slot << endl;
-  cerr << "  BAR0Base: " << hex << (void *)BAR0Base;
-  cerr << "  BAR2Base: " << hex << (void *)BAR2Base;
-  cerr << dec;
-  cerr << endl;
-
-//  // get master bus controls
-//
-//  uint32_t masterBusAControl =
-//          P716xGetSBusCtrl1GateSyncMaster(p716xRegs.syncBusControl1, 
-//                                          P716x_SYNC_BUS_A);
-//  uint32_t masterBusBControl =
-//          P716xGetSBusCtrl1GateSyncMaster(p716xRegs.syncBusControl1, 
-//                                          P716x_SYNC_BUS_B);
-//
-//  cerr << "Initial state:" << endl;
-//  cerr << "  bus A gate/sync master: " << hex << masterBusAControl << endl;
-//  cerr << "  bus B gate/sync master: " << hex << masterBusBControl << endl;
-//  cerr << dec;
-
   // Toggle user LED every _waitSecs for _runTimeSecs
+
+  cout << "The card's 'USR' LED should toggle every "
+		  << _waitSecs << " s for the next "
+		  << _runTimeSecs << " s" << endl;
 
   for (int i = 0; (i * _waitSecs) < _runTimeSecs; i++) {
       // alternate user LED on/off
-      uint32_t ledState = (i % 2) ? P716x_USER_LED_ON : P716x_USER_LED_OFF;
-      P716xSetUserLedState(p716xRegs.userLED, ledState);
+      uint32_t usrLedState = (i % 2) ? P716x_USER_LED_ON : P716x_USER_LED_OFF;
+      P716xSetUserLedState(p716xRegs.userLED, usrLedState);
+
       usleep(int(1.0e6 * _waitSecs));
   }
 
-  // set user LED on at exit
-    
-  cerr << "--->> Setting all on" << endl;
-    
-  P716xSetUserLedState(p716xRegs.userLED, P716x_USER_LED_ON);
+  // Turn user LED off at exit
+  P716xSetUserLedState(p716xRegs.userLED, P716x_USER_LED_OFF);
 
   // return
 
