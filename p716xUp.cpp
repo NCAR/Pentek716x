@@ -46,8 +46,8 @@ p716xUp::~p716xUp() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 bool p716xUp::initDAC() {
-    // TODO: implement!
-    return false;
+	ELOG << __PRETTY_FUNCTION__ << " is not yet implemented!";
+	raise(SIGINT);
 //    // Set DAC FIFO clock source
 //    // P716x_DAC_CTRL_STAT_DAC_CLK_SELECT (0x0)
 //    // P716x_DAC_CTRL_STAT_DAC_CLK_BYPASS (0x8)
@@ -187,7 +187,8 @@ p716xUp::dumpDACregs() {
         return;
     }
 
-    WLOG << __PRETTY_FUNCTION__ << " not implemented!:";
+	ELOG << __PRETTY_FUNCTION__ << " is not yet implemented!";
+	raise(SIGINT);
 //    for (int i = 0; i < 32; i++) {
 //        // get value
 //        char val = getDACreg(i<<8);
@@ -268,6 +269,8 @@ p716xUp::write(int32_t* data, int n) {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void p716xUp::startDAC() {
+	ELOG << __PRETTY_FUNCTION__ << " is not yet implemented!";
+	raise(SIGINT);
 //	boost::recursive_mutex::scoped_lock guard(_mutex);
 //
 //	if (isSimulating())
@@ -349,6 +352,8 @@ void p716xUp::startDAC() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716xUp::stopDAC() {
+	ELOG << __PRETTY_FUNCTION__ << " is not yet implemented!";
+	raise(SIGINT);
 //  boost::recursive_mutex::scoped_lock guard(_mutex);
 //
 //  if (isSimulating())
