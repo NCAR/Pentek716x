@@ -88,7 +88,7 @@ public:
         static void _StaticIntHandler(PVOID deviceHandle,
                                       unsigned long intType,
                                       PVOID instancePointer,
-                                      PTK716X_INT_RESULT *intResult)
+                                      PTK716X_INT_RESULT *pIntResult)
         {
             // Just increment the "DMA ready" semaphore on the downconverter
             // which should get the new data.

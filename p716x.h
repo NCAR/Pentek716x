@@ -250,6 +250,14 @@ namespace Pentek {
                 return(clock != P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK);
             }
 
+            /// @brief Return a pointer to this card's upconverter, or null if
+            /// there is no upconverter.
+            /// @return a pointer to this card's upconverter, or null if
+            /// there is no upconverter.
+            const p716xUp* upconverter() const {
+                return(_upconverter);
+            }
+
             // We make our associated downconverter and upconverter classes 
             // friends so that they have access to BAR registers, methods, etc.
             friend class p716xDn;

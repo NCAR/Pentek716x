@@ -62,14 +62,25 @@ public:
     ///     mode.
     /// @param externalStartTrigger If true, an external trigger source
     ///     (generally a 1 PPS signal from a GPS clock) is used to start the 
-    ///     radar.
+    ///     radar. This parameter used to have a default value of
+    ///     false, but a default is no longer defined.
     /// @param simPauseMS The number of milliseconds to wait between beams
-    ///     simulated data when calling read()
+    ///     simulated data when calling read(). This parameter used to
+    ///     have a default value of 50, but a default is no longer
+    ///     defined.
     /// @param useFirstCard If true, use the first card in the system. Otherwise,
-    ///     the next card will be searched for.
-    /// @param rim If true, we are operating in RIM mode.
+    ///     the next card will be searched for. This parameter used to
+    ///     have a default value of false, but a default is no longer
+    ///     defined.
+    /// @param rim If true, we are operating in RIM mode. This parameter
+    ///     used to have a default value of false, but a default is no
+    ///     longer defined.
     /// @param codeLength If complementary coding is being used, it is
-    ///     set to the length of the code.
+    ///     set to the length of the code. This parameter used to have a
+    ///     default of 0, but a default is no longer defined.
+    /// @param adc_clock - if non-zero, override the default adc_clock
+    ///     from DDC Type. This parameter used to have a default of 0,
+    ///     but a default is no longer defined.
     p716x_sd3c(
     		bool simulate,
     		double tx_delay,
@@ -81,11 +92,12 @@ public:
     		unsigned int nsum,
     		bool freeRun,
     		DDCDECIMATETYPE simulateDDCType,
-    		bool externalStartTrigger = false,
-    		double simPauseMS = 50,
-    		bool useFirstCard = false,
-    		bool rim = false,
-    		int codeLength = 0
+    		bool externalStartTrigger,
+    		double simPauseMS,
+    		bool useFirstCard,
+    		bool rim,
+    		int codeLength,
+    		double adc_clock
     		);
     
     /// Destructor.
