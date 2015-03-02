@@ -4,6 +4,7 @@
 #include "p716xDn.h"
 #include "FilterSpec.h"
 
+#include <stdint.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace Pentek {
