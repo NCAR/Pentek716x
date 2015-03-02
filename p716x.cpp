@@ -216,14 +216,21 @@ p716x::_initReadyFlow() {
         _NumOpenCards;
     }
 
+    DLOG << "Pentek 716x device";
+    DLOG << std::hex << " BAR0: 0x" << _BAR0Base;
+    DLOG << std::hex << " BAR2: 0x" << _BAR2Base;
+    DLOG << std::hex << " BAR4: 0x" << _BAR4Base;
+
+    // Initialize 716x register address tables
+    ILOG << "P716xInitRegAddr";
+    P716xInitRegAddr(_BAR0Base, &_regAddr, &_boardResource, _moduleId);
+
     // Reset the board so we start in pristine condition
+    ILOG << "Resetting Pentek";
     P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
     usleep(P716X_IOCTLSLEEPUS);
     P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
     usleep(P716X_IOCTLSLEEPUS);
-
-    // Initialize 716x register address tables
-    P716xInitRegAddr(_BAR0Base, &_regAddr, &_boardResource, _moduleId);
 
     // Reset board registers to power-on default states
     P716xResetRegs(&_regAddr);
@@ -239,11 +246,6 @@ p716x::_initReadyFlow() {
                 std::hex << id << ", but a " << _moduleId << " is expected";
         return false;
     }
-
-    DLOG << "Pentek 716x device";
-    DLOG << std::hex << " BAR0: 0x" << (void *)_BAR0Base;
-    DLOG << std::hex << " BAR2: 0x" << (void *)_BAR2Base;
-    DLOG << std::hex << " BAR4: 0x" << (void *)_BAR4Base;
 
     /// @todo Although we follow the normal ReadyFlow protocol
     /// for configuring the DAC (P716xSetDac5687Defaults()
