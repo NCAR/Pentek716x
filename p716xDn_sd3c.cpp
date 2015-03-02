@@ -7,11 +7,12 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
-
+#include <716x.h>
 #include <logx/Logging.h>
-#include <p716x_sd3c.h>
-#include <p716xDn_sd3c.h>
-LOGGING("p716xSd3cDn");
+
+#include "p716x_sd3c.h"
+#include "p716xDn_sd3c.h"
+LOGGING("p716xDn_sd3c");
 
 using namespace boost::posix_time;
 
