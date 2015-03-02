@@ -13,7 +13,7 @@
 #include <stdlib.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <p716xDn_sd3c.h>
+#include "p716xDn_sd3c.h"
 
 static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
 

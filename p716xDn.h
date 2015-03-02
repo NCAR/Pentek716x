@@ -4,7 +4,7 @@
 #include <string>
 #include <boost/thread/recursive_mutex.hpp>
 #include <ptk_osdep.h>  // include this before other ReadyFlow headers
-#include <p716x.h>
+#include "p716x.h"
 
 namespace Pentek {
 
