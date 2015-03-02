@@ -173,6 +173,20 @@ public:
     char* getBeam(int64_t& nPulsesSinceStart, float& angle1, float& angle2,
             bool & xmitPolHorizontal);
 
+    /// @brief Get a beam of pulse-tagged data and its associated extra
+    /// metadata.
+    /// @param[out] nPulsesSinceStart the number of pulses since the xmitter
+    ///   was started up - allows computation of the time
+    /// @param[out] metaDataBuf - buffer for meta data
+    /// @param[out] bufLen - length of meta data buffer in bytes
+    /// The metadata will contain angles, scan flags etc that are
+    /// to be interpreted by the calling routine.
+    /// metaDataBuf must be allocated by the caller, to have the length bufLen,
+    /// This should match the len returned by ptMetadataLen().
+    char* getBeam(int64_t & nPulsesSinceStart,
+                  void *metaDataBuf = NULL,
+                  int bufLen = 0);
+
     /// Return our gate count. For burst sampling channels, this may be
     /// different from the gate count set for our p7142sd3c object.
     /// @return the gate count for this downconverter.
@@ -230,6 +244,23 @@ protected:
     ///   xmitter was started up - allows computation of the time
     /// @returns Pointer to the start of the beam.
     char* ptBeamDecoded(int64_t & nPulsesSinceStart);
+    /// Return the next synchronized beam of pulse tagger data, without extra
+    /// metadata.
+    /// The pulse number in the beam is checked for dropped beams.
+    /// Data associated with synchronization errors will be skipped.
+    /// The caller can access beamLength() bytes.
+    /// @param[out] nPulsesSinceStart: the number of pulses since the
+    ///   xmitter was started up - allows computation of the time
+    ///
+    /// The metaData will be stored in the buffer provided.
+    /// This will contain angles, scan flags etc that are
+    /// to be interpreted by the calling routine.
+    /// metaDataBuf must be allocated by the caller, to have the length bufLen,
+    /// This should match the len returned by ptMetadataLen().
+    /// @returns Pointer to the start of the beam.
+    char* ptBeamWithMeta(int64_t & nPulsesSinceStart,
+                         void *metaDataBuf = NULL,
+                         int bufLen = 0);
     /// Return the next synchronized beam of coherent integrator data.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
@@ -243,6 +274,7 @@ protected:
     /// is a misnomer, since there aren't really beams in free run mode.
     /// Think of them as blocks. The caller can access beamLength() bytes.
     char* frBeam();
+
     /// Return the next synchronized beam of pulse tagger data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.

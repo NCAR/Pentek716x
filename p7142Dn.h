@@ -11,8 +11,6 @@ namespace Pentek {
 /// This class reads and controls downconversion for one receiver channel of a
 /// P7142 transceiver card.
 class p7142Dn {
-/// Define the number of DMA buffers available for the Readyflow DMA interrupt handler.
-#define N_READYFLOW_DMA_BUFFERS 100
 
 public:
     /// Constructor
@@ -69,9 +67,10 @@ public:
         /// @return true iff we are simulating a P7142 card rather than using
         /// a real one.
         bool isSimulating() const { return _p7142.isSimulating(); }
-        
-
     protected:
+        /// Define the number of DMA buffers available for the Readyflow DMA interrupt handler.
+        static const int N_READYFLOW_DMA_BUFFERS = 100;
+        
         /// @brief Start Pentek writing to DMA for this channel.
         void _start();
         /// @brief Stop Pentek from writing to DMA for this channel.

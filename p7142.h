@@ -243,6 +243,14 @@ namespace Pentek {
                     return(NULL);
                 }
             }
+            
+            /// @brief Return a pointer to this card's upconverter, or null if
+            /// there is no upconverter.
+            /// @return a pointer to this card's upconverter, or null if
+            /// there is no upconverter.
+            const p7142Up* upconverter() const {
+                return(_upconverter);
+            }
 
             // We make our associated downconverter and upconverter classes 
             // friends so that they have access to BAR registers, etc.

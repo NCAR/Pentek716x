@@ -99,13 +99,18 @@ p7142::~p7142() {
     }
     // empty the list of active down converters
     _downconverters.erase(_downconverters.begin(), _downconverters.end());
+    
+    // delete the upconverter, if any
+    delete _upconverter;
 
     /* cleanup for exit */
     PTK714X_DeviceClose(_deviceHandle);
     _NumOpenCards--;
     
-    /* If there are no instances left, close up the ReadyFlow library */
+    // If there are no instances left, set to open the first Pentek card by
+    // default on the next instantiation, and close up the ReadyFlow library.
     if (_NumOpenCards == 0) {
+        _Next7142Slot = -2; // use the first card in the system next time
         PTK714X_LibUninit();
         DLOG << "ReadyFlow closed";
     }
@@ -211,6 +216,7 @@ p7142::_initReadyFlow() {
     {
       ELOG << "Pentek 7142 device not found when opening card " << 
         _NumOpenCards;
+      return false;
     }
 
     /* Initialize 7142 register address tables */

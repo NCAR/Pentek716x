@@ -725,6 +725,19 @@ p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart, float & angle1,
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
+p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart,
+                     void *metaDataBuf /* = NULL */,
+                     int bufLen /* = 0 */) {
+    // This method only works for pulse-tagged data
+    if (_sd3c._operatingMode() != p7142sd3c::MODE_PULSETAG) {
+        ELOG << __PRETTY_FUNCTION__ << " only works for MODE_PULSETAG";
+        abort();
+    }
+    return(ptBeamWithMeta(nPulsesSinceStart, metaDataBuf, bufLen));
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+char*
 p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart) {
 
     // perform the simulation wait if necessary
@@ -824,6 +837,93 @@ p7142sd3cDn::ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
                 pulseNum << "!";
         abort();
     } else if (delta != 1) {
+        if (delta < 0) {
+            ELOG << "Channel " << _chanId << " went BACKWARD " <<
+                -delta << " pulses: " << _lastPulse << "->" << pulseNum;
+        } else {
+            ELOG << "Channel " << _chanId << " dropped " <<
+                delta - 1 << " pulses: " << _lastPulse << "->" << pulseNum;
+        }
+    }
+
+    _nPulsesSinceStart += delta;
+    nPulsesSinceStart = _nPulsesSinceStart;
+
+    _droppedPulses += (delta - 1);
+    _lastPulse = pulseNum;
+
+    return buf;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+//
+// Get a beam, passing in a buffer for the metadata from the start of the beam
+// This will contain angles, scan flags etc that are interpreted by the
+// calling routine.
+// metaDataBuf must be allocated by the caller, to have the length bufLen,
+
+char*
+  p7142sd3cDn::ptBeamWithMeta(int64_t & nPulsesSinceStart,
+                              void *metaDataBuf /*= NULL */,
+                              int bufLen /* = 0 */) {
+
+  boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    // get the beam
+    char pulseTag[4];
+    char pulseMetadata[ptMetadataLen()];
+    char* buf = ptBeam(pulseTag, pulseMetadata);
+
+    // unpack the channel number and pulse sequence number.
+    // Unpack the 4-byte channel id/pulse number
+    unsigned int chan, pulseNum;
+    unpackPtChannelAndPulse(pulseTag, chan, pulseNum);
+    if (int(chan) != _chanId) {
+        std::ostringstream msgStream;
+        msgStream << std::setfill('0');
+        msgStream << "On channel " << chan << ", got BAD pulse tag 0x" << 
+            std::hex << std::setw(8) << pulseTag << " after pulse tag 0x" <<
+            std::setw(8) << (uint32_t(_chanId) << 30 | _lastPulse) << 
+            std::dec << ". Pulse number will just be incremented.\n";
+        ELOG << msgStream.str();
+
+        // Just hijack the next pulse number, since we've got garbage for
+        // the pulse anyway...
+        pulseNum = _lastPulse + 1;
+    }
+
+    // Copy the metadata into the client buffer
+    if (ptMetadataLen()) {
+      int ncopy = ptMetadataLen();
+      if (ncopy > bufLen) {
+        ncopy = bufLen;
+      }
+      memcpy(metaDataBuf, pulseMetadata, ncopy);
+    }
+
+    // Initialize _lastPulse if this is the first pulse we've seen
+    if (_firstBeam) {
+        _lastPulse = pulseNum - 1;
+        _firstBeam = false;
+    }
+
+    // Handle pulse number rollover gracefully
+    if (_lastPulse == MAX_PT_PULSE_NUM) {
+        DLOG << "Pulse number rollover on channel " << chanId();
+        _lastPulse = -1;
+    }
+
+    // How many pulses since the last one we saw?
+    int delta = pulseNum - _lastPulse;
+    if (delta < (-MAX_PT_PULSE_NUM / 2)) {
+        delta += MAX_PT_PULSE_NUM + 1;
+    }
+
+    if (delta == 0) {
+        ELOG << "Channel " << _chanId << ": got repeat of pulse " <<
+                pulseNum << "!";
+        abort();
+    } else if (delta != 1) {
         ELOG << _lastPulse << "->" << pulseNum << ": ";
         if (delta < 0) {
             ELOG << "Channel " << _chanId << " went BACKWARD " <<
@@ -842,6 +942,7 @@ p7142sd3cDn::ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
 
     return buf;
 }
+
 //////////////////////////////////////////////////////////////////////////////////
 char*
 p7142sd3cDn::ptBeam(char* pulseTag, char* metadata) {
@@ -1587,6 +1688,8 @@ p7142sd3cDn::ptMetadataLen() const {
     switch (_sd3c._ddcType) {
     case p7142sd3c::DDC8DECIMATE:
         return(24); // 6 extra words (24 bytes) of metadata for DDC8
+    case p7142sd3c::DDC10DECIMATE:
+        return(24); // 6 extra words (24 bytes) of metadata for DDC10
     default:
         return(0);
     }
