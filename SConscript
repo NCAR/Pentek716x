@@ -1,9 +1,6 @@
-# If this pentek directory is the top level checkout, you can create a 
-# symbolic link SConstruct -> SConscript to allow for building this 
-# tree by itself.
-
+# Execute this SConscript to build the binaries in the 'test' directory.
+# Building of the library is handled via tool_pentek.py, which is loaded when
+# the SCons tool 'pentek' is required by a build environment.
 env = Environment(tools = ['default'], GLOBAL_TOOLS = ['prefixoptions'])
-
-# End of SConstruct boilerplate
 
 SConscript(dirs = 'test')
