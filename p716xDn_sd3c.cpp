@@ -183,7 +183,7 @@ p716xDn_sd3c::_setDecimation(uint16_t decimation) {
     _decimation = decimation;
 
     // Write to the SD3C decimation register
-    void * regAddr = p716x_sd3c::_Sd3cRegAddr(DDC_DECIMATION);
+    void * regAddr = _sd3c._sd3cRegAddr(DDC_DECIMATION);
     P716x_REG_WRITE(regAddr, _decimation);
 
     // Read back to verify writing
@@ -297,7 +297,7 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             break;    
         }
         
-        P716x_REG_WRITE(_sd3c._BAR2Base + KAISER_CTL,
+        P716x_REG_WRITE(_sd3c._sd3cRegAddr(KAISER_CTL),
                 ddcSelect | DDC_STOP | ramSelect | ramAddr);
         usleep(1);
 
@@ -307,21 +307,21 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
         for (int attempt = 0; attempt < 5; attempt++) {
             // write the value
             // LS word first
-            P716x_REG_WRITE(_sd3c._BAR2Base + KAISER_DATA_LSW, kaiser[i] & 0xFFFF);
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(KAISER_DATA_LSW), kaiser[i] & 0xFFFF);
             usleep(1);
     
             // then the MS word -- since coefficients are 18 bits and FPGA 
             // registers are 16 bits!
-            P716x_REG_WRITE(_sd3c._BAR2Base + KAISER_DATA_MSW,
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(KAISER_DATA_MSW),
                     (kaiser[i] >> 16) & 0x3);
             usleep(1);
     
             // latch coefficient
-            P716x_REG_WRITE(_sd3c._BAR2Base + KAISER_WR, 0x1);
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(KAISER_WR), 0x1);
             usleep(1);
     
             // disable writing (kaiser readback only succeeds if we do this)
-            P716x_REG_WRITE(_sd3c._BAR2Base + KAISER_WR, 0x0);
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(KAISER_WR), 0x0);
             usleep(1);
     
             // read back the programmed value; we need to do this in two words 
@@ -329,8 +329,8 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             unsigned int readBack;
             uint32_t kaiser_lsw;
             uint32_t kaiser_msw;
-            P716x_REG_READ(_sd3c._BAR2Base + KAISER_READ_LSW, kaiser_lsw);
-            P716x_REG_READ(_sd3c._BAR2Base + KAISER_READ_MSW, kaiser_msw);
+            P716x_REG_READ(_sd3c._sd3cRegAddr(KAISER_READ_LSW), kaiser_lsw);
+            P716x_REG_READ(_sd3c._sd3cRegAddr(KAISER_READ_MSW), kaiser_msw);
             readBack = kaiser_msw << 16 | kaiser_lsw;
 
             if (readBack == kaiser[i]) {
@@ -404,28 +404,28 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
         bool coeffLoaded = false;
         for (int attempt = 0; attempt < 5; attempt++) {
             // set the address
-            P716x_REG_WRITE(_sd3c._BAR2Base + GAUSSIAN_CTL,
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(GAUSSIAN_CTL),
                     ddcSelect | ramSelect | ramAddr);
             usleep(1);
     
             // write the value
             // LS word first
-            P716x_REG_WRITE(_sd3c._BAR2Base + GAUSSIAN_DATA_LSW,
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(GAUSSIAN_DATA_LSW),
                     gaussian[i] & 0xFFFF);
             usleep(1);
     
             // then the MS word -- since coefficients are 18 bits and FPGA 
             // registers are 16 bits!
-            P716x_REG_WRITE(_sd3c._BAR2Base + GAUSSIAN_DATA_MSW,
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(GAUSSIAN_DATA_MSW),
                     (gaussian[i] >> 16) & 0x3);
             usleep(1);
     
             // latch coefficient
-            P716x_REG_WRITE(_sd3c._BAR2Base + GAUSSIAN_WR, 0x1);
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(GAUSSIAN_WR), 0x1);
             usleep(1);
     
             // disable writing (gaussian readback only succeeds if we do this)
-            P716x_REG_WRITE(_sd3c._BAR2Base + GAUSSIAN_WR, 0x0);
+            P716x_REG_WRITE(_sd3c._sd3cRegAddr(GAUSSIAN_WR), 0x0);
             usleep(1);
     
             // read back the programmed value; we need to do this in two words 
@@ -433,8 +433,8 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
             unsigned int readBack;
             uint32_t kaiser_lsw;
             uint32_t kaiser_msw;
-            P716x_REG_READ(_sd3c._BAR2Base + GAUSSIAN_READ_LSW, kaiser_lsw);
-            P716x_REG_READ(_sd3c._BAR2Base + GAUSSIAN_READ_MSW, kaiser_msw);
+            P716x_REG_READ(_sd3c._sd3cRegAddr(GAUSSIAN_READ_LSW), kaiser_lsw);
+            P716x_REG_READ(_sd3c._sd3cRegAddr(GAUSSIAN_READ_MSW), kaiser_msw);
             readBack = kaiser_msw << 16 | kaiser_lsw;
             if (readBack == gaussian[i]) {
                 coeffLoaded = true;
@@ -700,10 +700,10 @@ void p716xDn_sd3c::fifoConfig() {
         break;
     }
 
-    P716x_REG_READ(_sd3c._BAR2Base + ppOffset, readBack);
+    P716x_REG_READ(_sd3c._sd3cRegAddr(ppOffset), readBack);
 
     // And configure ADC FIFO Control for this channel
-    P716x_REG_WRITE(_sd3c._BAR2Base + ppOffset, readBack & 0x000034BF);
+    P716x_REG_WRITE(_sd3c._sd3cRegAddr(ppOffset), readBack & 0x000034BF);
 
 }
 
@@ -750,7 +750,7 @@ p716xDn_sd3c::getBeam(int64_t & nPulsesSinceStart,
     // This method only works for pulse-tagged data
     if (_sd3c._operatingMode() != p716x_sd3c::MODE_PULSETAG) {
         ELOG << __PRETTY_FUNCTION__ << " only works for MODE_PULSETAG";
-        abort();
+        raise(SIGINT);
     }
     return(ptBeamWithMeta(nPulsesSinceStart, metaDataBuf, bufLen));
 }
@@ -942,7 +942,7 @@ p716xDn_sd3c::ptBeamWithMeta(int64_t & nPulsesSinceStart,
     if (delta == 0) {
         ELOG << "Channel " << _chanId << ": got repeat of pulse " <<
                 pulseNum << "!";
-        abort();
+        raise(SIGINT);
     } else if (delta != 1) {
         ELOG << _lastPulse << "->" << pulseNum << ": ";
         if (delta < 0) {
