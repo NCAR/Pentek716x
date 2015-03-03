@@ -288,8 +288,13 @@ p716xDn::_initDma() {
 ////////////////////////////////////////////////////////////////////////////////
 void
 p716xDn::_initAdc() {
-    /// ADC parameters for our input channel
+    // ADC parameters for our input channel, initialized with default
+    // working values.
     P716x_ADC_CHAN_PARAMS adcChanParams;
+    P716xSetAdcDefaults(&_p716x._boardResource, &adcChanParams);
+
+    // Allow for specialized setup via virtual method _setupAdcParams()
+    _setupAdcParams(adcChanParams);
     
     // Apply our ADC parameter table to the registers
     int status = P716xInitAdcRegs(&adcChanParams, &_p716x._regAddr, _chanId);
@@ -304,8 +309,7 @@ p716xDn::_initAdc() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716xDn::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
-    // Initialize the ADC channel parameter table to working default values
-    P716xSetAdcDefaults(&_p716x._boardResource, &adcChanParams); 
+    // No specialized ADC setup here in the base class.
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
