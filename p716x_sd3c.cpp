@@ -49,11 +49,14 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
 
 	boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
+	// Mark as not ready until instantiation is complete
+	_isReady = false;
+
     // sanity check
     if (_nsum < 1) {
         std::cerr << "Selected nsum of " << _nsum << " makes no sense!" <<
                 std::endl;
-        abort();
+        raise(SIGINT);
     }
 
     // Get the firmware revison and ddc type from the FPGA.
@@ -115,28 +118,6 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
     // stop the timers
     timersStartStop(false);
 
-    // Read the PCI FPGA code revision register, and verify that it is
-    // from 2007-11-30 (or later).
-    if (! simulate) {
-        uint32_t pciFpgaRev;
-        P716x_REG_READ(_regAddr.FPGACodeRevision, pciFpgaRev);
-        // The upper 24 bits of pciFpgaRev hold the revision date in weird
-        // binary coded decimal form, i.e., 2007-11-30 becomes the 24-bit 
-        // value 0x071130. We add 0x20000000 to get the full 4-digit year,
-        // i.e., 0x20071130.
-        uint32_t revDate = (pciFpgaRev >> 8) + 0x20000000;
-        DLOG << "Card " << _cardIndex << " PCI FPGA rev date " << std::hex << 
-            revDate << std::dec;
-        if (revDate < 0x20071130) {
-            ELOG << "Card " << _cardIndex << 
-                " has Pentek PCI FPGA code dated " <<
-                std::hex << revDate << std::dec <<
-                ", but 20071130 or later is required.";
-            abort();
-            return;
-        }
-    }
-    
     // Write the gate count and coherent integration registers
     if (! isSimulating()) {
     	uint32_t temp;
@@ -149,8 +130,8 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
     	// nsum tells the firmware if we are in coherent integrator mode,
     	// and if so, the number of sums performed by each of the paired
     	// integrators. If nsum > 1, then we are in coherent integrator mode.
-    	// In this case, divide it in half, because thats the number that each
-    	// (even, odd pulse) integrator will nedd.
+    	// In this case, divide it in half, because that's the number that each
+    	// (even, odd pulse) integrator will need.
     	/// @todo Fix the VHDL code, so that it performs the division
     	/// by two, rather than doing it here.
     	P716x_REG_WRITE(_sd3cRegAddr(CI_NSUM), (_nsum < 2 ? _nsum : _nsum/2));
@@ -228,6 +209,9 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
 
     // stop the filters; to be started at the appropriate time by the user.
     stopFilters();
+
+    // Finally, mark as ready
+    _isReady = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
