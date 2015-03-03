@@ -141,9 +141,9 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
     if (! isSimulating()) {
     	uint32_t temp;
 
-    	P716x_REG_WRITE(_Sd3cRegAddr(RADAR_GATES), gates);
+    	P716x_REG_WRITE(_sd3cRegAddr(RADAR_GATES), gates);
         usleep(p716x::P716X_IOCTLSLEEPUS);
-    	P716x_REG_READ (_Sd3cRegAddr(RADAR_GATES), temp);
+    	P716x_REG_READ (_sd3cRegAddr(RADAR_GATES), temp);
     	DLOG << "RADAR_GATES readback is " << temp;
 
     	// nsum tells the firmware if we are in coherent integrator mode,
@@ -153,9 +153,9 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
     	// (even, odd pulse) integrator will nedd.
     	/// @todo Fix the VHDL code, so that it performs the division
     	/// by two, rather than doing it here.
-    	P716x_REG_WRITE(_Sd3cRegAddr(CI_NSUM), (_nsum < 2 ? _nsum : _nsum/2));
+    	P716x_REG_WRITE(_sd3cRegAddr(CI_NSUM), (_nsum < 2 ? _nsum : _nsum/2));
         usleep(p716x::P716X_IOCTLSLEEPUS);
-    	P716x_REG_READ (_Sd3cRegAddr(CI_NSUM), temp);
+    	P716x_REG_READ (_sd3cRegAddr(CI_NSUM), temp);
     	DLOG << "CI_NSUM readback is " << temp;
 
         // Bit zero of the TTL_OUT1 register enables zeroing of the counts for
@@ -333,19 +333,19 @@ void p716x_sd3c::timersStartStop(bool start) {
     }
         
     // Turn on Write Strobes
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_WR), WRITE_ON);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_WR), WRITE_ON);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     // configure each timer
     for (int i = 0; i < 8; i++) {
 	    // Control Register
-    	P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), CONTROL_REG | SD3C_TIMER_BITS[i]);
+    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), CONTROL_REG | SD3C_TIMER_BITS[i]);
         usleep(p716x::P716X_IOCTLSLEEPUS);
 	
 	    // Enable/Disable Timer
         unsigned int value =
         		(start ? TIMER_ON : 0) | (_timerInvert(i) ? TIMER_NEG : 0);
-        P716x_REG_WRITE(_Sd3cRegAddr(MT_DATA), value);
+        P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), value);
         usleep(p716x::P716X_IOCTLSLEEPUS);
     }
 
@@ -377,24 +377,24 @@ void p716x_sd3c::timersStartStop(bool start) {
             DLOG << "Time just before start: " << beforeStart;
             // Set the wait-for-trigger bit so timers start at the next
             // trigger.
-            P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS | GPS_EN);
+            P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS | GPS_EN);
             usleep(p716x::P716X_IOCTLSLEEPUS);
             ptime afterStart(microsec_clock::universal_time());
         } else {
             // Internal trigger: timers start immediately.
             setXmitStartTime(now);
-            P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS | ADDR_TRIG);
+            P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS | ADDR_TRIG);
             usleep(p716x::P716X_IOCTLSLEEPUS);
         }
         DLOG << "Timers/radar start time " << _radarStartTime;
     } else {
-    	P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS);
+    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS);
         usleep(p716x::P716X_IOCTLSLEEPUS);
         DLOG << "Timers stopped at " << now;
     }
     
     // Turn off Write Strobes
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_WR), WRITE_OFF);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_WR), WRITE_OFF);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 }
 
@@ -409,7 +409,7 @@ void p716x_sd3c::startFilters() {
     _enableAdcOutput();
 
     // Start the DDC coefficient counters
-    P716x_REG_WRITE(_Sd3cRegAddr(KAISER_CTL), DDC_START);
+    P716x_REG_WRITE(_sd3cRegAddr(KAISER_CTL), DDC_START);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     DLOG << "fifos and filters enabled";
@@ -424,11 +424,11 @@ void p716x_sd3c::stopFilters() {
 
     uint32_t temp;
     // stop the filters if they are running.
-    P716x_REG_READ (_Sd3cRegAddr(KAISER_CTL), temp);
+    P716x_REG_READ (_sd3cRegAddr(KAISER_CTL), temp);
     usleep(p716x::P716X_IOCTLSLEEPUS);
-    P716x_REG_WRITE(_Sd3cRegAddr(KAISER_CTL), DDC_STOP);
+    P716x_REG_WRITE(_sd3cRegAddr(KAISER_CTL), DDC_STOP);
     usleep(p716x::P716X_IOCTLSLEEPUS);
-    P716x_REG_READ (_Sd3cRegAddr(KAISER_CTL), temp);
+    P716x_REG_READ (_sd3cRegAddr(KAISER_CTL), temp);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     // Disable ADC output to FIFOs
@@ -451,7 +451,7 @@ unsigned short int p716x_sd3c::TTLIn() {
         return 0;
 
     uint32_t val;
-    P716x_REG_READ(_Sd3cRegAddr(TTL_IN), val);
+    P716x_REG_READ(_sd3cRegAddr(TTL_IN), val);
 
     return val;
 }
@@ -463,7 +463,7 @@ void p716x_sd3c::TTLOut(unsigned short int data) {
     if (_simulate)
         return;
 
-    P716x_REG_WRITE(_Sd3cRegAddr(TTL_OUT1), data);
+    P716x_REG_WRITE(_sd3cRegAddr(TTL_OUT1), data);
 
 }
 
@@ -476,7 +476,7 @@ unsigned int p716x_sd3c::_sd3cTypeAndRev() {
 
     uint32_t retval;
 
-    P716x_REG_READ(_Sd3cRegAddr(FPGA_REPO_REV), retval);
+    P716x_REG_READ(_sd3cRegAddr(FPGA_REPO_REV), retval);
 
     return retval;
 
@@ -542,16 +542,16 @@ p716x_sd3c::_loadFreeRun() {
 
     // get the transceiver control register
     uint32_t tcreg;
-    P716x_REG_READ(_Sd3cRegAddr(TRANS_CNTRL), tcreg);
+    P716x_REG_READ(_sd3cRegAddr(TRANS_CNTRL), tcreg);
 
     // set the free run bit as specified by _freerun
     if (_freeRun) {
         // set free run
-    	P716x_REG_WRITE(_Sd3cRegAddr(TRANS_CNTRL), tcreg | TRANS_FREE_RUN);
+    	P716x_REG_WRITE(_sd3cRegAddr(TRANS_CNTRL), tcreg | TRANS_FREE_RUN);
         usleep(p716x::P716X_IOCTLSLEEPUS);
     } else {
         // clear free run
-    	P716x_REG_WRITE(_Sd3cRegAddr(TRANS_CNTRL), tcreg & ~TRANS_FREE_RUN);
+    	P716x_REG_WRITE(_sd3cRegAddr(TRANS_CNTRL), tcreg & ~TRANS_FREE_RUN);
         usleep(p716x::P716X_IOCTLSLEEPUS);
     }
 
@@ -600,15 +600,15 @@ p716x_sd3c::_initTimers() {
     DLOG << "periodCount is " << periodCount;
 
     // Control Register
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), CONTROL_REG | ALL_SD3C_TIMER_BITS);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), CONTROL_REG | ALL_SD3C_TIMER_BITS);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     // Enable Timer
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_DATA), TIMER_ON);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), TIMER_ON);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     // Turn on Write Strobes
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_WR), WRITE_ON);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_WR), WRITE_ON);
     usleep(p716x::P716X_IOCTLSLEEPUS);
     
     for (unsigned int i = 0; i < N_SD3C_TIMERS; i++) {
@@ -619,18 +619,18 @@ p716x_sd3c::_initTimers() {
         
         // Delay Register
         // Address
-        P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), DELAY_REG | SD3C_TIMER_BITS[i]);
+        P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), DELAY_REG | SD3C_TIMER_BITS[i]);
         usleep(p716x::P716X_IOCTLSLEEPUS);
         // Data
-        P716x_REG_WRITE(_Sd3cRegAddr(MT_DATA), _timerDelay(i));
+        P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), _timerDelay(i));
         usleep(p716x::P716X_IOCTLSLEEPUS);
 
         // Pulse Width Register
         // Address
-        P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), WIDTH_REG | SD3C_TIMER_BITS[i]);
+        P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), WIDTH_REG | SD3C_TIMER_BITS[i]);
         usleep(p716x::P716X_IOCTLSLEEPUS);
         // Data
-        P716x_REG_WRITE(_Sd3cRegAddr(MT_DATA), _timerWidth(i));
+        P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), _timerWidth(i));
         usleep(p716x::P716X_IOCTLSLEEPUS);
     }
 
@@ -638,22 +638,22 @@ p716x_sd3c::_initTimers() {
 
     // Period Register
     // Address
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), PERIOD_REG | ALL_SD3C_TIMER_BITS);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), PERIOD_REG | ALL_SD3C_TIMER_BITS);
     usleep(p716x::P716X_IOCTLSLEEPUS);
     // Data
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_DATA), periodCount);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), periodCount);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     //Multiple PRT Register
     // Address
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_ADDR), PRT_REG | ALL_SD3C_TIMER_BITS);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), PRT_REG | ALL_SD3C_TIMER_BITS);
     usleep(p716x::P716X_IOCTLSLEEPUS);
     // Data: Mult PRT Valu Timer 0
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_DATA), PrtScheme);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), PrtScheme);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     // Turn off Write Strobes
-    P716x_REG_WRITE(_Sd3cRegAddr(MT_WR), WRITE_OFF);
+    P716x_REG_WRITE(_sd3cRegAddr(MT_WR), WRITE_OFF);
     usleep(p716x::P716X_IOCTLSLEEPUS);
 
     return true;

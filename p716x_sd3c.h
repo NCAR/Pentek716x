@@ -536,11 +536,11 @@ protected:
     void _loadFreeRun();
 
     /// Static method to convert SD3C register number into an address
-    static void* _Sd3cRegAddr(uint sd3cRegNum) {
-        // The 32-bit SD3C registers start at BAR2 offset 0x50000 (in 32-bit
-        // words). Add the register number to the offset and shift by two
-        // bits to get the byte address of the register.
-        return(reinterpret_cast<void*>((0x50000UL + sd3cRegNum) << 2));
+    void* _sd3cRegAddr(uint sd3cRegNum) {
+        // The 32-bit SD3C registers start at BAR2 offset + 0x140000 (bytes).
+        // Registers are 4 bytes wide, so register address byte offset is the
+        // register number * 4.
+        return(reinterpret_cast<void*>(_BAR2Base + 0x140000UL + sd3cRegNum * 4));
     }
 
     /// Simple class to hold integer delay and width for a timer.
