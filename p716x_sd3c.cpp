@@ -597,7 +597,7 @@ p716x_sd3c::_initTimers() {
         DLOG << "Initializing timer " << i << ": delay " <<
           countsToTime(_timerDelay(i)) << "s (" << _timerDelay(i) <<
           "), width " << countsToTime(_timerWidth(i)) << "s (" << 
-          _timerWidth(i) << ")" << (_timerInvert(i)? ", inverted":"");
+          _timerWidth(i) << ")" << (_timerInvert(i) ? ", inverted" : "");
         
         // Delay Register
         // Address
