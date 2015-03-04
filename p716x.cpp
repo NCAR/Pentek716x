@@ -222,11 +222,10 @@ p716x::_initReadyFlow() {
     DLOG << std::hex << " BAR4: 0x" << _BAR4Base;
 
     // Initialize 716x register address tables
-    ILOG << "P716xInitRegAddr";
     P716xInitRegAddr(_BAR0Base, &_regAddr, &_boardResource, _moduleId);
 
     // Reset the board so we start in pristine condition
-    ILOG << "Resetting Pentek";
+    DLOG << "Resetting Pentek";
     P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
     usleep(P716X_IOCTLSLEEPUS);
     P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
