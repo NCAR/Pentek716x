@@ -120,6 +120,12 @@ main(int argc, char** argv)
   // Initialize 716x register address tables
   P716xInitRegAddr(BAR0Base, &p716xRegs, &boardResource, P71620_MODULE_ID);
 
+  // Reset the board so we start in pristine condition
+  P716xSetGlobalResetState(p716xRegs.globalReset, P716x_GLOBAL_RESET_ENABLE);
+  usleep(100);
+  P716xSetGlobalResetState(p716xRegs.globalReset, P716x_GLOBAL_RESET_DISABLE);
+  usleep(100);
+
   // Reset board registers to power-on default states
   P716xResetRegs(&p716xRegs);
   
