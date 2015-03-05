@@ -172,9 +172,9 @@ namespace Pentek {
             /// every 100 requests for a simulated pulse number.
             p716x(double clockFrequency,
                   bool useInternalClock,
-                  bool useFirstCard=false,
-                  bool simulate = false, 
-                  double simPauseMS = 50.0);
+                  bool useFirstCard,
+                  bool simulate,
+                  double simPauseMS);
 			/// Destructor.
 			virtual ~p716x();
             /// @brief Tell if the P716x is successfully configured and ready
