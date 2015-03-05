@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
 	char mode           = atoi(argv[5]);
 
 	// create the p716x and its upconverter
-	Pentek::p716x card(65536, false);
+	Pentek::p716x card(65536, false, true, false, 50.0);
 	Pentek::p716xUp & upConverter = *card.addUpconverter(sampleRate, ncoFreq, mode);
 
 	// create the signal
