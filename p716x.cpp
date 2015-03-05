@@ -246,14 +246,6 @@ p716x::_initReadyFlow() {
         return false;
     }
 
-    /// @todo Although we follow the normal ReadyFlow protocol
-    /// for configuring the DAC (P716xSetDac5687Defaults()
-    /// followed by P716xInitDac5687Regs()),
-    /// the DAC is completely reconfigured in p716xUp().
-    /// We need to modify P716xSetDac5687Defaults() and
-    /// P716xInitDac5687Regs() to perform the correct configuration,
-    /// so that it can be pulled out of p716xUp().
-
     // Make adjustments to various register configuration parameters
     _configGlobalParameters();
 
@@ -280,6 +272,8 @@ void p716x::_configGlobalParameters() {
     _globalParams.brdClkFreq = _clockFrequency;
     
     // Set up use of internal or external clock
+    ILOG << "Using " << (_useInternalClock ? "Pentek internal" : "external") <<
+            " clock at " << 1.0e-6 * _clockFrequency << " MHz";
     if (_useInternalClock) {
         // Enable the onboard VCXO
         _globalParams.sbusParams.vcxoOutput = P716x_SBUS_CTRL1_VCXO_OUT_ENABLE;
@@ -295,6 +289,12 @@ void p716x::_configGlobalParameters() {
         _globalParams.sbusParams.clockSelect = P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK;
     }
     
+    // Set up for this card to serve as clock master, and to serve as sync and
+    // gate master on SYNC BUS A.
+    _globalParams.sbusParams.clockMaster = P716x_SBUS_CTRL1_CLK_MASTER_ENABLE;
+    _globalParams.sbusParams.gateASyncAMaster = P716x_SBUS_CTRL1_GATEA_SYNCA_MASTER_ENABLE;
+    _globalParams.sbusParams.gateASyncAMaster = P716x_SBUS_CTRL1_GATEB_SYNCB_MASTER_ENABLE;
+
     // Set up for data to flow from the ADC (or ADC user block if any) on the 
     // Pentek to the ADC PACK FIFOs (i.e., the ADC output) when the enable bit 
     // gets set in the Gate A Generate Register.
