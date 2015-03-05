@@ -196,9 +196,9 @@ int main(int argc, char** argv) {
 	makeRealTime();
 
     // Instantiate our p716x_sd3c object and create the downconverter on it
-	Pentek::p716x_sd3c sd3c(false, 0, _pulseWidth, _prt, _prt2, 
-	        _stgrPrt, _gates, _nsum, _freeRun, Pentek::p716x_sd3c::DDC8DECIMATE,
-	        false, 50, false, false, 0, 0);
+	Pentek::p716x_sd3c sd3c(0, false, false, false, 50,
+	        Pentek::p716x_sd3c::DDC8DECIMATE, 0, _pulseWidth, _prt, _prt2,
+            _stgrPrt, _gates, _nsum, _freeRun, false, false, 0);
 	Pentek::p716xDn_sd3c & downConverter = *sd3c.addDownconverter(_chanId, 
 	        4 * 512 * 1024, false, _tsLength, 0, _pulseWidth, _gaussianFile, 
 	        _kaiserFile);

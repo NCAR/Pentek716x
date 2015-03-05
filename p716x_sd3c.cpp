@@ -27,15 +27,24 @@ const ptime p716x_sd3c::Epoch1970(boost::gregorian::date(1970, 1, 1),
                                   time_duration(0, 0, 0));
 
 ///////////////////////////////////////////////////////////////////////////////////////
-p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
-    double tx_pulsewidth, double prt, double prt2, bool staggeredPrt, 
-    unsigned int gates, unsigned int nsum, bool freeRun, 
-    DDCDECIMATETYPE simulateDDCType, bool externalStartTrigger, double simPauseMS,
-    bool useFirstCard,
-    bool rim,
-	int codeLength,
-	double adc_clock) :
-        p716x(simulate, simPauseMS, useFirstCard),
+p716x_sd3c::p716x_sd3c(double clockFreq,
+                       bool useInternalClock,
+                       bool useFirstCard,
+                       bool simulate,
+                       double simPauseMS,
+                       DDCDECIMATETYPE simulateDDCType,
+                       double tx_delay,
+                       double tx_pulsewidth,
+                       double prt,
+                       double prt2,
+                       bool staggeredPrt,
+                       unsigned int gates,
+                       unsigned int nsum,
+                       bool freeRun,
+                       bool externalStartTrigger,
+                       bool rim,
+                       int codeLength) :
+        p716x(clockFreq, useInternalClock, useFirstCard, simulate, 50.0),
         _staggeredPrt(staggeredPrt),
         _freeRun(freeRun),
         _prt(prt),
@@ -72,25 +81,24 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
 		_ddcType = _unpackDdcType();
 	}
 
-    if (adc_clock == 0) {
+    if (_clockFrequency == 0) {
       // Set the ADC clock rate based on DDC type
       switch (_ddcType) {
         case DDC10DECIMATE:
-          _adc_clock = 100.0e6;
+          _clockFrequency = 100.0e6;
           break;
         case DDC8DECIMATE:
-          _adc_clock = 125.0e6;
+          _clockFrequency = 125.0e6;
           break;
         case DDC4DECIMATE:
-          _adc_clock = 48.0e6;
+          _clockFrequency = 48.0e6;
           break;
         case BURST:
-          _adc_clock = 100.0e6;
+          _clockFrequency = 100.0e6;
           break;
       }
-    } else {
-      // set from the parameter passed in
-      _adc_clock = adc_clock;
+      // Change and apply clock frequency parameters for the card
+      _updateCardClockFrequency();
     }
 
     // Announce the FPGA firmware revision
@@ -188,13 +196,13 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
     DLOG << "  cardIndex: " << _cardIndex;
 
     DLOG << "  tx delay: "
-         << _timerDelay(TX_PULSE_TIMER) << " adc_clock/2 counts" ;
+         << _timerDelay(TX_PULSE_TIMER) << " clockFreq/2 counts" ;
     DLOG << "  tx pulse width: " 
-         << _timerWidth(TX_PULSE_TIMER) << " adc_clock/2 counts";
-    DLOG << "  prtCounts: " << _prtCounts << " adc_clock/2 counts";
-    DLOG << "  prt2Counts: " << _prt2Counts << " adc_clock/2 counts";
+         << _timerWidth(TX_PULSE_TIMER) << " clockFreq/2 counts";
+    DLOG << "  prtCounts: " << _prtCounts << " clockFreq/2 counts";
+    DLOG << "  prt2Counts: " << _prt2Counts << " clockFreq/2 counts";
     DLOG << "  staggered: " << ((_staggeredPrt) ? "true" : "false");
-    DLOG << "  adc clock: " << _adc_clock << " Hz";
+    DLOG << "  adc clock: " << _clockFrequency << " Hz";
     DLOG << "  data rate: " << dataRate()/1.0e3 << " KB/s";
 
     DLOG << "=============================";
@@ -218,6 +226,45 @@ p716x_sd3c::p716x_sd3c(bool simulate, double tx_delay,
 p716x_sd3c::~p716x_sd3c() {
 }
 
+void
+p716x_sd3c::_updateCardClockFrequency() {
+    // Set the clock frequency in the global params struct. This is the
+    // frequency of the external source if an external clock is used, or the
+    // frequency for which the card's onboard CDC7005 clock synthesizer will be
+    // configured. In turn, by the card's defaults, this will be the clock
+    // frequency provided for both the ADC and DAC channels.
+    _globalParams.brdClkFreq = _clockFrequency;
+
+    // Set up use of internal or external clock
+    ILOG << "Using " << (_useInternalClock ? "Pentek internal" : "external") <<
+            " clock at " << 1.0e-6 * _clockFrequency << " MHz";
+    if (_useInternalClock) {
+        // Enable the onboard VCXO
+        _globalParams.sbusParams.vcxoOutput = P716x_SBUS_CTRL1_VCXO_OUT_ENABLE;
+        // Have the CDC7005 clock synthesizer use the VCXO as its clock input,
+        // providing no reference clock to discipline it.
+        _globalParams.sbusParams.clockSelect = P716x_SBUS_CTRL1_CLK_SEL_VCXO_NO_REF;
+    } else {
+        // Turn off output from the onboard VCXO, since we'll use the external
+        // clock.
+        _globalParams.sbusParams.vcxoOutput = P716x_SBUS_CTRL1_VCXO_OUT_DISABLE;
+        // Have the CDC7005 clock synthesizer just pass the external clock
+        // directly through.
+        _globalParams.sbusParams.clockSelect = P716x_SBUS_CTRL1_CLK_SEL_EXT_CLK;
+    }
+
+    // Validate parameters before applying them
+    if (P716xValidateBrdClkFreq(&_globalParams, &_regAddr) != 0) {
+        ELOG << "ADC or DAC sampling frequency is incompatible with board " <<
+                "clock frequency of " << 1.0e-6 * _clockFrequency << " MHz";
+        raise(SIGINT);
+    }
+
+    // Write parameter table values to the 716x registers
+    P716xInitGlobalRegs(&_globalParams, &_regAddr);
+
+
+}
 ////////////////////////////////////////////////////////////////////////////////
 p716xDn_sd3c*
 p716x_sd3c::addDownconverter(int chanId, uint32_t dmaDescSize, 
@@ -291,7 +338,7 @@ int
 p716x_sd3c::timeToCounts(double time) const {
     boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
-    return(lround(time * _adc_clock / 2));
+    return(lround(time * _clockFrequency / 2));
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -299,7 +346,7 @@ double
 p716x_sd3c::countsToTime(int counts) const {
     boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
-    return((2 * counts) / _adc_clock);
+    return((2 * counts) / _clockFrequency);
 }
 
 /////////////////////////////////////////////////////////////////////////

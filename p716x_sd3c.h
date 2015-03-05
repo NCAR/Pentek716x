@@ -44,6 +44,23 @@ public:
 
     /// @brief Constructor.
     /// @param simulate Set true for simulation mode.
+    /// @param clockFreq - if non-zero, override the default clock frequency
+    ///     from DDC Type. This parameter used to have a default of 0,
+    ///     but a default is no longer defined.
+    /// @param useInternalClock true if the Pentek's internal oscillator should
+    ///     provide the clock, otherwise an external clock signal must be
+    ///     supplied
+    /// @param useFirstCard If true, use the first card in the system. Otherwise,
+    ///     the next card will be searched for. This parameter used to
+    ///     have a default value of false, but a default is no longer
+    ///     defined.
+    /// @param simulate If true, a Pentek card will be simulated
+    /// @param simPauseMS The number of milliseconds to wait between beams
+    ///     simulated data when calling read(). This parameter used to
+    ///     have a default value of 50, but a default is no longer
+    ///     defined.
+    /// @param simulateDDCType The DDC type to use when running in simulation
+    ///     mode.
     /// @param tx_delay the delay for the tx pulse in seconds
     /// @param tx_pulsewidth the length of the transmit pulse in seconds
     /// @param prt The radar PRT in seconds
@@ -58,46 +75,34 @@ public:
     ///     nsum/2 beams and the odd beam integration will collect nsum/2 beams.
     /// @param freeRun If true, the firmware will be configured to ignore the 
     ///     PRT gating.
-    /// @param simulateDDCType The DDC type to use when running in simulation
-    ///     mode.
     /// @param externalStartTrigger If true, an external trigger source
     ///     (generally a 1 PPS signal from a GPS clock) is used to start the 
     ///     radar. This parameter used to have a default value of
     ///     false, but a default is no longer defined.
-    /// @param simPauseMS The number of milliseconds to wait between beams
-    ///     simulated data when calling read(). This parameter used to
-    ///     have a default value of 50, but a default is no longer
-    ///     defined.
-    /// @param useFirstCard If true, use the first card in the system. Otherwise,
-    ///     the next card will be searched for. This parameter used to
-    ///     have a default value of false, but a default is no longer
-    ///     defined.
     /// @param rim If true, we are operating in RIM mode. This parameter
     ///     used to have a default value of false, but a default is no
     ///     longer defined.
     /// @param codeLength If complementary coding is being used, it is
     ///     set to the length of the code. This parameter used to have a
     ///     default of 0, but a default is no longer defined.
-    /// @param adc_clock - if non-zero, override the default adc_clock
-    ///     from DDC Type. This parameter used to have a default of 0,
-    ///     but a default is no longer defined.
     p716x_sd3c(
-    		bool simulate,
-    		double tx_delay,
-    		double tx_pulsewidth,
-    		double prt,
-    		double prt2,
-    		bool staggeredPrt,
-    		unsigned int gates,
-    		unsigned int nsum,
-    		bool freeRun,
-    		DDCDECIMATETYPE simulateDDCType,
-    		bool externalStartTrigger,
-    		double simPauseMS,
-    		bool useFirstCard,
-    		bool rim,
-    		int codeLength,
-    		double adc_clock
+            double clockFreq,
+            bool useInternalClock,
+            bool useFirstCard,
+            bool simulate,
+            double simPauseMS,
+            DDCDECIMATETYPE simulateDDCType,
+            double tx_delay,
+            double tx_pulsewidth,
+            double prt,
+            double prt2,
+            bool staggeredPrt,
+            unsigned int gates,
+            unsigned int nsum,
+            bool freeRun,
+            bool externalStartTrigger,
+            bool rim,
+            int codeLength
     		);
     
     /// Destructor.
@@ -542,6 +547,9 @@ protected:
         // register number * 4.
         return(reinterpret_cast<void*>(_BAR2Base + 0x140000UL + sd3cRegNum * 4));
     }
+
+    /// Update and apply clock frequency parameters for the Pentek card.
+    void _updateCardClockFrequency();
 
     /// Simple class to hold integer delay and width for a timer.
     class _TimerConfig {
