@@ -203,6 +203,10 @@ p716xDn_sd3c::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
     // to our DDC running on the FPGA before being packed for output.
     adcChanParams.dataSource = P716x_ADC_DATA_CTRL_USR_DATA_SEL_USER;
 
+    // Use the USER_DVAL (user data valid) signal from the user block to trigger
+    // delivery of data to the ADC PACK FIFO.
+    adcChanParams.userDataValidEnable = P716x_ADC_GATE_TRIG_CTRL_USER_DVAL_ENABLE;
+
     // Set ADC data packing mode to deliver I and Q data
     adcChanParams.dataPackMode = P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK;
 
