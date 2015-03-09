@@ -22,16 +22,16 @@ headers = Split("""
 env = Environment(tools = ['default'] + tools)
 
 html = env.Apidocs(sources + headers)
+Default(html)
 
 capture = env.Program('capture', 'capture.cpp')
+Default(capture)
 
 dactest = env.Program('dactest', 'dactest.cpp')
+Default(dactest)
 
 dacdump = env.Program('dacdump', 'dacdump.cpp')
+#Default(dacdump)   # TODO: make this test compile!
 
 toggle_716x_leds = env.Program('toggle_716x_leds', 'toggle_716x_leds.cpp')
-
-# TODO dacdump does not currently compile!
-#Default(capture, dactest, dacdump, toggle_7142_leds, html)
-Default(capture, dactest, toggle_716x_leds, html)
-
+Default(toggle_716x_leds)
