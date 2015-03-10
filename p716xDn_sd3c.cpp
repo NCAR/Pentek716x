@@ -218,6 +218,12 @@ p716xDn_sd3c::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
     // Gate trigger is used to start our timers
     adcChanParams.triggerMode = P716x_ADC_GATE_TRIG_CTRL_TRIG_MODE_GATE;
     adcChanParams.gateTrigEnable = P716x_ADC_GATE_TRIG_CTRL_GATE_TRIG_IN_ENABLE;
+
+    // Enable the RAM fifo.
+    adcChanParams.ramPathEnable = P716x_ADC_RAM_CTRL_RAM_PATH_ENABLE;
+    adcChanParams.ramReadEnable = P716x_ADC_RAM_CTRL_RAM_READ_ENABLE;
+
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
