@@ -46,6 +46,11 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
 {
     boost::recursive_mutex::scoped_lock guard(_mutex);
     
+    // Call _initADC(), even though it is also called in the base class constructor, so that our
+    // specialization of _setupAdcParams() gets called. This is necessary because
+    // the base class constructor does not know about the derived class virtual functions.
+    _initAdc();
+
     // Get gate count and coherent integration sum count from our card
     _gates = _sd3c.gates();
     _nsum = _sd3c.nsum();
@@ -201,7 +206,7 @@ void
 p716xDn_sd3c::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
     // Have the ADC put its data into the "user block", so that it will go 
     // to our DDC running on the FPGA before being packed for output.
-    adcChanParams.dataSource = P716x_ADC_DATA_CTRL_USR_DATA_SEL_USER;
+    adcChanParams.dataSelect = P716x_ADC_DATA_CTRL_USR_DATA_SEL_USER;
 
     // Use the USER_DVAL (user data valid) signal from the user block to trigger
     // delivery of data to the ADC PACK FIFO.
