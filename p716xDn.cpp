@@ -48,7 +48,11 @@ p716xDn::p716xDn(
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // Initialize ReadyFlow OS-dependent resources
-    PTKIFC_Init(&_ifcArgs);
+    if (PTKIFC_Init(&_ifcArgs) != 0) {
+        ELOG << "Error initializing Pentek IFC_ARGS for channel " << _chanId;
+        raise(SIGINT);
+        return;
+    }
     
     if (isSimulating()) {
         _adcActive = true;
@@ -95,6 +99,9 @@ p716xDn::~p716xDn() {
     if (status != PTK716X_STATUS_OK) {
         ELOG << __PRETTY_FUNCTION__ << ": DMA channel close failed";
     }
+
+    // Clean up Pentek mutex/thread information
+    PTKIFC_UnInit(&_ifcArgs);
 
     // Delete the buffers we allocated
     while (! _freeBuffers.empty()) {
@@ -315,6 +322,7 @@ p716xDn::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716xDn::_dmaSemaphorePost() {
+    ILOG << "DMA Complete";
     if (PTKIFC_SemaphorePost(&_ifcArgs, _dmaCompleteSemNum()) < 0) {
         ELOG << "Error posting 'DMA complete' semaphore for channel " << _chanId;
     }
@@ -326,11 +334,12 @@ p716xDn::_dmaThreadMainLoop() {
     // Loop until _exiting is set to true by the destructor
     while (! _exiting) {
         // Wait up to WAIT_MSECS ms for the 'DMA complete' semaphore
-        static const int WAIT_MSECS = 100;
-        bool fail = PTKIFC_SemaphoreWait(&_ifcArgs, _dmaCompleteSemNum(), 
+        static const int WAIT_MSECS = 1000;
+        bool fail = PTKIFC_SemaphoreWait(&_ifcArgs, _dmaCompleteSemNum(),
                                          IFC_WAIT_STATE_MILSEC(WAIT_MSECS));
         if (fail) {
-            DLOG << "No DMA completion in " << WAIT_MSECS << " ms";
+            DLOG << "No DMA completion in " << WAIT_MSECS <<
+                    " ms on channel " << _chanId;
             continue;
         }
 
@@ -344,6 +353,7 @@ p716xDn::_dmaThreadMainLoop() {
         }
 
         // Get the next free buffer and copy the data from DMA to the buffer
+        ILOG << "Got data from DMA on channel " << _chanId;
         char * buf = _freeBuffers.front();
         _freeBuffers.pop();
         memcpy(buf, (char*)_dmaBuf[_nextDesc].usrBuf, _DmaDescSize);
@@ -435,17 +445,35 @@ p716xDn::_start() {
     _nextDesc = 0;
 
     // enable the DMA 'Link End' interrupt for this channel
+    if (PTKIFC_MutexLock(&_ifcArgs, 0, IFC_WAIT_STATE_MILSEC(100)) != 0) {
+        ELOG << "Unable to lock mutex to enable 'Link End' interrupts on chan" <<
+                _chanId;
+        raise(SIGINT);
+        return;
+    }
     DWORD uStatus = PTK716X_intEnable(_p716x._deviceHandle,
                                       (PTK716X_PCIE_INTR_ADC_ACQ_MOD1 << _chanId),
                                       P716x_ADC_INTR_LINK_END,
-                                      (PVOID)(&_ifcArgs),
+                                      this,
                                       _StaticIntHandler);
-    if (uStatus != PTK716X_STATUS_OK)
-    {
+    PTKIFC_MutexUnlock(&_ifcArgs, 0);
+    if (uStatus == PTK716X_STATUS_OK) {
+    	DLOG << "Enabled 'Link End' interrupt for ADC " << _chanId;
+    } else {
         ELOG << __PRETTY_FUNCTION__ << 
                 ": Could not enable 'Link End' interrupt for ADC " << _chanId;
         raise(SIGINT);
     }
+
+    // Flush the CPU and I/O caches for each DMA descriptor's buffer
+    for (int i = 0; i < N_DMA_DESCRIPTORS; i++) {
+        PTK716X_DMASyncCpu(&_dmaBuf[i]);
+        PTK716X_DMASyncIo(&_dmaBuf[i]);
+    }
+
+    // clear any pending ADC interrupt flags for our channel
+    P716x_REG_WRITE(_p716x._regAddr.adcRegs[_chanId].interruptFlag,
+                    P716x_ADC_INTR_REG_MASK);
 
     // Enable the DMA. Transfers will not occur however until the GateFlow
     // FIFOs start receiving data, which will take place when the sd3c
