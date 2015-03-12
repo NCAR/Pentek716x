@@ -222,8 +222,6 @@ p716xDn_sd3c::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
     // Enable the RAM fifo.
     adcChanParams.ramPathEnable = P716x_ADC_RAM_CTRL_RAM_PATH_ENABLE;
     adcChanParams.ramReadEnable = P716x_ADC_RAM_CTRL_RAM_READ_ENABLE;
-
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
