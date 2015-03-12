@@ -20,7 +20,6 @@ using namespace std;
 using namespace boost::posix_time;
 namespace po = boost::program_options;
 
-std::string _devRoot;            ///< Device root e.g. /dev/pentek/0
 int _chanId;                     ///< The channel device number (0-3)
 int _gates;                      ///< The number of gates
 int _nsum;                       ///< The number of sums
@@ -48,7 +47,6 @@ void getConfigParams()
 	QtConfig config("PentekCapture", "PentekCapture");
 
 	// get parameters
-	_devRoot       = config.getString("Device/DeviceRoot",  "/dev/pentek/p7142/0");
 	_gates         = config.getInt("Radar/Gates",           400);
 	_prt		   = config.getDouble("Radar/PRT", 			0.2); // 5 Hz
 	_pulseWidth    = config.getDouble("Radar/PulseWidth", 	0.000001);    // 1 uS
@@ -75,7 +73,6 @@ void parseOptions(int argc,
 	po::options_description descripts("Options");
 	descripts.add_options()
 	("help", "Describe options")
-	("devRoot", po::value<std::string>(&_devRoot),     "Device root (e.g. /dev/pentek/0)")
 	("channel", po::value<int>(&_chanId),              "Channel number (0-3)")
 	("gates",  po::value<int>(&_gates),                "Number of gates")
 	("prt",  po::value<double>(&_prt),                 "PRT in seconds")
@@ -196,7 +193,7 @@ int main(int argc, char** argv) {
 	makeRealTime();
 
     // Instantiate our p716x_sd3c object and create the downconverter on it
-	Pentek::p716x_sd3c sd3c(0, false, false, false, 50,
+	Pentek::p716x_sd3c sd3c(0, _internalClock, false, false, 50,
 	        Pentek::p716x_sd3c::DDC8DECIMATE, 0, _pulseWidth, _prt, _prt2,
             _stgrPrt, _gates, _nsum, _freeRun, false, false, 0);
 	Pentek::p716xDn_sd3c & downConverter = *sd3c.addDownconverter(_chanId, 
