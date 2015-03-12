@@ -134,9 +134,6 @@ public:
     /// Destructor
     virtual ~p716xDn_sd3c();
     
-    /// @brief Set up ADC channel parameters
-    virtual void _setupAdcParams(P716x_ADC_CHAN_PARAMS & adcParams);
-
     /// @return The receiver pulsewidth, in s
     double rcvrPulseWidth() const;
     
@@ -210,6 +207,8 @@ public:
     double dataInterruptPeriod() const { return _dataInterruptPeriod; }
 
 protected:
+    /// Set up Pentek ADC configuration for this channel.
+    void _initSd3cAdc();
 
     /// Configure the p716xDn_sd3c. Used during construction.
     /// @return True if the configuration was successful

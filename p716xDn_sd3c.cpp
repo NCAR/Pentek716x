@@ -46,10 +46,8 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
 {
     boost::recursive_mutex::scoped_lock guard(_mutex);
     
-    // Call _initADC(), even though it is also called in the base class constructor, so that our
-    // specialization of _setupAdcParams() gets called. This is necessary because
-    // the base class constructor does not know about the derived class virtual functions.
-    _initAdc();
+    // Update the default ADC configuration with our local modifications
+    _initSd3cAdc();
 
     // Get gate count and coherent integration sum count from our card
     _gates = _sd3c.gates();
@@ -203,25 +201,28 @@ p716xDn_sd3c::_setDecimation(uint16_t decimation) {
 
 ////////////////////////////////////////////////////////////////////////////////
 void
-p716xDn_sd3c::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
+p716xDn_sd3c::_initSd3cAdc() {
     // Have the ADC put its data into the "user block", so that it will go 
     // to our DDC running on the FPGA before being packed for output.
-    adcChanParams.dataSelect = P716x_ADC_DATA_CTRL_USR_DATA_SEL_USER;
+    _adcParams.dataSelect = P716x_ADC_DATA_CTRL_USR_DATA_SEL_USER;
 
     // Use the USER_DVAL (user data valid) signal from the user block to trigger
     // delivery of data to the ADC PACK FIFO.
-    adcChanParams.userDataValidEnable = P716x_ADC_GATE_TRIG_CTRL_USER_DVAL_ENABLE;
+    _adcParams.userDataValidEnable = P716x_ADC_GATE_TRIG_CTRL_USER_DVAL_ENABLE;
 
     // Set ADC data packing mode to deliver I and Q data
-    adcChanParams.dataPackMode = P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK;
+    _adcParams.dataPackMode = P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK;
 
     // Gate trigger is used to start our timers
-    adcChanParams.triggerMode = P716x_ADC_GATE_TRIG_CTRL_TRIG_MODE_GATE;
-    adcChanParams.gateTrigEnable = P716x_ADC_GATE_TRIG_CTRL_GATE_TRIG_IN_ENABLE;
+    _adcParams.triggerMode = P716x_ADC_GATE_TRIG_CTRL_TRIG_MODE_GATE;
+    _adcParams.gateTrigEnable = P716x_ADC_GATE_TRIG_CTRL_GATE_TRIG_IN_ENABLE;
 
     // Enable the RAM fifo.
-    adcChanParams.ramPathEnable = P716x_ADC_RAM_CTRL_RAM_PATH_ENABLE;
-    adcChanParams.ramReadEnable = P716x_ADC_RAM_CTRL_RAM_READ_ENABLE;
+    _adcParams.ramPathEnable = P716x_ADC_RAM_CTRL_RAM_PATH_ENABLE;
+    _adcParams.ramReadEnable = P716x_ADC_RAM_CTRL_RAM_READ_ENABLE;
+
+    // Apply the new configuration to the ADC registers
+    _applyAdcParams();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -693,31 +694,30 @@ void p716xDn_sd3c::fifoConfig() {
     if (isSimulating())
         return;
 
-    // The fifos need to be configured for
-    // the given channel that we are using.
+    // The FIFO for our channel needs to be configured
 
     // find the fifo configuration register
     unsigned int readBack;
-    int ppOffset = ADC_FIFO_CTRL_1;
+    uint32_t fifoRegNum = ADC_FIFO_CTRL_1;
     switch (_chanId) {
     case 0:
-        ppOffset = ADC_FIFO_CTRL_1;
+        fifoRegNum = ADC_FIFO_CTRL_1;
         break;
     case 1:
-        ppOffset = ADC_FIFO_CTRL_2;
+        fifoRegNum = ADC_FIFO_CTRL_2;
         break;
     case 2:
-        ppOffset = ADC_FIFO_CTRL_3;
+        fifoRegNum = ADC_FIFO_CTRL_3;
         break;
     case 3:
-        ppOffset = ADC_FIFO_CTRL_4;
+        fifoRegNum = ADC_FIFO_CTRL_4;
         break;
     }
 
-    P716x_REG_READ(_sd3c._sd3cRegAddr(ppOffset), readBack);
+    P716x_REG_READ(_sd3c._sd3cRegAddr(fifoRegNum), readBack);
 
     // And configure ADC FIFO Control for this channel
-    P716x_REG_WRITE(_sd3c._sd3cRegAddr(ppOffset), readBack & 0x000034BF);
+    P716x_REG_WRITE(_sd3c._sd3cRegAddr(fifoRegNum), readBack & 0x000034BF);
 
 }
 

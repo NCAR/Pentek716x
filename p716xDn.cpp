@@ -62,8 +62,12 @@ p716xDn::p716xDn(
     // Size _readBuf appropriately.
     _readBuf.resize(2 * _DmaDescSize);
     
-    // Set up the ADC
-    _initAdc();
+    // Initialize ADC parameters for our input channel with default
+    // working values.
+    P716xSetAdcDefaults(&_p716x._boardResource, &_adcParams);
+
+    // Apply the ADC parameters to the ADC registers on the card
+    _applyAdcParams();
     
     // Create our DMA reader thread
     _initDma();
@@ -294,29 +298,14 @@ p716xDn::_initDma() {
 
 ////////////////////////////////////////////////////////////////////////////////
 void
-p716xDn::_initAdc() {
-    // ADC parameters for our input channel, initialized with default
-    // working values.
-    P716x_ADC_CHAN_PARAMS adcChanParams;
-    P716xSetAdcDefaults(&_p716x._boardResource, &adcChanParams);
-
-    // Allow for specialized setup via virtual method _setupAdcParams()
-    _setupAdcParams(adcChanParams);
-    
+p716xDn::_applyAdcParams() {
     // Apply our ADC parameter table to the registers
-    int status = P716xInitAdcRegs(&adcChanParams, &_p716x._regAddr, _chanId);
+    int status = P716xInitAdcRegs(&_adcParams, &_p716x._regAddr, _chanId);
     if (status != 0) {
         ELOG << __PRETTY_FUNCTION__ << ": Bad status " << status << 
                 " from P716xInitAdcRegs() for ADC channel " << _chanId;
         raise(SIGINT);
     }
-    
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-void
-p716xDn::_setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams) {
-    // No specialized ADC setup here in the base class.
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

@@ -133,13 +133,9 @@ public:
         /// DMA delivered by our ADC channel.
         void _initDma();
 
-        /// @brief Set desired ADC channel parameters in the given 
-        /// P716x_ADC_CHAN_PARAMS struct.
-        /// @param adcChanParams reference to the P716x_ADC_CHAN_PARAMS struct
-        virtual void _setupAdcParams(P716x_ADC_CHAN_PARAMS & adcChanParams);
-        
-        /// @brief Set up the ADC channel parameter table
-        void _initAdc();
+        /// @brief Apply the ADC channel parameter table to the registers on
+        /// the card
+        void _applyAdcParams();
 
         /// @brief Read bytes from the ADC channel. If no data are
         /// available, the thread will be blocked. The request will not
@@ -168,6 +164,9 @@ public:
         /// Receiver channel number (0-3)
         unsigned int _chanId;
         
+        /// ADC parameters for this channel
+        P716x_ADC_CHAN_PARAMS _adcParams;
+
         /// Struct holding Pentek's OS-dependent thread, semaphore, and mutex
         /// information.
         IFC_ARGS _ifcArgs;
