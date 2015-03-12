@@ -311,7 +311,6 @@ p716xDn::_applyAdcParams() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716xDn::_dmaSemaphorePost() {
-    ILOG << "DMA Complete";
     if (PTKIFC_SemaphorePost(&_ifcArgs, _dmaCompleteSemNum()) < 0) {
         ELOG << "Error posting 'DMA complete' semaphore for channel " << _chanId;
     }
@@ -342,7 +341,6 @@ p716xDn::_dmaThreadMainLoop() {
         }
 
         // Get the next free buffer and copy the data from DMA to the buffer
-        ILOG << "Got data from DMA on channel " << _chanId;
         char * buf = _freeBuffers.front();
         _freeBuffers.pop();
         memcpy(buf, (char*)_dmaBuf[_nextDesc].usrBuf, _DmaDescSize);

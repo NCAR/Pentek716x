@@ -1,8 +1,6 @@
 #ifndef P716XDN_H_
 #define P716XDN_H_
 
-#include <string>
-#include <iostream>
 #include <boost/thread/recursive_mutex.hpp>
 #include <ptk_osdep.h>  // include this before other ReadyFlow headers
 #include "p716x.h"
@@ -93,7 +91,6 @@ public:
         {
             // Just increment the "DMA ready" semaphore on the downconverter
             // which should get the new data.
-            std::cout << "_StaticIntHandler" << std::endl;
             p716xDn * downconverter = static_cast<p716xDn *>(instancePointer);
             downconverter->_dmaSemaphorePost();
         }
