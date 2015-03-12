@@ -10,25 +10,25 @@ Desc: Pentek 716x DDC Registers
 namespace Pentek {
 
 /// ADC FIFO Control Registers
-static const uint32_t ADC_FIFO_CTRL_1 = 0x8C08; ///< ADC #1
-static const uint32_t ADC_FIFO_CTRL_2 = 0x8C40; ///< ADC #2
-static const uint32_t ADC_FIFO_CTRL_3 = 0x8C78; ///< ADC #3
-static const uint32_t ADC_FIFO_CTRL_4 = 0x8CB0; ///< ADC #4
+static const uint32_t ADC_FIFO_CTRL_1   = 385;  ///< ADC #1
+static const uint32_t ADC_FIFO_CTRL_2   = 392;  ///< ADC #2
+static const uint32_t ADC_FIFO_CTRL_3   = 399;  ///< ADC #3
+static const uint32_t ADC_FIFO_CTRL_4   = 406;  ///< ADC #4
 
 /// The DAC FIFO Control Register
-static const uint32_t DAC_FIFO_CONTROL = 0x8410;
+static const uint32_t DAC_FIFO_CONTROL  = 130;
 
 /// The DDR Memory Control Register
-static const uint32_t DDR_MEM_CONTROL = 0x8800;
+static const uint32_t DDR_MEM_CONTROL   = 256;
 
 /// Pentek DCM control register
-static const uint32_t DCM_CONTROL = 0x8020;  ///< Pentek Gateflow defined register, used to reset the digital clock managers.
+static const uint32_t DCM_CONTROL       = 4;    ///< Pentek Gateflow defined register, used to reset the digital clock managers.
 
 /// GateFlow option 223 ttl_in register
-static const uint32_t TTL_IN = 0x8200;       ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL input via this register.
+static const uint32_t TTL_IN            = 64;   ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL input via this register.
 
 /// GateFlow option 223 ttl_out1 register, 16 bits
-static const uint32_t TTL_OUT1 = 0x8208;     ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL output via this register.
+static const uint32_t TTL_OUT1          = 65;   ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL output via this register.
 
 static const uint32_t TRANS_CNTRL       = 463;  ///< FRAP Transceiver firmware control register
 static const uint32_t MT_ADDR           = 464;  ///< Multi-timer address and control
