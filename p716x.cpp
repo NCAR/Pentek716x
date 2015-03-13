@@ -70,20 +70,23 @@ _simPauseMS(simPauseMS)
 {
 	boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
-	// If we're simulating, things are simple...
-    if (_simulate) {
-        _isReady = true;
-    } else {
-    	// initialize ReadyFlow
+	// Only do real card initialization if we're not simulating
+    if (! _simulate) {
+     	// initialize ReadyFlow
     	if (useFirstCard) {
     		// we have been explicitly told to find the first card.
     		_Next716xSlot = -2;
     	}
-    	_isReady = _initReadyFlow();
+    	if (! _initReadyFlow()) {
+    	    // Exit via SIGINT, allowing upper levels to clean up if they catch
+    	    // the signal.
+    	    raise(SIGINT);
+    	    return;
+    	}
     }
-    // If we were successful, increment the open card count
-    if (_isReady)
-        _NumOpenCards++;
+
+    _isReady = true;
+    _NumOpenCards++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -196,6 +199,16 @@ bool
 p716x::_initReadyFlow() {
 
     _deviceHandle = NULL;
+
+    // Verify that the necessary kernel modules are loaded: windrvr6 and KP_716X
+    bool have_windrvr6 = (system("lsmod | grep -q '^windrvr6 '") == 0);
+    bool have_KP_716X = (system("lsmod | grep -q '^KP_716X '") == 0);
+    if (! have_windrvr6 || ! have_KP_716X) {
+        ELOG << "MISSING NEEDED PENTEK KERNEL MODULE(S):" <<
+                (have_windrvr6 ? "" : " windrvr6") <<
+                (have_KP_716X ? "" : " KP_716X");
+        return false;
+    }
 
     // initialize the PTK716X library
     DWORD dwStatus = PTK716X_LibInit();
