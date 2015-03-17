@@ -49,7 +49,9 @@ static const uint32_t GAUSSIAN_READ_MSW = 478;  ///< Gaussian filter coefficient
 static const uint32_t RADAR_GATES       = 479;  ///< The number of radar gates
 static const uint32_t CI_NSUM           = 480;  ///< The number of values for one coherent integrator sum
 static const uint32_t FPGA_REPO_REV     = 481;  ///< The FPGA source code repository revision number
-static const uint32_t DDC_DECIMATION    = 482;  ///< DDC decimation factor register
+static const uint32_t DDC_DECIMATION1   = 482;  ///< Gatewidth decimation count chan 1 (sets gatewidth; is the number of DDC output clocks, e.g. ADC_CLK10D)
+static const uint32_t DDC_DECIMATION2   = 483;  ///< Gatewidth decimation count chan 2
+static const uint32_t DDC_DECIMATION3   = 484;  ///< Gatewidth decimation count chan 3
 
 //Clock Decimation Registers
 //  static const uint32_t DEC_REG = 0xA20;

@@ -164,7 +164,8 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
 
     // Set the decimation for this receive channel
     // ** This establishes the gate width in the downconverter. **
-    _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts);
+    // It must be the number of counts of the ADC_CLK10D
+    _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts/5);
     
     // configure DDC in FPGA
     if (!config()) {
@@ -186,7 +187,7 @@ p716xDn_sd3c::_setDecimation(uint16_t decimation) {
     _decimation = decimation;
 
     // Write to the SD3C decimation register
-    void * regAddr = _sd3c._sd3cRegAddr(DDC_DECIMATION);
+    void * regAddr = _sd3c._sd3cRegAddr(DDC_DECIMATION1 + _chanId);
     P716x_REG_WRITE(regAddr, _decimation);
 
     // Read back to verify writing
