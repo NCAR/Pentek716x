@@ -110,18 +110,19 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
       }
     }
 
-    // Set the rx gating timer. 
-    // Note that Channels 0 and 1 share RX_01_TIMER, and channels 2 and 3 
-    // share RX_23_TIMER.
-    // For a burst sampling channel, take as many gates as the clock allows 
-    // over the given pulse width, and set _gates to the correct value here.
-    p716x_sd3c::TimerIndex rxTimerNdx = (_chanId <= 1) ? 
-            p716x_sd3c::RX_01_TIMER : p716x_sd3c::RX_23_TIMER;
-    if (_isBurst) {
+    // Set the rx gating timer.
+    /// @todo This really should not be done in p716xDn, because the
+    /// timers are global resources; they don't necessarily belong to a particular channel.
+    /// @todo These timer names (e.g. p716x_sd3c::RX_23_TIMER) don't make sense for the p71620 system.
+    if (_chanId == 2) {
+    	// rx gating for the burst channel
+    	// Note that the number of gates is also slyly set here for the burst channel.
         _gates = rxPulsewidthCounts;
-        _sd3c._setTimer(rxTimerNdx, rxDelayCounts, rxPulsewidthCounts);
-    } else {
-        _sd3c._setTimer(rxTimerNdx, rxDelayCounts, rxPulsewidthCounts * _gates);
+        _sd3c._setTimer(p716x_sd3c::RX_23_TIMER, rxDelayCounts, rxPulsewidthCounts);
+    }
+    if (_chanId == 0) {
+    	// rx gating for the two ddc channels
+        _sd3c._setTimer( p716x_sd3c::RX_01_TIMER, rxDelayCounts, rxPulsewidthCounts * _gates);
     }
     
     /// @todo Estimate the period between data-available interrupts based on the
