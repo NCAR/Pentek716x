@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sys/ioctl.h>
+#include <sstream>
 
 #include <logx/Logging.h>
 LOGGING("p716xDn");
@@ -59,6 +60,12 @@ p716xDn::p716xDn(
         return;
     }
 
+    // create a capture file
+#ifdef DMA_FILE_CAPTURE
+    std::stringstream fname;
+    fname <<  "sd3cdn_" << _chanId << ".dat";
+    _captureFile.open(fname.str().c_str(), std::ios::out | std::ios::binary);
+#endif
     // Size _readBuf appropriately.
     _readBuf.resize(2 * _DmaDescSize);
     
@@ -118,6 +125,9 @@ p716xDn::~p716xDn() {
         _filledBuffers.pop();
         delete(buf);
     }
+#ifdef DMA_FILE_CAPTURE
+    _captureFile.close();
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -345,6 +355,10 @@ p716xDn::_dmaThreadMainLoop() {
         _freeBuffers.pop();
         memcpy(buf, (char*)_dmaBuf[_nextDesc].usrBuf, _DmaDescSize);
         
+        // Capture the new data
+#ifdef DMA_FILE_CAPTURE
+        _captureFile.write((char*)_dmaBuf[_nextDesc].usrBuf, _DmaDescSize);
+#endif
         // Add the buffer to the filled buffers queue
         _filledBuffers.push(buf);
     

@@ -4,6 +4,11 @@
 #include <boost/thread/recursive_mutex.hpp>
 #include <ptk_osdep.h>  // include this before other ReadyFlow headers
 #include "p716x.h"
+#include <iostream>
+#include <fstream>
+
+// Define if you want to capture data as it is being read from DMA
+//#define DMA_FILE_CAPTURE
 
 namespace Pentek {
 
@@ -232,6 +237,12 @@ public:
         
         /// Boolean set to true when exiting
         bool _exiting;
+
+       /// Capture file for data juast as it is read from DMA
+#ifdef DMA_FILE_CAPTURE
+        std::ofstream _captureFile;
+#endif
+
 };
 
 }   // end namespace Pentek
