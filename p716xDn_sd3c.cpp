@@ -117,7 +117,7 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
     if (_chanId == 2) {
     	// rx gating for the burst channel
     	// Note that the number of gates is also slyly set here for the burst channel.
-        _gates = rxPulsewidthCounts;
+        _gates = rxPulsewidthCounts*2;
         _sd3c._setTimer(p716x_sd3c::RX_23_TIMER, rxDelayCounts, rxPulsewidthCounts);
     }
     if (_chanId == 0) {
@@ -1724,9 +1724,9 @@ p716xDn_sd3c::ptMetadataLen() const {
     switch (_sd3c._ddcType) {
     case p716x_sd3c::DDC8DECIMATE:
     case p716x_sd3c::DDC10DECIMATE:
-        return(24); // 6 extra words (24 bytes) of metadata for DDC8
+        return(24); // 6 extra words (24 bytes) of metadata for DDC8        
     default:
-        return(0);
+    	return(0);
     }
 }
 
