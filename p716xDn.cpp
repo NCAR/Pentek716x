@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sys/ioctl.h>
+#include <sys/syscall.h>    // to use SYS_gettid
 #include <sstream>
 
 #include <logx/Logging.h>
@@ -41,7 +42,7 @@ p716xDn::p716xDn(
 {
     // dma buffer size must be a multiple of 4
     if ((_DmaDescSize % 4) || (_DmaDescSize <= 0)) {
-      ELOG << "DMA descriptor size must be a positive  multiple of 4 bytes, "
+      ELOG << "DMA descriptor size must be a positive multiple of 4 bytes, "
            <<  _DmaDescSize << " was specified";
       raise(SIGINT);
     }
@@ -329,6 +330,9 @@ p716xDn::_dmaSemaphorePost() {
 ////////////////////////////////////////////////////////////////////////////////////////
 void
 p716xDn::_dmaThreadMainLoop() {
+    // Print the id for this thread
+    DLOG << "DMA thread for channel " << _chanId << " has ID " <<
+            syscall(SYS_gettid) << ", and uses semaphore " << _dmaCompleteSemNum();
     // Loop until _exiting is set to true by the destructor
     while (! _exiting) {
         // Wait up to WAIT_MSECS ms for the 'DMA complete' semaphore
