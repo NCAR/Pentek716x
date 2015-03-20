@@ -110,50 +110,78 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
       }
     }
 
+    // DDCx-specific testing for channel type.
+    switch (_sd3c.ddcType()) {
+    // DDC8 and DDC10 support burst sampling on channels 2 and 3
+    case p716x_sd3c::DDC8DECIMATE:
+    case p716x_sd3c::DDC10DECIMATE:
+        if (_isBurst) {
+            if (_chanId < 2) {
+                ELOG << "Burst requested for channel " << _chanId <<
+                        ", but it's only supported on 2 or 3";
+                raise(SIGINT);
+            }
+        } else {
+            if (_chanId > 1) {
+                ELOG << "Normal sampling requested for channel " << _chanId <<
+                        ", but it's only supported on 0 or 1";
+                raise(SIGINT);
+            }
+        }
+        break;
+    // Other DDC-s do not support burst sampling
+    default:
+        // Burst not supported for non-burst DDC-s
+        if (_isBurst) {
+            ELOG << "Burst sampling requested for channel " << _chanId <<
+                    ", but " << p716x_sd3c::ddcTypeName(_sd3c.ddcType()) <<
+                    " does not support it!";
+            raise(SIGINT);
+        }
+        break;
+    }
+
+    // Which RX gating timer for this channel? Channels 0 and 1 share
+    // p716x_sd3c::RX_01_TIMER, and channel 2 uses p716x_sd3c::RX_23_TIMER.
+    p716x_sd3c::TimerIndex gatingTimer = (_chanId < 2) ?
+            p716x_sd3c::RX_01_TIMER : p716x_sd3c::RX_23_TIMER;
+
     // Set the rx gating timer.
     /// @todo This really should not be done in p716xDn, because the
     /// timers are global resources; they don't necessarily belong to a particular channel.
     /// @todo These timer names (e.g. p716x_sd3c::RX_23_TIMER) don't make sense for the p71620 system.
-    if (_chanId == 2) {
-    	// rx gating for the burst channel
-    	// Note that the number of gates is also slyly set here for the burst channel.
-        _gates = rxPulsewidthCounts*2;
-        _sd3c._setTimer(p716x_sd3c::RX_23_TIMER, rxDelayCounts, rxPulsewidthCounts);
-    }
-    if (_chanId == 0) {
-    	// rx gating for the two ddc channels
-        _sd3c._setTimer( p716x_sd3c::RX_01_TIMER, rxDelayCounts, rxPulsewidthCounts * _gates);
-    }
-    
-    /// @todo Estimate the period between data-available interrupts based on the
-    /// configured interrupt buffer length. This is a good first-order estimate
-    /// of maximum data latency time for the channel.
-    /// @todo Configure the channel intbufsize for roughly 10 Hz interrupts
-    /// (and bufsize to ~2*intbufsize)
-    
-    int interruptBytes;
-    if (isSimulating()) {
-    	interruptBytes =  32768;
+    if (_isBurst) {
+    	// Burst channel. The rxPulsewidth gives the total sampling time for
+        // the burst, and a "gate" is generated for each sample clock cycle.
+//        _gates = rxPulsewidthCounts;
+        _gates = 2 * rxPulsewidthCounts;    // XXX double gates currently coming from SD3C burst
+        _sd3c._setTimer(gatingTimer, rxDelayCounts, rxPulsewidthCounts);
     } else {
-    	interruptBytes = 65536; ///@todo This scheme needs to be revised once we get the windriver DMA working.
+    	// rx gating for a normal downconversion channel
+        _sd3c._setTimer(gatingTimer, rxDelayCounts, rxPulsewidthCounts * _gates);
     }
-
+    
+    /// Estimate the period between data-available interrupts based on the
+    /// configured DMA transfer length. This is a good first-order estimate
+    /// of maximum data latency time for the channel.
+    
     double chanDataRate = (4 * _gates) / _sd3c.prt();   /// @TODO this only works for single PRT
-    _dataInterruptPeriod = interruptBytes / chanDataRate;
+    _dataInterruptPeriod = _DmaDescSize / chanDataRate;
     if (p716xSd3cPtr->nsum() > 1) {
-    	_dataInterruptPeriod /= (p716xSd3cPtr->nsum()/2);
+    	_dataInterruptPeriod /= (p716xSd3cPtr->nsum() / 2);
     }
 
     // Warn if data latency is greater than 1 second, and bail completely if
     // it's greater than 5 seconds.
     if (_dataInterruptPeriod > 1.0) {
-        ELOG << "interruptBytes " << interruptBytes;
-        ELOG << "chanDataRate " << chanDataRate;
+        ELOG << "DMA transfer size " << _DmaDescSize << " bytes";
+        ELOG << "chanDataRate " << chanDataRate << " bytes/s";
         ELOG << "Warning: Estimated max data latency for channel " << 
-        _chanId << " is " << _dataInterruptPeriod << " s!";
+                _chanId << " is " << _dataInterruptPeriod << " s!";
     }
 
     if (_dataInterruptPeriod > 5.0) {
+        ELOG << "Calculated data interrupt period is greater than 5 seconds!";
         raise(SIGINT);
     }
     
@@ -1109,7 +1137,10 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
             syncHuntMsg << "<DATA>x" << consecutiveData;
         }
         syncHuntMsg << "<SYNC>";
-        ELOG << syncHuntMsg.str();
+        ELOG << "Sync hunt " << nHuntWords << " words after pulse " <<
+                (*reinterpret_cast<uint32_t*>(pulseTag) & 0x3fffffff) <<
+                " on chan " << _chanId;
+        DLOG << syncHuntMsg.str();
     }
 
     if (_syncErrors != startSyncErrors) {
