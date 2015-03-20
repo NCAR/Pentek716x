@@ -1723,6 +1723,7 @@ p716xDn_sd3c::ptMetadataLen() const {
     // Extra metadata is only with DDC8 (for now)
     switch (_sd3c._ddcType) {
     case p716x_sd3c::DDC8DECIMATE:
+    case p716x_sd3c::DDC10DECIMATE:
         return(24); // 6 extra words (24 bytes) of metadata for DDC8
     default:
         return(0);
