@@ -362,8 +362,8 @@ p716x::_addDownconverter(p716xDn * downconverter) {
     
     int chan = downconverter->chanId();
     if (_downconverters.find(chan) != _downconverters.end()) {
-        std::cerr << "Existing downconverter for channel " << chan <<
-                " is being replaced" << std::endl;
+        WLOG << "Existing downconverter for channel " << chan <<
+                " is being replaced";
         delete _downconverters[chan]._dn;
     }
     _downconverters[chan]._dn = downconverter;
