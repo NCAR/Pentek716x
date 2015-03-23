@@ -901,4 +901,11 @@ void p716x_sd3c::zeroMotorCounts() {
     TTLOut(regVal & 0xfffe);    // clear the bit
 }
 
+//////////////////////////////////////////////////////////////////////
+double p716x_sd3c::adcFrequency() const {
+    return _clockFrequency;
+}
+
+
+
 } // end namespace Pentek

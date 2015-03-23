@@ -151,9 +151,7 @@ public:
 
     /// @brief Return the ADC clock frequency in Hz.
     /// @return The ADC clock frequency in Hz.
-    double adcFrequency() const {
-        return _adc_clock;
-    }
+    double adcFrequency() const;
     
     /// @brief Convert a time in seconds to integer timer counts, which are in units
     /// of (2 / _adc_clock).
@@ -604,8 +602,6 @@ protected:
     bool _freeRun;
     /// Time of the first xmit pulse.
     boost::posix_time::ptime _radarStartTime;
-    /// The adc clock rate in Hz
-    double _adc_clock;
     /// The prt in seconds
     double _prt;
     /// The dual prt in seconds

@@ -53,33 +53,36 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
     _gates = _sd3c.gates();
     _nsum = _sd3c.nsum();
     
+    // Convert our rx delay and width to counts.
+    int rxDelayCounts = _sd3c.timeToCounts(rx_delay);
+    int rxPulsewidthCounts = _sd3c.timeToCounts(rx_pulsewidth);
+
     // log startup params in debug mode
 
     DLOG << "+++++++++++++++++++++++++++++";
     DLOG << "p716xSd3cDn constructor";
-    DLOG << "  cardIndex: " << _p716x.getCardIndex();
-    DLOG << "  chanId: " << chanId;
-    DLOG << "  isBurst: " << isBurst;
-    DLOG << "  tsLength: " << tsLength;
-    DLOG << "  rx_delay: " << rx_delay;
-    DLOG << "  rx_pulsewidth: " << rx_pulsewidth;
-    DLOG << "  gaussianFile: " << gaussianFile;
-    DLOG << "  kaiserFile: " << kaiserFile;
-    DLOG << "  simWaveLength: " << simWaveLength;
-    DLOG << "  internalClock: " << internalClock;
-    DLOG << "  gates: " << _gates;
-    DLOG << "  nsum: " << _nsum;
+    DLOG << "           cardIndex: " << _p716x.getCardIndex();
+    DLOG << "              chanId: " << chanId;
+    DLOG << "             isBurst: " << isBurst;
+    DLOG << "            tsLength: " << tsLength;
+    DLOG << "            rx_delay: " << rx_delay;
+    DLOG << "       rx_pulsewidth: " << rx_pulsewidth;
+    DLOG << "        gaussianFile: " << gaussianFile;
+    DLOG << "          kaiserFile: " << kaiserFile;
+    DLOG << "       simWaveLength: " << simWaveLength;
+    DLOG << "       internalClock: " << internalClock;
+    DLOG << "               gates: " << _gates;
+    DLOG << "                nsum: " << _nsum;
+    DLOG << "  rxPulsewidthCounts: " << rxPulsewidthCounts;
+    DLOG << "       ddcDecimation: " << _sd3c.ddcDecimation();
+    DLOG << "        adcFrequency: " << _sd3c.adcFrequency();
     DLOG << "++++++++++++++++++++++++++++";
-
-    // Convert our rx delay and width to counts.
-    int rxDelayCounts = _sd3c.timeToCounts(rx_delay);
-    int rxPulsewidthCounts = _sd3c.timeToCounts(rx_pulsewidth);
 
     // Make sure the rx_pulsewidth is a multiple of the time per decimated
     // sample.
     if (rxPulsewidthCounts == 0 ||
             ((2 * rxPulsewidthCounts) % _sd3c.ddcDecimation()) != 0) {
-      ELOG << "rx_pulsewidth (digitizer_sample_width) must be a " <<
+      ELOG << "Chan " << chanId << " rx_pulsewidth (digitizer_sample_width) must be a " <<
         "non-zero multiple of " <<
         1.0e9 * _sd3c.ddcDecimation() / _sd3c.adcFrequency() <<
         " ns for " << _sd3c.ddcTypeName();
@@ -90,13 +93,13 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
     // (gates + 1) * pulse width
     if (!_isBurst) {
       if ((_sd3c.prtCounts() % rxPulsewidthCounts)) {
-        ELOG << "Rx pulse width must divide into PRT";
+        ELOG << "Chan " << chanId << " rx pulse width must divide into PRT";
         ELOG << "rxPulsewidthCounts, prtCounts: "
              << rxPulsewidthCounts << ", " << _sd3c.prtCounts();
         raise(SIGINT);
       }
       if (_sd3c.prtCounts() <= ((_sd3c.gates() + 1) * rxPulsewidthCounts)) {
-        ELOG << "PRT ERROR";
+        ELOG << "Chan " << chanId << "PRT ERROR";
         ELOG << "PRT: " << _sd3c.prt() << " sec, "
              <<  _sd3c.prtCounts() << " counts";
         ELOG << "rx pulse width: " 
