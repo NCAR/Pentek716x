@@ -156,8 +156,7 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
     if (_isBurst) {
     	// Burst channel. The rxPulsewidth gives the total sampling time for
         // the burst, and a "gate" is generated for each sample clock cycle.
-//        _gates = rxPulsewidthCounts;
-        _gates = 2 * rxPulsewidthCounts;    // XXX double gates currently coming from SD3C burst
+        _gates = rxPulsewidthCounts;
         _sd3c._setTimer(gatingTimer, rxDelayCounts, rxPulsewidthCounts);
     } else {
     	// rx gating for a normal downconversion channel
