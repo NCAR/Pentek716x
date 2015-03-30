@@ -1753,13 +1753,13 @@ p716xDn_sd3c::dumpSimFifo(std::string label, int n) {
 //////////////////////////////////////////////////////////////////////////////////
 int
 p716xDn_sd3c::ptMetadataLen() const {
-    // Extra metadata is only with DDC8 (for now)
+    // Metadata size is DDC-dependent
     switch (_sd3c._ddcType) {
     case p716x_sd3c::DDC8DECIMATE:
     case p716x_sd3c::DDC10DECIMATE:
-        return(24); // 6 extra words (24 bytes) of metadata for DDC8        
+        return(24); // 6 extra words (24 bytes) of metadata
     default:
-    	return(0);
+        return(0);
     }
 }
 
