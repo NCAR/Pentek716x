@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
+
 #include "p716xDn_sd3c.h"
 
 static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
@@ -175,6 +176,23 @@ public:
     /// @param start Set true to start, set false to stop.
     void timersStartStop(bool start);
     
+    /// @brief Initiate the timer start process and return immediately.
+    ///
+    /// This method instantiates a thread, calls timersStartStop(true) from
+    /// within the thread, and returns immediately. If start will be triggered
+    /// by a 1 PPS signal, timersStartStop() sleeps for a while to ensure that
+    /// the start time will be properly determined. Since this asynchronous call
+    /// returns immediately, it can allow for calling startTimersAsync() in
+    /// quick succession for more than one instance of p716x_sd3c and get all
+    /// of the instances to start their timers on the same 1 PPS signal.
+    void startTimersAsync();
+
+    /// @brief Wait for asynchronous initiation of timer start to complete.
+    /// Note that when this function returns, it only indicates that the
+    /// *initiation* of timer start has completed. It does not guarantee that
+    /// the timers have actually started.
+    void startTimersAsyncWait();
+
     /// @brief Return the time of the first pulse sample.
     /// @return Time of first pulse sample
     boost::posix_time::ptime radarStartTime() const {
@@ -566,6 +584,13 @@ protected:
         bool _invert;
     };
     
+    /// Simple thread for asynchronous call to timersStartStop(), since timer
+    /// start likely involves some sleeping if we're starting on 1 PPS.
+    pthread_t _timerStartThread;
+
+    /// Static method which is executed by the _timerStartThread
+    static void* _StaticStartTimers(void * voidP);
+
     /// The three operating modes: free run, pulse tag, coherent integration, and coherent integration with RIM.
     typedef enum { MODE_FREERUN, MODE_PULSETAG, MODE_CI, MODE_CI_RIM} OperatingMode;
     

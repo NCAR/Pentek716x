@@ -45,6 +45,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
                        bool rim,
                        int codeLength) :
         p716x(clockFreq, useInternalClock, useFirstCard, simulate, 50.0),
+        _timerStartThread(0),
         _staggeredPrt(staggeredPrt),
         _freeRun(freeRun),
         _prt(prt),
@@ -165,7 +166,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
     // Sync pulse timer. Note that the width of this timer must be at least
     // 140 ns to be recognized to be counted by the Acromag PMC730 Multi-IO
     // card pulse counter, and this counter is used by the Ka-band radar!
-    _setTimer(MASTER_SYNC_TIMER, 0, timeToCounts(140.e-9));
+    _setTimer(MASTER_SYNC_TIMER, 0, timeToCounts(200.e-9));
     
     // tx pulse timer
     int txDelayCounts = timeToCounts(tx_delay);
@@ -425,6 +426,65 @@ void p716x_sd3c::timersStartStop(bool start) {
     // Turn off Write Strobes
     P716x_REG_WRITE(_sd3cRegAddr(MT_WR), WRITE_OFF);
     usleep(P716X_IOCTLSLEEPUS);
+}
+
+//////////////////////////////////////////////////////////////////////
+void*
+p716x_sd3c::_StaticStartTimers(void * voidP) {
+    // Cast the pointer into a p716x_sd3c*
+    p716x_sd3c * instanceP = reinterpret_cast<p716x_sd3c *>(voidP);
+
+    DLOG << "_StaticStartTimers() thread started for card " <<
+            instanceP->_cardIndex;
+    // Call timersStartStop(true) on the instance to initiate timer start.
+    instanceP->timersStartStop(true);
+
+    // Once that returns, we're done!
+    DLOG << "_StaticStartTimers() thread finishing for card " <<
+            instanceP->_cardIndex;
+    pthread_exit(NULL);
+}
+
+//////////////////////////////////////////////////////////////////////
+void
+p716x_sd3c::startTimersAsync() {
+    ILOG << "startTimersAsync()";
+    // If _timerStartThread is busy from a previous call, just return now.
+    if (_timerStartThread) {
+        WLOG << "Testing if old _timerStartThread is running";
+        // Call pthread_kill with signal 0 to test if the thread is
+        // running. If the thread has finished, ESRCH will be returned.
+        // If the thread is still executing, complain and return.
+        if (pthread_kill(_timerStartThread, 0) != ESRCH) {
+            WLOG << "Call to startTimersAsync() ignored: " <<
+                    "previous call still executing";
+            return;
+        }
+    }
+    // Start a pthread executing _StaticStartTimers(this).
+    if (pthread_create(&_timerStartThread, NULL, _StaticStartTimers, this) != 0) {
+        ELOG << "Failed to create thread for timer start: " << strerror(errno);
+        raise(SIGINT);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+void
+p716x_sd3c::startTimersAsyncWait() {
+    // Return immediately if no timer start thread has been created.
+    if (! _timerStartThread) {
+        WLOG << "Ignoring call to startTimersAsyncWait() with no previous " <<
+                "call to startTimersAsync()";
+        return;
+
+    }
+
+    // Wait for _timerStartThread to finish. Under normal conditions, this
+    // should take less than a second.
+    DLOG << "Joining _timerStartThread...";
+    pthread_join(_timerStartThread, NULL);
+    DLOG << "..._timerStartThread joined";
+    _timerStartThread = 0;
 }
 
 //////////////////////////////////////////////////////////////////////
