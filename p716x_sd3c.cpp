@@ -448,10 +448,9 @@ p716x_sd3c::_StaticStartTimers(void * voidP) {
 //////////////////////////////////////////////////////////////////////
 void
 p716x_sd3c::startTimersAsync() {
-    ILOG << "startTimersAsync()";
     // If _timerStartThread is busy from a previous call, just return now.
     if (_timerStartThread) {
-        WLOG << "Testing if old _timerStartThread is running";
+        WLOG << "Testing state of old _timerStartThread";
         // Call pthread_kill with signal 0 to test if the thread is
         // running. If the thread has finished, ESRCH will be returned.
         // If the thread is still executing, complain and return.
@@ -481,9 +480,9 @@ p716x_sd3c::startTimersAsyncWait() {
 
     // Wait for _timerStartThread to finish. Under normal conditions, this
     // should take less than a second.
-    DLOG << "Joining _timerStartThread...";
+    DLOG << "Waiting for _timerStartThread for card " << _cardIndex << "...";
     pthread_join(_timerStartThread, NULL);
-    DLOG << "..._timerStartThread joined";
+    DLOG << "...joined _timerStartThread for card " << _cardIndex;
     _timerStartThread = 0;
 }
 
