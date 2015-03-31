@@ -630,16 +630,16 @@ p716x_sd3c::_loadFreeRun() {
 
     // get the transceiver control register
     uint32_t tcreg;
-    P716x_REG_READ(_sd3cRegAddr(TRANS_CNTRL), tcreg);
+    P716x_REG_READ(_sd3cRegAddr(XCVR_CNTRL), tcreg);
 
     // set the free run bit as specified by _freerun
     if (_freeRun) {
         // set free run
-    	P716x_REG_WRITE(_sd3cRegAddr(TRANS_CNTRL), tcreg | TRANS_FREE_RUN);
+    	P716x_REG_WRITE(_sd3cRegAddr(XCVR_CNTRL), tcreg | XCBIT_FREE_RUN);
         usleep(P716X_IOCTLSLEEPUS);
     } else {
         // clear free run
-    	P716x_REG_WRITE(_sd3cRegAddr(TRANS_CNTRL), tcreg & ~TRANS_FREE_RUN);
+    	P716x_REG_WRITE(_sd3cRegAddr(XCVR_CNTRL), tcreg & ~XCBIT_FREE_RUN);
         usleep(P716X_IOCTLSLEEPUS);
     }
 
@@ -963,6 +963,33 @@ void p716x_sd3c::zeroMotorCounts() {
 //////////////////////////////////////////////////////////////////////
 double p716x_sd3c::adcFrequency() const {
     return _clockFrequency;
+}
+
+//////////////////////////////////////////////////////////////////////
+void
+p716x_sd3c::setIgnoreSecondarySync(bool ignore) {
+    boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+
+    if (isSimulating())
+        return;
+
+    // get the transceiver control register
+    uint32_t xcreg;
+    P716x_REG_READ(_sd3cRegAddr(XCVR_CNTRL), xcreg);
+
+    // clear or set the "ignore secondary sync" bit
+    if (ignore) {
+        // set the bit
+        xcreg |= XCBIT_IGNORE_2ND_SYNC;
+    } else {
+        // clear the bit
+        xcreg &= ~XCBIT_IGNORE_2ND_SYNC;
+    }
+
+    // write the register
+    P716x_REG_WRITE(_sd3cRegAddr(XCVR_CNTRL), xcreg);
+    usleep(P716X_IOCTLSLEEPUS);
+
 }
 
 

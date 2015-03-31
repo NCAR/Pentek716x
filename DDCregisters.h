@@ -30,7 +30,7 @@ static const uint32_t TTL_IN            = 64;   ///< Partial implementation of t
 /// GateFlow option 223 ttl_out1 register, 16 bits
 static const uint32_t TTL_OUT1          = 65;   ///< Partial implementation of the Pentek Gateflow Option 223 allows us to perform TTL output via this register.
 
-static const uint32_t TRANS_CNTRL       = 463;  ///< FRAP Transceiver firmware control register
+static const uint32_t XCVR_CNTRL        = 463;  ///< FRAP Transceiver firmware control register
 static const uint32_t MT_ADDR           = 464;  ///< Multi-timer address and control
 static const uint32_t MT_DATA           = 465;  ///< Multi-timer data
 static const uint32_t MT_WR             = 466;  ///< Multi-timer write strobes
@@ -65,8 +65,10 @@ static const uint32_t DDC_DECIMATION3   = 484;  ///< Gatewidth decimation count 
 //  static const uint32_t DPRT_ON = 0x1;
 //  static const uint32_t DPRT_OFF = 0x0;
 
-// Transceiver control bits
-static const uint32_t TRANS_FREE_RUN = 0x1; ///< Bit mask to access the free-run enable bit in the transceiver control register
+// Transceiver control register bits
+static const uint32_t XCBIT_FREE_RUN        = (1 << 0); ///< Free-run enable bit of the transceiver control register
+static const uint32_t XCBIT_IGNORE_2ND_SYNC = (1 << 1); ///< Set to ignore secondary sync signal (after 1 PPS) when
+                                                        ///< starting timers
 
 // DDC Filter control bits
 static const uint32_t DDC_START = 0x0; ///< Allow the filter to run. Set in the filter ADDR register.

@@ -80,6 +80,9 @@ public:
     ///     (generally a 1 PPS signal from a GPS clock) is used to start the 
     ///     radar. This parameter used to have a default value of
     ///     false, but a default is no longer defined.
+    ///     Note that DDC10 also uses a secondary sync trigger signal (the
+    ///     so-called "T0 minus 6" for S-Pol) which must arrive after the
+    ///     1 PPS signal. See setIgnoreSecondarySync() for more information.
     /// @param rim If true, we are operating in RIM mode. This parameter
     ///     used to have a default value of false, but a default is no
     ///     longer defined.
@@ -145,10 +148,6 @@ public:
     
     /// @return The sd3c firmware revision number.
     int sd3cRev() const;
-
-    /// @brief Stop the DMA for a specified downconverter
-    /// @param chan The desired channel
-    void stopDMA(int chan);
 
     /// @brief Return the ADC clock frequency in Hz.
     /// @return The ADC clock frequency in Hz.
@@ -455,6 +454,17 @@ public:
     /// register. This causes the firmware to zero the quadrature counts for all
     /// motors being monitored.
     void zeroMotorCounts();
+
+    /// @brief Set whether secondary sync signal for timer start will be
+    /// ignored. This call only applies to DDC10, where a secondary timer
+    /// start signal is required by default (the so-called "T0 minus 6" for
+    /// S-Pol) *after* the arrival of the primary 1 PPS signal. This method
+    /// only has effect on timer starts which occur after it is called.
+    ///
+    /// If 'ignore' is false, the default behavior will be used. If true,
+    /// the timers will start on arrival of the 1 PPS signal and not wait
+    /// for the secondary signal.
+    void setIgnoreSecondarySync(bool ignore);
 
     /// Epoch - 1970-01-01 00:00:00 UTC
 
