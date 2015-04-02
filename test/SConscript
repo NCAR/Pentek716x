@@ -13,6 +13,7 @@ sources = Split("""
 capture.cpp
 dactest.cpp
 dacdump.cpp
+sd3cInfo.cpp
 toggle_716x_leds.cpp
 """)
 
@@ -32,6 +33,9 @@ Default(dactest)
 
 dacdump = env.Program('dacdump', 'dacdump.cpp')
 #Default(dacdump)   # TODO: make this test compile!
+
+sd3cInfo = env.Program('sd3cInfo', 'sd3cInfo.cpp')
+Default(sd3cInfo)
 
 toggle_716x_leds = env.Program('toggle_716x_leds', 'toggle_716x_leds.cpp')
 Default(toggle_716x_leds)
