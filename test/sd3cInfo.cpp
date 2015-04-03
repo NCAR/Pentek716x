@@ -5,6 +5,9 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <csignal>
 #include <p716x_sd3c.h>
+#include <logx/Logging.h>
+
+LOGGING("sd3cInfo");
 
 using namespace std;
 using namespace boost::posix_time;
@@ -52,6 +55,13 @@ handle_signal(int signal) {
 int
 main(int argc, char** argv)
 {
+
+    // Set up logx early. It gets and strips the arguments it cares about
+    // from argv.
+
+    logx::ParseLogArgs(argc, argv);
+
+
     // parse the command line options, substituting for config params.
     parseOptions(argc, argv);
 
@@ -75,7 +85,7 @@ main(int argc, char** argv)
 
     Pentek::p716x_sd3c sd3cCard(100.0e6, true, true, false, 10.0, 
                                 Pentek::p716x_sd3c::DDC10DECIMATE,
-                                0.0, 1.0e-6, 1000, 0, false, 100, 0, false,
+                                0.0, 1.0e-6, 1000, 0, false, 100, 1, false,
                                 false, false, 0);
     if (sd3cCard.ok()) {
         cout << "Card has SD3C " << sd3cCard.ddcTypeName() << 
