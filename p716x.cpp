@@ -227,6 +227,7 @@ p716x::_initReadyFlow() {
     {
       ELOG << "Pentek 716x device not found when opening card " << 
         _NumOpenCards;
+      return false;
     }
 
     DLOG << "Pentek 716x device";
