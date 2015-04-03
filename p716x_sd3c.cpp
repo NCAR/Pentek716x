@@ -64,8 +64,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
 
     // sanity check
     if (_nsum < 1) {
-        std::cerr << "Selected nsum of " << _nsum << " makes no sense!" <<
-                std::endl;
+        ELOG << "Selected nsum of " << _nsum << " makes no sense!";
         raise(SIGINT);
     }
 
