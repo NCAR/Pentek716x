@@ -2,6 +2,7 @@
 #define P716X_SD3C_H_
 
 #include "p716x.h"
+#include "p716xDn_sd3c.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -13,8 +14,6 @@
 #include <stdlib.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
-
-#include "p716xDn_sd3c.h"
 
 static const double SPEED_OF_LIGHT = 2.99792458e8;  // m s-1
 
@@ -173,7 +172,8 @@ public:
     /// external, depending on the setting of externalStartTrigger at 
     /// construction.
     /// @param start Set true to start, set false to stop.
-    void timersStartStop(bool start);
+    /// @return true if successful, false otherwise.
+    bool timersStartStop(bool start);
     
     /// @brief Initiate the timer start process and return immediately.
     ///
