@@ -46,12 +46,6 @@ void parseOptions(int argc, char** argv)
 }
 
 ///////////////////////////////////////////////////////////
-void
-handle_signal(int signal) {
-    cerr << "Caught signal " << signal << endl;
-}
-
-///////////////////////////////////////////////////////////
 int
 main(int argc, char** argv)
 {
@@ -68,9 +62,6 @@ main(int argc, char** argv)
     // set to ignore SIGPIPE errors which occur when sockets
     // are broken between client and server
     signal(SIGPIPE, SIG_IGN);
-    
-    // Catch SIGINT, which may be raised by the p716x_sd3c constructor
-    signal(SIGINT, handle_signal);
 
     // Initialize the library
 
@@ -87,12 +78,8 @@ main(int argc, char** argv)
                                 Pentek::p716x_sd3c::DDC10DECIMATE,
                                 0.0, 1.0e-6, 1000, 0, false, 100, 1, false,
                                 false, false, 0);
-    if (sd3cCard.ok()) {
-        cout << "Card has SD3C " << sd3cCard.ddcTypeName() << 
-                " bitstream, revision " << sd3cCard.sd3cRev() << endl;
-    } else {
-        cerr << "Unable to instatiate p716x_sd3c!" << endl;
-    }
+    cout << "Card has SD3C " << sd3cCard.ddcTypeName() << 
+            " bitstream, revision " << sd3cCard.sd3cRev();
 
     return(0);
 }
