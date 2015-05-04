@@ -323,17 +323,20 @@ p7142sd3c::countsToTime(int counts) const {
 }
 
 /////////////////////////////////////////////////////////////////////////
-void p7142sd3c::timersStartStop(bool start) {
+bool p7142sd3c::timersStartStop(bool start) {
     boost::recursive_mutex::scoped_lock guard(_p7142Mutex);
 
     if (_simulate) {
         setXmitStartTime(microsec_clock::universal_time());
-        return;
+        return true;
     }
 
     // Load timer values before starting the timers
     if (start) {
-        initTimers();
+      if (!initTimers()) {
+        ELOG << "***** ERROR timersStartStop(), cannot init timers *****";
+        return false;
+      }
     }
         
     // Turn on Write Strobes
@@ -400,6 +403,9 @@ void p7142sd3c::timersStartStop(bool start) {
     // Turn off Write Strobes
     P7142_REG_WRITE(_BAR2Base + MT_WR, WRITE_OFF);
     usleep(p7142::P7142_IOCTLSLEEPUS);
+
+    return true;
+
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -578,29 +584,60 @@ p7142sd3c::initTimers() {
     //       for DDC4: 24 MHz; for DDC8: 62.5 MHz
 
     int X, Y;
-    float prt_ms, prt2_ms;
+    double prt_ms, prt2_ms;
 
+    DLOG << "===================== initTimers =======================";
     if (_staggeredPrt == true) {
         // dual prt
         prt_ms = countsToTime(_prtCounts) * 1000;
         prt2_ms = countsToTime(_prt2Counts) * 1000;
+        double prt_ratio = prt2_ms / prt_ms;
+        int rounded_ratio = (int) (prt_ratio);
+        periodCount =
+          timeToCounts(prt_ms * (prt_ratio - rounded_ratio) / rounded_ratio * 0.001);
 
-        periodCount = timeToCounts(prt_ms * (prt2_ms / prt_ms - (int) (prt2_ms
-                / prt_ms)) / (int) (prt2_ms / prt_ms) * 0.001);
-
-        X = (int) ((int) (prt2_ms / prt_ms) / 
-                (prt2_ms / prt_ms - (int) (prt2_ms / prt_ms)));
-        Y = (int) (X * prt2_ms / prt_ms);
+        double xx = rounded_ratio / (prt_ratio - rounded_ratio);
+        double yy = xx * prt_ratio;
+        
+        X = (int) (rounded_ratio / (prt_ratio - rounded_ratio) + 0.5);
+        Y = (int) (X * prt_ratio + 0.5);
 
         PrtScheme = (Y << 4) | X;
+
+        char text[128];
+
+        DLOG << "Staggered periodCount: " << periodCount;
+        DLOG << "Staggered, PrtScheme: " << PrtScheme;
+        sprintf(text, "  prt_ms:    %.12f", prt_ms);
+        DLOG << text;
+        sprintf(text, "  prt2_ms:   %.12f", prt2_ms);
+        DLOG << text;
+        sprintf(text, "  prt_ratio: %.12f", prt_ratio);
+        DLOG << text;
+        DLOG << "  rounded_ratio: " << rounded_ratio;
+        sprintf(text, "  xx, yy: %.12f, %.12f", xx, yy);
+        DLOG << text;
+        DLOG << "  X, Y: " << X << ", " << Y;
+
     } else {
+
         // Single prt
     	// PRT must be integral multiple of pulsewidth !
         periodCount = _prtCounts;
         PrtScheme = 0x0000;
-    }
 
-    DLOG << "periodCount is " << periodCount;
+        DLOG << "Non-staggered periodCount is " << periodCount;
+
+    }
+    DLOG << "========================================================";
+    
+    if (periodCount > 65535) {
+      ELOG << "********************** ERROR ****************************";
+      ELOG << "==>> initTimers() error, period count > 65536: " << periodCount;
+      ELOG << "     Cannot start timers";
+      ELOG << "*********************************************************";
+      return false;
+    }
 
     // Control Register
     P7142_REG_WRITE(_BAR2Base + MT_ADDR, CONTROL_REG | ALL_SD3C_TIMER_BITS);

@@ -170,7 +170,8 @@ public:
     /// external, depending on the setting of externalStartTrigger at 
     /// construction.
     /// @param start Set true to start, set false to stop.
-    void timersStartStop(bool start);
+    /// @return true if successful, false otherwise.
+    bool timersStartStop(bool start);
     
     /// @brief Return the time of the first pulse sample.
     /// @return Time of first pulse sample

@@ -153,14 +153,14 @@ public:
     /// is computed during construction, and will not change thereafter.
     int beamLength();
     
-    /// Get one or two beams of data. For free run and
+    /// Get one or two beams of data, with no metadata. For free run and
     /// pulse tagger mode, one beam is returned. For the coherent integrator
     /// mode, an even and an odd beam are returned. For multi-frequency
     /// modes (RIM), all frequencies are returned.
     /// @param[out] nPulsesSinceStart the number of pulses since the
     ///   xmitter was started up - allows computation of the time
     /// @return A pointer to one beam of data.
-    char* getBeam(int64_t& nPulsesSinceStart);
+    char* getBeamOnly(int64_t& nPulsesSinceStart);
     
     /// @brief Get a beam of pulse-tagged data and its associated extra
     /// metadata.

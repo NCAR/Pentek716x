@@ -570,6 +570,7 @@ int p7142sd3cDn::filterSetup() {
             	gaussianFilterName += "_pulsecode";
             }
 
+            DLOG << "DDC4DECIMATE filterWidthUs: " << filterWidthUs;
             break;
         }
         case p7142sd3c::DDC10DECIMATE: {    // pulse_width in 50 MHz counts
@@ -582,6 +583,7 @@ int p7142sd3cDn::filterSetup() {
             ELOG << "DDC type " << ddcTypeName() << 
                 " not handled in " << __FUNCTION__;
             abort();
+            break;
         }
         }
 
@@ -628,6 +630,7 @@ int p7142sd3cDn::filterSetup() {
             ELOG << "DDC type " << ddcTypeName() << 
                 " not handled in " << __FUNCTION__;
             abort();
+            break;
         }
         }
         if (builtins.find(kaiserFilterName) == builtins.end()) {
@@ -738,7 +741,7 @@ p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart,
 
 //////////////////////////////////////////////////////////////////////////////////
 char*
-p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart) {
+p7142sd3cDn::getBeamOnly(int64_t & nPulsesSinceStart) {
 
     // perform the simulation wait if necessary
     //if (isSimulating()) {
@@ -759,6 +762,7 @@ p7142sd3cDn::getBeam(int64_t & nPulsesSinceStart) {
             ELOG << __PRETTY_FUNCTION__ << ": unhandled mode " << 
                 _sd3c._operatingMode();
             abort();
+            break;
     }
 
     return 0;
@@ -1453,6 +1457,7 @@ p7142sd3cDn::initBuffer() {
         ELOG << __PRETTY_FUNCTION__ << ": unknown SD3C mode: " << 
             _sd3c._operatingMode();
         abort();
+        break;
     }
 
     // allocate the buffer to hold one (or two for CI) beams of IQ data
