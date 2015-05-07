@@ -79,7 +79,7 @@ main(int argc, char** argv)
                                 0.0, 1.0e-6, 1000, 0, false, 100, 1, false,
                                 false, false, 0);
     cout << "Card has SD3C " << sd3cCard.ddcTypeName() << 
-            " bitstream, revision " << sd3cCard.sd3cRev();
+            " bitstream, revision " << sd3cCard.sd3cRev() << endl;
 
     return(0);
 }
