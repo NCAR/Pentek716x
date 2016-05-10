@@ -11,7 +11,7 @@ variables = eol_scons.GlobalVariables()
 tools = Split("""
 boost_thread
 logx
-readyflow
+ReadyFlow71620
 doxygen
 """)
 
@@ -46,18 +46,21 @@ DDCregisters.h
 SingleMutex.h
 """)
 
-libpentek = env.Library('pentek', libsources)
+libpentek = env.Library('Pentek716x', libsources)
 Default(libpentek)
 
-env['DOXYFILE_DICT'].update({'PROJECT_NAME':'Pentek'})
+env['DOXYFILE_DICT'].update({'PROJECT_NAME':'Pentek716x'})
 html = env.Apidocs(libsources + headers)
 Default(html)
 
 thisdir = env.Dir('.').srcnode().abspath
-def pentek(env):
+def Pentek716x(env):
     env.AppendUnique(CPPPATH = [thisdir])
-    env.AppendLibrary('pentek')
-    env.AppendDoxref('pentek')
+    env.AppendLibrary('Pentek716x')
+    env.AppendDoxref('Pentek716x')
     env.Require(tools)
 
-Export('pentek')
+Export('Pentek716x')
+
+# Make sure the test programs are built before we leave...
+SConscript('test/SConscript')
