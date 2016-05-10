@@ -1,0 +1,5 @@
+*.o
+capture
+dactest
+sd3cInfo
+toggle_716x_leds
