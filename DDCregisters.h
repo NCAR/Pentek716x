@@ -52,6 +52,7 @@ static const uint32_t FPGA_REPO_REV     = 481;  ///< The FPGA source code reposi
 static const uint32_t DDC_DECIMATION1   = 482;  ///< Gatewidth decimation count chan 1 (sets gatewidth; is the number of DDC output clocks, e.g. ADC_CLK10D)
 static const uint32_t DDC_DECIMATION2   = 483;  ///< Gatewidth decimation count chan 2
 static const uint32_t DDC_DECIMATION3   = 484;  ///< Gatewidth decimation count chan 3
+static const uint32_t SPOL_XMIT_FLAGS   = 485;  ///< SPOL transmitter flags
 
 //Clock Decimation Registers
 //  static const uint32_t DEC_REG = 0xA20;
