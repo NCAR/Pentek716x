@@ -1028,6 +1028,40 @@ p716x_sd3c::setIgnoreSecondarySync(bool ignore) {
 
 }
 
+//////////////////////////////////////////////////////////////////////
+// set the SPOL transmitter flags
 
+void
+p716x_sd3c::setSpolXmitFlags(uint32_t flags) {
+
+  _spolXmitFlags = flags;
+  
+  if (isSimulating()) {
+    return;
+  }
+
+  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+  
+  P716x_REG_WRITE(_sd3cRegAddr(SPOL_XMIT_FLAGS), _spolXmitFlags);
+  usleep(P716X_IOCTLSLEEPUS);
+
+}
+
+//////////////////////////////////////////////////////////////////////
+// get the value of the SPOL transmitter flags
+
+uint32_t
+p716x_sd3c::getSpolXmitFlags() {
+
+  if (isSimulating()) {
+    return _spolXmitFlags;
+  }
+
+  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+  P716x_REG_READ(_sd3cRegAddr(SPOL_XMIT_FLAGS), _spolXmitFlags);
+
+  return _spolXmitFlags;
+
+}
 
 } // end namespace Pentek

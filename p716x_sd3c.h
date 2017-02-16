@@ -466,6 +466,14 @@ public:
     /// for the secondary signal.
     void setIgnoreSecondarySync(bool ignore);
 
+    /// @brief set the SPOL transmitter flags
+  
+    void setSpolXmitFlags(uint32_t flags);
+
+    /// @brief get the value of the SPOL transmitter flags
+
+    uint32_t getSpolXmitFlags();
+
     /// Epoch - 1970-01-01 00:00:00 UTC
 
     static const boost::posix_time::ptime Epoch1970;
@@ -664,6 +672,10 @@ protected:
     bool _rim;
     /// The complimentary code length, if coding is being used
     int _codeLength;
+
+    /// SPOL xmit flags
+    uint32_t _spolXmitFlags;
+
 };
 
 }
