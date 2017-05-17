@@ -167,7 +167,7 @@ bool p716xUp::initDAC() {
 //    std::cout << "nco frequency:    " << _ncoFreqHz << std::endl;
 //    std::cout << "coarse mixer mode:" << (int)_cmMode << std::endl;
 //
-//    return true;
+        return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
