@@ -170,13 +170,18 @@ namespace Pentek {
             /// @param simulate Set true if we operate in simulation mode.
             /// @param simPauseMS The number of milliseconds to wait,after
             /// every 100 requests for a simulated pulse number.
+            /// @param initOnceOnly If false, always initialize the Pentek.
+            /// If true, only initialize the Pentek the first time it is started.
+            /// We use the decimation register to detect whether the card has been
+            /// previously initialized.
             p716x(double clockFrequency,
                   bool useInternalClock,
                   bool useFirstCard,
                   bool simulate,
-                  double simPauseMS);
-			/// Destructor.
-			virtual ~p716x();
+                  double simPauseMS,
+                  bool initOnceOnly = false);
+            /// Destructor.
+            virtual ~p716x();
             /// @brief Tell if the P716x is successfully configured and ready
             /// to operate.
             /// @return true if the P716x is successfully configured and ready
@@ -287,7 +292,7 @@ namespace Pentek {
             unsigned int _regget(unsigned int addr);
 
             /// Initialize the ReadyFlow library.
-            bool _initReadyFlow();
+            bool _initReadyFlow(bool initOnceOnly);
             
             /// @brief Enable output from the ADCs (or ADC user blocks) to the 
             /// output FIFOs.

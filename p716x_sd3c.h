@@ -88,6 +88,10 @@ public:
     /// @param codeLength If complementary coding is being used, it is
     ///     set to the length of the code. This parameter used to have a
     ///     default of 0, but a default is no longer defined.
+    /// @param initOnceOnly If false, always initialize the Pentek.
+    /// If true, only initialize the Pentek the first time it is started.
+    /// We use the decimation register to detect whether the card has been
+    /// previously initialized.
     p716x_sd3c(
             double clockFreq,
             bool useInternalClock,
@@ -105,8 +109,8 @@ public:
             bool freeRun,
             bool externalStartTrigger,
             bool rim,
-            int codeLength
-    		);
+            int codeLength,
+            bool initOnceOnly = false );
     
     /// Destructor.
     virtual ~p716x_sd3c();

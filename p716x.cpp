@@ -1,6 +1,7 @@
 #include "p716x.h"
 #include "p716xDn.h"
 #include "p716xUp.h"
+#include "DDCregisters.h"
 #include <fcntl.h>
 #include <iostream>
 #include <cstdio>
@@ -54,7 +55,8 @@ uint16_t p716x::_NumOpenCards = 0;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 p716x::p716x(double clockFrequency, bool useInternalClock, bool useFirstCard,
-             bool simulate, double simPauseMS):
+             bool simulate, double simPauseMS,
+             bool initOnceOnly):
 _clockFrequency(clockFrequency),
 _useInternalClock(useInternalClock),
 _cardIndex(_NumOpenCards),
@@ -77,7 +79,7 @@ _simPauseMS(simPauseMS)
     		// we have been explicitly told to find the first card.
     		_Next716xSlot = -2;
     	}
-    	if (! _initReadyFlow()) {
+    	if (! _initReadyFlow(initOnceOnly)) {
     	    // Exit via SIGINT, allowing upper levels to clean up if they catch
     	    // the signal.
     	    raise(SIGINT);
@@ -196,7 +198,7 @@ int p716x::memRead(int bank, int32_t* buf, int bytes) {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 bool
-p716x::_initReadyFlow() {
+p716x::_initReadyFlow(bool initOnceOnly) {
 
     _deviceHandle = NULL;
 
@@ -238,8 +240,26 @@ p716x::_initReadyFlow() {
     // Initialize 716x register address tables
     P716xInitRegAddr(_BAR0Base, &_regAddr, &_boardResource, _moduleId);
 
+    // if we only want to initialize once, we check the decimation value
+    // stored on the Pentek. If it is 0, we have not initialized yet.
+    // If it is not 0, we have already initialized the card and do
+    // not need to do so again.
+
+    if (initOnceOnly) {
+      // Read decimation
+      uint32_t decimation;
+      void *daddr = (reinterpret_cast<void*>(_BAR2Base + 0x140000UL + DDC_DECIMATION1 * 4));
+      P716x_REG_READ(daddr, decimation);
+      DLOG << "====>>> previous decimation value: " << decimation << " <<=====";
+      if (decimation != 0) {
+        // card is already running, leave it as it is
+        DLOG << "====>>> Pentek previously initialized, do not re-initialize";
+        return true;
+      }
+    }
+
     // Reset the board so we start in pristine condition
-    DLOG << "Resetting Pentek";
+    DLOG << "Initializing Pentek";
     P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
     usleep(P716X_IOCTLSLEEPUS);
     P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
@@ -270,10 +290,12 @@ p716x::_initReadyFlow() {
         return false;
     }
     
+
     // Write parameter table values to the 716x registers
     P716xInitGlobalRegs(&_globalParams, &_regAddr);
 
     return true;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -522,8 +544,8 @@ int p716x::_ddrMemWrite(P716x_BOARD_RESOURCE* p716xRegs,
 //        &fifoParams);
 //
 //    /* enable the FIFO */
-//    P716x_SET_FIFO_CTRL_FIFO_ENABLE(                     \
-//        p716xRegs->BAR2RegAddr.ddrMemWriteFifo.FifoCtrl, \
+//    P716x_SET_FIFO_CTRL_FIFO_ENABLE(                    
+//        p716xRegs->BAR2RegAddr.ddrMemWriteFifo.FifoCtrl,
 //        P716x_FIFO_ENABLE);
 //
 //
@@ -564,8 +586,8 @@ int p716x::_ddrMemWrite(P716x_BOARD_RESOURCE* p716xRegs,
 //                     P716x_DMA_CHAN_7);
 //
 //    /* remap DMA channel for DDR Memory writes */
-//    PCI716x_SET_LCL_DMA7_OUT_ADDR(             \
-//        p716xRegs->BAR0RegAddr.lclDmaOutRemap, \
+//    PCI716x_SET_LCL_DMA7_OUT_ADDR(            
+//        p716xRegs->BAR0RegAddr.lclDmaOutRemap,
 //        PCI716x_DMA7_MAP_DDR_MEM_WR_FIFO);
 //
 //
@@ -815,8 +837,8 @@ int p716x::_ddrMemRead(P716x_BOARD_RESOURCE *p716xRegs,
 //        &fifoParams);
 //
 //    /* enable the FIFO */
-//    P716x_SET_FIFO_CTRL_FIFO_ENABLE(                    \
-//        p716xRegs->BAR2RegAddr.ddrMemReadFifo.FifoCtrl, \
+//    P716x_SET_FIFO_CTRL_FIFO_ENABLE(                   
+//        p716xRegs->BAR2RegAddr.ddrMemReadFifo.FifoCtrl,
 //        P716x_FIFO_ENABLE);
 //
 //
@@ -928,12 +950,12 @@ int p716x::_ddrMemRead(P716x_BOARD_RESOURCE *p716xRegs,
 //    /* clean up and exit ------------------------------------------------- */
 //
 //    /* disable DDR memory */
-//    P716x_SET_DDR_MEM_MODE(p716xRegs->BAR2RegAddr.ddrMem.ddrMemCtrl,   \
+//    P716x_SET_DDR_MEM_MODE(p716xRegs->BAR2RegAddr.ddrMem.ddrMemCtrl,
 //                           P716x_DDR_MEM_DISABLE_MODE);
 //
 //    /* FIFO disable */
-//    P716x_SET_FIFO_CTRL_FIFO_ENABLE(                                   \
-//        p716xRegs->BAR2RegAddr.ddrMemReadFifo.FifoCtrl,                \
+//    P716x_SET_FIFO_CTRL_FIFO_ENABLE(                                  
+//        p716xRegs->BAR2RegAddr.ddrMemReadFifo.FifoCtrl,               
 //        P716x_FIFO_DISABLE);
 //
 //    /* clean up */

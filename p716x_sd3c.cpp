@@ -43,8 +43,10 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
                        bool freeRun,
                        bool externalStartTrigger,
                        bool rim,
-                       int codeLength) :
-        p716x(clockFreq, useInternalClock, useFirstCard, simulate, 50.0),
+                       int codeLength,
+                       bool initOnceOnly) :
+  p716x(clockFreq, useInternalClock, useFirstCard,
+        simulate, 50.0, initOnceOnly),
         _timerStartThread(0),
         _staggeredPrt(staggeredPrt),
         _freeRun(freeRun),
@@ -526,8 +528,7 @@ void p716x_sd3c::stopFilters() {
     // Disable ADC output to FIFOs
     _disableAdcOutput();
 
-
-    DLOG << "fifos and filters disabled";
+    DLOG << "fifos and filters disabled, temp: " << temp;
 }
 
 //////////////////////////////////////////////////////////////////////
