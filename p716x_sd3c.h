@@ -489,14 +489,15 @@ protected:
      * SD3C has dedicated uses for the first four of its eight timers. Here 
      * we provide convenient names which map to the indices of the timers.
      *  (0) MASTER_SYNC_TIMER - This timer provides the trigger which starts the 
-     *      process of transmitting and receiving a pulse. Delays in other timers
-     *      are relative to this trigger.
-     *  (1) RX_01_TIMER - While this timer is on, data are sampled for channels 0 and 1
+     *      process of transmitting and receiving a pulse. Delays in other
+     *      timers are relative to this trigger.
+     *  (1) RX_01_TIMER - While this timer is on, data are sampled for channels
+     *      0 and 1
      *  (2) TX_PULSE_TIMER - The transmitter fires while this timer is on
      *  (3) GP_TIMER_0 - This timer is not used internally, but is routed
      *      to an external pin. For HCR, profiler, and Ka, this timer is used
      *      for modulation of the transmit pulse.
-     *  (4) RX_23_TIMER - While this timer is on, data are sampled for channels 2 and 3
+     *  (4) RX_2_TIMER - While this timer is on, data are sampled for channel 2
      *  (5) GP_TIMER_1 - This timer is not used internally, but is routed
      *      to an external pin.
      *  (6) GP_TIMER_2 - This timer is not used internally, but is routed
@@ -510,7 +511,7 @@ protected:
         TX_PULSE_TIMER,    // timer 2 is the tx pulse timer
         GP_TIMER_0,        // timer 3 is not used internally, but is routed
                            // externally for general purpose use
-        RX_23_TIMER,       // timer 4 is the rx timer for channels 2 and 3
+        RX_2_TIMER,        // timer 4 is the rx timer for channel 2
         GP_TIMER_1,        // timer 5 is not used internally, but is routed
                            // externally for general purpose use
         GP_TIMER_2,        // timer 6 is not used internally, but is routed
