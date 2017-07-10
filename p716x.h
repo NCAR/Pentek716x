@@ -1,8 +1,6 @@
 #ifndef P716X_H_
 #define P716X_H_
 
-#include "DDCregisters.h"
-
 #include <iostream>
 #include <string>
 #include <vector>

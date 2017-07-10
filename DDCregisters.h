@@ -52,7 +52,7 @@ static const uint32_t FPGA_REPO_REV     = 481;  ///< The FPGA source code reposi
 static const uint32_t DDC_DECIMATION1   = 482;  ///< Gatewidth decimation count chan 1 (sets gatewidth; is the number of DDC output clocks, e.g. ADC_CLK10D)
 static const uint32_t DDC_DECIMATION2   = 483;  ///< Gatewidth decimation count chan 2
 static const uint32_t DDC_DECIMATION3   = 484;  ///< Gatewidth decimation count chan 3
-static const uint32_t SPOL_XMIT_FLAGS   = 485;  ///< SPOL transmitter flags
+static const uint32_t SD3C_CMDFLAGS     = 485;  ///< SD3C command flags register
 
 //Clock Decimation Registers
 //  static const uint32_t DEC_REG = 0xA20;
@@ -111,6 +111,42 @@ static const uint32_t PRT1 = (0x0<<0);
 static const uint32_t PRT2 = (0x0<<4);
 static const uint32_t PRT3 = (0x0<<8);
 static const uint32_t PRT4 = (0x0<<12);
+
+// Bits used in the SD3C command flags register
+
+/// SD3C command flags register bit 0: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_0         = (1 << 0);
+/// SD3C command flags register bit 1: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_1         = (1 << 1);
+/// SD3C command flags register bit 2: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_2         = (1 << 2);
+/// SD3C command flags register bit 3: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_3         = (1 << 3);
+/// SD3C command flags register bit 4: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_4         = (1 << 4);
+/// SD3C command flags register bit 5: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_5         = (1 << 5);
+/// SD3C command flags register bit 6: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_6         = (1 << 6);
+/// SD3C command flags register bit 7: bitstream-specific general purpose
+static const uint32_t CMDFLAGS_GP_BIT_7         = (1 << 7);
+/// SD3C command flags register bit 8: reset SD3C timers
+static const uint32_t CMDFLAGS_RESET_TIMERS_BIT = (1 << 8);
+// SD3C command flags register bits 9-31 are currently unused
+
+// The SPOL bitstream uses some of the general-purpose bits in the command flags
+// register
+
+/// command flags bit passed to SPOL transmitter PRF0
+static const uint32_t SPOLCMDFLAGS_XMITTER_PRF0      = CMDFLAGS_GP_BIT_0;
+/// bit passed to SPOL transmitter PRF1
+static const uint32_t SPOLCMDFLAGS_XMITTER_PRF1      = CMDFLAGS_GP_BIT_1;
+/// bit passed to SPOL transmitter PRF2
+static const uint32_t SPOLCMDFLAGS_XMITTER_PRF2      = CMDFLAGS_GP_BIT_2;
+/// bit passed to SPOL transmitter 'shblmpls'
+static const uint32_t SPOLCMDFLAGS_XMITTER_SHBLMPLS  = CMDFLAGS_GP_BIT_3;
+/// bit passed to SPOL transmitter 'shrfplsst'
+static const uint32_t SPOLCMDFLAGS_XMITTER_SHRFPLSST = CMDFLAGS_GP_BIT_4;
 
 // Timer DCM Lock Status
 //  static const uint32_t FILTER_DCM_UNLOCKED = (0x1<<1);

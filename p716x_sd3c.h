@@ -1,6 +1,8 @@
 #ifndef P716X_SD3C_H_
 #define P716X_SD3C_H_
 
+#include "DDCregisters.h"
+
 #include "p716x.h"
 #include "p716xDn_sd3c.h"
 #include <sys/types.h>
@@ -470,13 +472,23 @@ public:
     /// for the secondary signal.
     void setIgnoreSecondarySync(bool ignore);
 
-    /// @brief set the SPOL transmitter flags
-  
-    void setSpolXmitFlags(uint32_t flags);
+    /// @brief set the SD3C command flags register
+    void setCmdFlagsRegister(uint32_t flags);
 
-    /// @brief get the value of the SPOL transmitter flags
+    /// @brief get the value of the SD3C command flags register
+    uint32_t getCmdFlagsRegister();
 
-    uint32_t getSpolXmitFlags();
+    /// @brief Enable the SD3C timers reset bit in the command flags register
+    void setTimersResetBit();
+
+    /// @brief Disable the SD3C timers reset bit in the command flags register
+    void unsetTimersResetBit();
+
+    /// @brief Get the current state of the SD3C timer reset bit in the
+    /// command flags register.
+    ///
+    /// @return true iff the SD3C timer reset bit is on
+    bool timersAreInReset();
 
     /// Epoch - 1970-01-01 00:00:00 UTC
 
@@ -678,8 +690,8 @@ protected:
     /// The complimentary code length, if coding is being used
     int _codeLength;
 
-    /// SPOL xmit flags
-    uint32_t _spolXmitFlags;
+    /// simulated contents for SD3C command flags register
+    uint32_t _simCmdFlags;
 
 };
 

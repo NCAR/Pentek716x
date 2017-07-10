@@ -209,7 +209,12 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
 p716xDn_sd3c::~p716xDn_sd3c() {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
+    // Put SD3C timers into reset
+    ILOG << "Channel " << _chanId << " destructor: putting timers in reset";
+    _sd3c.setTimersResetBit();
+
     delete [] _buf;
+    ILOG << "ADC channel " << _chanId << " finished shutting down.";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -245,8 +250,10 @@ p716xDn_sd3c::_initSd3cAdc() {
     // Set ADC data packing mode to deliver I and Q data
     _adcParams.dataPackMode = P716x_ADC_DATA_CTRL_PACK_MODE_IQ_DATA_PACK;
 
-    // Gate trigger is used to start our timers
+    // Use gate mode for enabling writes to the ADC PACK FIFO
     _adcParams.triggerMode = P716x_ADC_GATE_TRIG_CTRL_TRIG_MODE_GATE;
+
+    // Enable writing data to the ADC PACK FIFO when the gate signal is high
     _adcParams.gateTrigEnable = P716x_ADC_GATE_TRIG_CTRL_GATE_TRIG_IN_ENABLE;
 
     // Enable the RAM fifo.

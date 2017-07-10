@@ -57,7 +57,8 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
         _simulateDDCType(simulateDDCType),
         _externalStartTrigger(externalStartTrigger),
         _rim(rim),
-        _codeLength(codeLength) {
+        _codeLength(codeLength),
+        _simCmdFlags(0) {
 
 	boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
@@ -125,7 +126,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
         _mode = MODE_FREERUN;
     }
 
-    // stop the timers
+    // Make sure the timers are stopped
     timersStartStop(false);
 
     // Write the gate count and coherent integration registers
@@ -206,6 +207,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
     DLOG << "  staggered: " << ((_staggeredPrt) ? "true" : "false");
     DLOG << "  adc clock: " << _clockFrequency << " Hz";
     DLOG << "  data rate: " << dataRate()/1.0e3 << " KB/s";
+    DLOG << "  timers in reset: " << (timersAreInReset() ? "YES" : "NO");
 
     DLOG << "=============================";
 
@@ -362,6 +364,10 @@ bool p716x_sd3c::timersStartStop(bool start) {
 
     // Load timer values before starting the timers
     if (start) {
+      // We have to lower the reset bit for the timers before we can configure
+      // them or start them.
+      unsetTimersResetBit();
+
       if (!_initTimers()) {
         ELOG << "***** ERROR timersStartStop(), cannot init timers *****";
         return false;
@@ -374,9 +380,8 @@ bool p716x_sd3c::timersStartStop(bool start) {
 
     // configure each timer
     for (int i = 0; i < N_SD3C_TIMERS; i++) {
-        // Set control Register
-        unsigned int command0 = CONTROL_REG | SD3C_TIMER_BITS[i];
-    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), command0);
+	    // Control Register
+    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), CONTROL_REG | SD3C_TIMER_BITS[i]);
         usleep(P716X_IOCTLSLEEPUS);
 
         // read it back
@@ -407,6 +412,7 @@ bool p716x_sd3c::timersStartStop(bool start) {
     //
     if (start) {
         DLOG << "About to start timers: " << now;
+
         if (_externalStartTrigger) {
             // We assume here that the external trigger is a 1 PPS signal, 
             // e.g., from GPS.
@@ -441,12 +447,17 @@ bool p716x_sd3c::timersStartStop(bool start) {
             setXmitStartTime(now);
             P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS | ADDR_TRIG);
             usleep(P716X_IOCTLSLEEPUS);
+            DLOG << "Starting Pentek timers immediately, " <<
+                    "not on external trigger.";
         }
         DLOG << "Timers/radar start time " << _radarStartTime;
     } else {
     	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS);
         usleep(P716X_IOCTLSLEEPUS);
         DLOG << "Timers stopped at " << now;
+
+        // Put the timers into reset
+        setTimersResetBit();
     }
     
     // Turn off Write Strobes
@@ -1052,39 +1063,64 @@ p716x_sd3c::setIgnoreSecondarySync(bool ignore) {
 }
 
 //////////////////////////////////////////////////////////////////////
-// set the SPOL transmitter flags
+// set the SD3C command flags register
 
 void
-p716x_sd3c::setSpolXmitFlags(uint32_t flags) {
+p716x_sd3c::setCmdFlagsRegister(uint32_t flags) {
 
-  _spolXmitFlags = flags;
-  
+  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+
   if (isSimulating()) {
+	_simCmdFlags = flags;
     return;
   }
 
-  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
-  
-  P716x_REG_WRITE(_sd3cRegAddr(SPOL_XMIT_FLAGS), _spolXmitFlags);
+  P716x_REG_WRITE(_sd3cRegAddr(SD3C_CMDFLAGS), flags);
   usleep(P716X_IOCTLSLEEPUS);
 
 }
 
 //////////////////////////////////////////////////////////////////////
-// get the value of the SPOL transmitter flags
+// get the value of the SD3C command flags register
 
 uint32_t
-p716x_sd3c::getSpolXmitFlags() {
+p716x_sd3c::getCmdFlagsRegister() {
 
   if (isSimulating()) {
-    return _spolXmitFlags;
+    return _simCmdFlags;
   }
 
   boost::recursive_mutex::scoped_lock guard(_p716xMutex);
-  P716x_REG_READ(_sd3cRegAddr(SPOL_XMIT_FLAGS), _spolXmitFlags);
+  uint32_t cmdFlags;
+  P716x_REG_READ(_sd3cRegAddr(SD3C_CMDFLAGS), cmdFlags);
 
-  return _spolXmitFlags;
+  return cmdFlags;
 
+}
+
+void
+p716x_sd3c::setTimersResetBit() {
+    return;     // XXXXX TEMPORARY
+  DLOG << "Putting SD3C timers in reset";
+  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+  uint32_t cmdFlags = getCmdFlagsRegister();
+  cmdFlags |= CMDFLAGS_RESET_TIMERS_BIT;
+  setCmdFlagsRegister(cmdFlags);
+}
+
+void
+p716x_sd3c::unsetTimersResetBit() {
+    return;     // XXXXX TEMPORARY
+  DLOG << "Taking SD3C timers out of reset";
+  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+  uint32_t cmdFlags = getCmdFlagsRegister();
+  cmdFlags &= ~CMDFLAGS_RESET_TIMERS_BIT;
+  setCmdFlagsRegister(cmdFlags);
+}
+
+bool
+p716x_sd3c::timersAreInReset() {
+    return(bool(getCmdFlagsRegister() & CMDFLAGS_RESET_TIMERS_BIT));
 }
 
 } // end namespace Pentek
