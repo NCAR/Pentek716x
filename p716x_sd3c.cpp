@@ -1100,8 +1100,6 @@ p716x_sd3c::getCmdFlagsRegister() {
 
 void
 p716x_sd3c::setTimersResetBit() {
-    return;     // XXXXX TEMPORARY
-  DLOG << "Putting SD3C timers in reset";
   boost::recursive_mutex::scoped_lock guard(_p716xMutex);
   uint32_t cmdFlags = getCmdFlagsRegister();
   cmdFlags |= CMDFLAGS_RESET_TIMERS_BIT;
@@ -1110,8 +1108,6 @@ p716x_sd3c::setTimersResetBit() {
 
 void
 p716x_sd3c::unsetTimersResetBit() {
-    return;     // XXXXX TEMPORARY
-  DLOG << "Taking SD3C timers out of reset";
   boost::recursive_mutex::scoped_lock guard(_p716xMutex);
   uint32_t cmdFlags = getCmdFlagsRegister();
   cmdFlags &= ~CMDFLAGS_RESET_TIMERS_BIT;
