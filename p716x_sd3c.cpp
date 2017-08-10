@@ -373,16 +373,31 @@ bool p716x_sd3c::timersStartStop(bool start) {
     usleep(P716X_IOCTLSLEEPUS);
 
     // configure each timer
-    for (int i = 0; i < 8; i++) {
-	    // Control Register
-    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), CONTROL_REG | SD3C_TIMER_BITS[i]);
+    for (int i = 0; i < N_SD3C_TIMERS; i++) {
+        // Set control Register
+        unsigned int command0 = CONTROL_REG | SD3C_TIMER_BITS[i];
+    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), command0);
         usleep(P716X_IOCTLSLEEPUS);
+
+        // read it back
+        unsigned int check0;
+    	P716x_REG_READ(_sd3cRegAddr(MT_ADDR), check0);
 	
-	    // Enable/Disable Timer
-        unsigned int value =
+        // Enable/Disable Timer
+        unsigned int command1 =
         		(start ? TIMER_ON : 0) | (_timerInvert(i) ? TIMER_NEG : 0);
-        P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), value);
+        P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), command1);
         usleep(P716X_IOCTLSLEEPUS);
+
+        // read it back
+        unsigned int check1;
+    	P716x_REG_READ(_sd3cRegAddr(MT_DATA), check1);
+
+        DLOG << "====>>> configuring timer # " << i << " <<<====";
+        DLOG << "  command0, check0: " << command0 << ", " << check0;
+        DLOG << "  command1, check1: " << command1 << ", " << check1;
+        DLOG << "=========================================";
+	
     }
 
     // Get current time
@@ -411,9 +426,16 @@ bool p716x_sd3c::timersStartStop(bool start) {
             usleep(sleep_uSec);
             // Set the wait-for-trigger bit so timers start at the next
             // trigger.
-            P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), ALL_SD3C_TIMER_BITS | GPS_EN);
+            unsigned int command2 = (ALL_SD3C_TIMER_BITS | GPS_EN);
+            P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), command2);
             usleep(P716X_IOCTLSLEEPUS);
             ptime afterStart(microsec_clock::universal_time());
+            // read it back
+            unsigned int check2;
+            P716x_REG_READ(_sd3cRegAddr(MT_ADDR), check2);
+            DLOG << "=========>>> starting timers <<<=========";
+            DLOG << "  command2, check2: " << command2 << ", " << check2;
+            DLOG << "=========================================";
         } else {
             // Internal trigger: timers start immediately.
             setXmitStartTime(now);
