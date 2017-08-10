@@ -381,7 +381,8 @@ bool p716x_sd3c::timersStartStop(bool start) {
     // configure each timer
     for (int i = 0; i < N_SD3C_TIMERS; i++) {
 	    // Control Register
-    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), CONTROL_REG | SD3C_TIMER_BITS[i]);
+        unsigned int command0 = CONTROL_REG | SD3C_TIMER_BITS[i];
+    	P716x_REG_WRITE(_sd3cRegAddr(MT_ADDR), command0);
         usleep(P716X_IOCTLSLEEPUS);
 
         // read it back
