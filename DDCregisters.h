@@ -53,6 +53,8 @@ static const uint32_t DDC_DECIMATION1   = 482;  ///< Gatewidth decimation count 
 static const uint32_t DDC_DECIMATION2   = 483;  ///< Gatewidth decimation count chan 2
 static const uint32_t DDC_DECIMATION3   = 484;  ///< Gatewidth decimation count chan 3
 static const uint32_t SD3C_CMDFLAGS     = 485;  ///< SD3C command flags register
+static const uint32_t TIMER_ADDR        = 486;  ///< Readback of timer address
+static const uint32_t TIMER_DATA        = 487;  ///< Readback of timer data
 
 //Clock Decimation Registers
 //  static const uint32_t DEC_REG = 0xA20;
