@@ -58,7 +58,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
         _externalStartTrigger(externalStartTrigger),
         _rim(rim),
         _codeLength(codeLength),
-        _simCmdFlags(0) {
+        _cmdFlags(0) {
 
 	boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
@@ -1072,7 +1072,7 @@ p716x_sd3c::setCmdFlagsRegister(uint32_t flags) {
   boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
   if (isSimulating()) {
-	_simCmdFlags = flags;
+	_cmdFlags = flags;
     return;
   }
 
@@ -1088,7 +1088,7 @@ uint32_t
 p716x_sd3c::getCmdFlagsRegister() {
 
   if (isSimulating()) {
-    return _simCmdFlags;
+    return _cmdFlags;
   }
 
   boost::recursive_mutex::scoped_lock guard(_p716xMutex);

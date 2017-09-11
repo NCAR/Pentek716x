@@ -691,7 +691,7 @@ protected:
     int _codeLength;
 
     /// simulated contents for SD3C command flags register
-    uint32_t _simCmdFlags;
+    uint32_t _cmdFlags;
 
 };
 
