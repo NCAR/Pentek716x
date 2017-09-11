@@ -399,9 +399,15 @@ bool p716x_sd3c::timersStartStop(bool start) {
         unsigned int check1;
     	P716x_REG_READ(_sd3cRegAddr(MT_DATA), check1);
 
+        // read back address and value from FPGA internals
+        unsigned int addr1, data1;
+    	P716x_REG_READ(_sd3cRegAddr(TIMER_ADDR), addr1);
+    	P716x_REG_READ(_sd3cRegAddr(TIMER_DATA), data1);
+
         DLOG << "====>>> configuring timer # " << i << " <<<====";
         DLOG << "  command0, check0: " << command0 << ", " << check0;
         DLOG << "  command1, check1: " << command1 << ", " << check1;
+        DLOG << "  addr1, data1: " << addr1 << ", " << data1;
         DLOG << "=========================================";
 	
     }
