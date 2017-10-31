@@ -308,16 +308,47 @@ bool p716xDn_sd3c::config() {
 
     // set up the filters. Will do nothing if either of
     // the filter file paths is empty or if this is a burst channel
-    bool filterError = filterSetup();
-    if (filterError) {
-        return false;
-    }
+    // load the filter coefficients
 
+    if (_gaussianFile.find("no-filter") != std::string::npos) {
+      DLOG << "Found 'no-filter', no gaussian filter loaded\n";
+    } else {
+      FilterSpec gaussian;
+      if (gaussianFilterSetup(gaussian)) {
+        return false;
+      }
+      if (!loadGaussianFilter(gaussian)) {
+        ELOG << "Unable to load gaussian filter\n";
+        if (! _p716x.usingInternalClock()) {
+          ELOG << "Is the external clock source connected?";
+          ELOG << "Is the clock signal strength at least +3 dBm?";
+        }
+        exit(1);
+      }
+    }
+    
+    if (_kaiserFile.find("no-filter") != std::string::npos) {
+      DLOG << "Found 'no-filter', no kaiser filter loaded\n";
+    } else {
+      FilterSpec kaiser;
+      if (kaiserFilterSetup(kaiser)) {
+        return false;
+      }
+      if (!loadKaiserFilter(kaiser)) {
+        ELOG << "Unable to load kaiser filter\n";
+        if (! _p716x.usingInternalClock()) {
+          ELOG << "Is the external clock source connected?";
+          ELOG << "Is the clock signal strength at least +3 dBm?";
+        }
+        exit(1);
+      }
+    }
+    
     return true;
 }
-
+  
 //////////////////////////////////////////////////////////////////////
-bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
+bool p716xDn_sd3c::loadKaiserFilter(FilterSpec& kaiser) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     if (isSimulating())
@@ -421,6 +452,23 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
       DLOG << "Unable to load the Kaiser filter coefficients";
       DLOG << kaiser.toStr();
     }
+
+    // return to decimal output
+    DLOG << std::dec;
+
+    return !kaiserFailed;
+
+}
+
+//////////////////////////////////////////////////////////////////////
+bool p716xDn_sd3c::loadGaussianFilter(FilterSpec& gaussian) {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    if (isSimulating())
+        return true;
+    
+    std::ostringstream stream;
+    int ddcSelect = _chanId << 14;
 
     // program the gaussian coefficients
     // Note that the DDC select is accomplished in the kaiser filter coefficient
@@ -528,12 +576,15 @@ bool p716xDn_sd3c::loadFilters(FilterSpec& gaussian, FilterSpec& kaiser) {
     // return to decimal output
     DLOG << std::dec;
 
-    return !kaiserFailed && !gaussianFailed;
+    return gaussianFailed;
 
 }
 
 ////////////////////////////////////////////////////////////////////////
-int p716xDn_sd3c::filterSetup() {
+// set up gaussian filter
+// returns 0 on success, -1 on failure
+
+int p716xDn_sd3c::gaussianFilterSetup(FilterSpec &filterSpec) {
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
     // No filters if this is a burst sampling channel
@@ -541,7 +592,6 @@ int p716xDn_sd3c::filterSetup() {
         return 0;
 
     // get the gaussian filter coefficients.
-    FilterSpec gaussian;
     if (_gaussianFile.size() != 0) {
         FilterSpec g(_gaussianFile);
         if (!g.ok()) {
@@ -549,7 +599,7 @@ int p716xDn_sd3c::filterSetup() {
                     << _gaussianFile;
             return -1;
         } else {
-            gaussian = g;
+            filterSpec = g;
         }
     } else {
         std::string gaussianFilterName;
@@ -664,14 +714,27 @@ int p716xDn_sd3c::filterSetup() {
                  << " us pulsewidth in the list of builtin Gaussian filters!";
             raise(SIGINT);
         }
-        gaussian = FilterSpec(builtins[gaussianFilterName]);
+        filterSpec = FilterSpec(builtins[gaussianFilterName]);
         DLOG << "Using gaussian filter coefficient set "
              << gaussianFilterName;
     }
 
+    return 0;
+}
+
+////////////////////////////////////////////////////////////////////////
+// set up kaiser filter
+// returns 0 on success, -1 on failure
+
+int p716xDn_sd3c::kaiserFilterSetup(FilterSpec &filterSpec) {
+    boost::recursive_mutex::scoped_lock guard(_mutex);
+
+    // No filters if this is a burst sampling channel
+    if (_isBurst)
+        return 0;
+
     // get the kaiser filter coefficients
     std::string kaiserFilterName;
-    FilterSpec kaiser;
     if (_kaiserFile.size() != 0) {
         FilterSpec k(_kaiserFile);
         if (!k.ok()) {
@@ -679,7 +742,7 @@ int p716xDn_sd3c::filterSetup() {
                     << _kaiserFile;
             return -1;
         } else {
-            kaiser = k;
+            filterSpec = k;
         }
     } else {
         BuiltinKaiser builtins;
@@ -708,19 +771,8 @@ int p716xDn_sd3c::filterSetup() {
                     << " in the list of builtin Kaiser filters!";
             raise(SIGINT);
         }
-        kaiser = FilterSpec(builtins[kaiserFilterName]);
+        filterSpec = FilterSpec(builtins[kaiserFilterName]);
         DLOG << "Using kaiser filter coefficient set " << kaiserFilterName;
-    }
-
-    // load the filter coefficients
-
-    if (!loadFilters(gaussian, kaiser)) {
-        ELOG << "Unable to load filters\n";
-        if (! _p716x.usingInternalClock()) {
-            ELOG << "Is the external clock source connected?";
-            ELOG << "Is the clock signal strength at least +3 dBm?";
-        }
-        exit(1);
     }
 
     return 0;
@@ -1036,6 +1088,7 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
     // Keep track of how many useful bytes are currently in tmpBuf.
     int nInTmp = 0;
     
+    time_t timeLastErrorPrint = 0;
     int r;
     while(1) {
         if (_firstRawBeam) {
@@ -1146,10 +1199,15 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
             syncHuntMsg << "<DATA>x" << consecutiveData;
         }
         syncHuntMsg << "<SYNC>";
-        ELOG << "Sync hunt " << nHuntWords << " words after pulse " <<
-                (*reinterpret_cast<uint32_t*>(pulseTag) & 0x3fffffff) <<
-                " on chan " << _chanId;
-        DLOG << syncHuntMsg.str();
+        time_t now = time(NULL);
+        int secsSinceLastErrorPrint = now - timeLastErrorPrint;
+        if (secsSinceLastErrorPrint > 1) {
+          ELOG << "Sync hunt " << nHuntWords << " words after pulse " <<
+                  (*reinterpret_cast<uint32_t*>(pulseTag) & 0x3fffffff) <<
+                  " on chan " << _chanId;
+          DLOG << syncHuntMsg.str();
+          timeLastErrorPrint = now;
+        }
     }
 
     if (_syncErrors != startSyncErrors) {

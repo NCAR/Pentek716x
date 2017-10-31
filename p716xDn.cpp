@@ -333,6 +333,7 @@ p716xDn::_dmaThreadMainLoop() {
     // Print the id for this thread
     DLOG << "DMA thread for channel " << _chanId << " has ID " <<
             syscall(SYS_gettid) << ", and uses semaphore " << _dmaCompleteSemNum();
+    time_t timeLastErrorPrint = 0;
     // Loop until _exiting is set to true by the destructor
     while (! _exiting) {
         // Wait up to WAIT_MSECS ms for the 'DMA complete' semaphore
@@ -349,8 +350,13 @@ p716xDn::_dmaThreadMainLoop() {
 
         // Make sure we have a buffer available in _freeBuffers
         if (_freeBuffers.empty()) {
-            ELOG << "Dropping data on channel " << _chanId << 
+            time_t now = time(NULL);
+            int secsSinceLastErrorPrint = now - timeLastErrorPrint;
+            if (secsSinceLastErrorPrint > 1) {
+              ELOG << "Dropping data on channel " << _chanId << 
                 ", no free buffers available!";
+              timeLastErrorPrint = now;
+            }
             continue;
         }
 
