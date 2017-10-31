@@ -218,10 +218,12 @@ protected:
     void fifoConfig();
 
     /// Configure the filters and the decimation value.
-    int filterSetup();
+    int gaussianFilterSetup(FilterSpec &filterSpec);
+    int kaiserFilterSetup(FilterSpec &filterSpec);
 
     /// Program the coefficients for the Gaussian and Kaiser filters.
-    bool loadFilters(FilterSpec& gaussian, FilterSpec& kaiser);
+    bool loadGaussianFilter(FilterSpec& gaussian);
+    bool loadKaiserFilter(FilterSpec& gaussian);
 
     /// Set the downconverter decimation factor. This establishes the
     /// rx gate width in the downconverter (by setting the FPGA
