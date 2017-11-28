@@ -440,6 +440,8 @@ protected:
     /// can draw out of it a byte at a time if necessary. This is required for
     /// re-synchronization.
     std::deque<char> _simFifo;
+    /// time for last sync error print
+    time_t _timeLastSyncErrorPrint;
 };
 
 } // end namespace Pentek

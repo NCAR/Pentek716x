@@ -42,7 +42,8 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
         _syncErrors(0),
         _firstRawBeam(true),
         _firstBeam(true),
-        _dataInterruptPeriod(0.0)
+        _dataInterruptPeriod(0.0),
+        _timeLastSyncErrorPrint(0)
 {
     boost::recursive_mutex::scoped_lock guard(_mutex);
     
@@ -196,7 +197,8 @@ p716xDn_sd3c::p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, int chanId,
     // Set the decimation for this receive channel
     // ** This establishes the gate width in the downconverter. **
     // It must be the number of counts of the ADC_CLK10D
-    _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts/5);
+    // _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts/5);
+    _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts/4);
     
     // configure DDC in FPGA
     if (!config()) {
@@ -1080,6 +1082,10 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
     // DDC-specific extra metadata + data size (i.e., _beamLength) +
     // 4-byte sync word.
     const uint32_t BytesPerBeam = 4 + ptMetadataLen() + _beamLength + 4;
+    if ((_lastPulse % 5000) == 0) {
+        DLOG << "Expected bytes per beam for channel " << _chanId <<
+                " is " << BytesPerBeam;
+    }
 
     // Temporary buffer to hold the 4-byte pulse tag, _beamLength bytes of data,
     // and the trailing sync word.
@@ -1088,7 +1094,6 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
     // Keep track of how many useful bytes are currently in tmpBuf.
     int nInTmp = 0;
     
-    time_t timeLastErrorPrint = 0;
     int r;
     while(1) {
         if (_firstRawBeam) {
@@ -1178,20 +1183,21 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
             // Otherwise, print the word as being interesting (likely a pulse 
             // tag).
             int16_t shortp[2];
+            int16_t threshCounts = 100;
             memcpy(shortp, &word, sizeof(word));
             // int16_t * shortp = reinterpret_cast<int16_t *>(&word);
-            if ((shortp[0] > -32 && shortp[0] < 32) && 
-                (shortp[1] > -32 && shortp[1] < 32)) {
+            if ((shortp[0] > -threshCounts && shortp[0] < threshCounts) &&
+                (shortp[1] > -threshCounts && shortp[1] < threshCounts)) {
                 consecutiveData++;
             } else {
                 // Report consecutive data words before this word
                 if (consecutiveData) {
-                    syncHuntMsg << "<DATA>x" << consecutiveData;
+                      syncHuntMsg << "<DATA>x" << consecutiveData;
                     consecutiveData = 0;
                 }
                 // Then the current interesting word
                 syncHuntMsg << "<" << std::setw(8) << std::hex << word << ">" <<
-                    std::dec;
+                        std::dec;
             }
         }
         
@@ -1200,26 +1206,31 @@ p716xDn_sd3c::ptBeam(char* pulseTag, char* metadata) {
         }
         syncHuntMsg << "<SYNC>";
         time_t now = time(NULL);
-        int secsSinceLastErrorPrint = now - timeLastErrorPrint;
+        int secsSinceLastErrorPrint = now - _timeLastSyncErrorPrint;
         if (secsSinceLastErrorPrint > 1) {
           ELOG << "Sync hunt " << nHuntWords << " words after pulse " <<
                   (*reinterpret_cast<uint32_t*>(pulseTag) & 0x3fffffff) <<
                   " on chan " << _chanId;
           DLOG << syncHuntMsg.str();
-          timeLastErrorPrint = now;
+          _timeLastSyncErrorPrint = now;
         }
     }
 
     if (_syncErrors != startSyncErrors) {
-        uint32_t * wordp = reinterpret_cast<uint32_t *>(pulseTag);
-        ELOG << std::setfill('0');
-        ELOG << "XX Got " << _syncErrors - startSyncErrors
-             << " sync errors, cardIndex: " << _p716x.getCardIndex()
-             << ", channel " << chanId();
-        ELOG << " finding pulse w/tag 0x"
-             << std::setw(8) << std::hex << *wordp
-             << " after tag 0x" << std::setw(8)
-             << (uint32_t(_chanId) << 30 | _lastPulse) << std::dec;
+        time_t now = time(NULL);
+        int secsSinceLastErrorPrint = now - _timeLastSyncErrorPrint;
+        if (secsSinceLastErrorPrint > 1) {
+          uint32_t * wordp = reinterpret_cast<uint32_t *>(pulseTag);
+          ELOG << std::setfill('0');
+          ELOG << "XX Got " << _syncErrors - startSyncErrors
+               << " sync errors, cardIndex: " << _p716x.getCardIndex()
+               << ", channel " << chanId();
+          ELOG << " finding pulse w/tag 0x"
+               << std::setw(8) << std::hex << *wordp
+               << " after tag 0x" << std::setw(8)
+               << (uint32_t(_chanId) << 30 | _lastPulse) << std::dec;
+          _timeLastSyncErrorPrint = now;
+        }
     }
     return _buf;
 }
