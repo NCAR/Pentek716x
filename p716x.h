@@ -47,7 +47,7 @@ namespace Pentek {
 	};
 
     /// The maximum pulse number in a pulse tagger tag
-    static const int32_t MAX_PT_PULSE_NUM = 0x3FFFFFFF;
+    static const int32_t MAX_PT_PULSE_NUM = 0xFFFFFFFF;
 
     /// The maximum pulse number in a coherent integrator tag
     static const int32_t MAX_CI_PULSE_NUM = 0xFFFFFF;

@@ -9,91 +9,91 @@
 
 namespace Pentek {
 
-class p716x_sd3c;
+  class p716x_sd3c;
 
-/// @brief A p716xDn downconverter class for P716x cards running SD3C firmware.
-///
-/// In the firmware, each channel contains a downconverter implemented with csac
-/// filters. The csac filters have a gaussian and a kaiser filter in series. The
-/// filter coefficients are configurable.
-///
-/// In the firmware, the downconverter is followed by user selectable processing
-/// modes. Each option configures the firmware timing differently, and
-/// delivers the data in a different format.
-///
-/// A beam of data is defined as the I and Q values for one set of range gates.
-/// Baseband I and Q data may be either 16 bits or 32 bits, depending on the 
-/// operating mode. Baseband data delivered to the host application via the 
-/// read() method.
-///
-/// The modes are:
-/// <ul>
-/// <li>free running (fr): There is no gating of the received data. The baseband
-/// signal is output as a free running stream of 16 bit I and Q values.</li>
-/// <li> pulse tagger (pt): The downconversion is gated at the prt rate, and the
-/// specified number of gates is processed on each cycle. A synchronization word
-/// and a pulse count are prepended to the beam of baseband data.</li>
-/// <li> coherent integration (ci).: The downconversion is gated at the prt 
-/// rate, and the specified number of gates is processed on each cycle. The prt
-/// is divided into even and odd pulses. I and values for even and odd pulses 
-/// are accumulated separately for all gates. When the accumulation is finished,
-/// an  eight byte tag is prepended, and the I and Q summs for even and odd 
-/// beams is output. </li>
-/// </ul>
-///
-/// <h2>p716xDn_sd3c usage</h2>
-/// A large part of this class is involved with configuring the SD3C firmware on
-/// the Pentek card. Filter coefficients, timing parameters, and the data 
-/// processing section must be configured properly.
-///
-/// The other activity is the actual collection of the baseband data stream.
-/// Consumer applications call p716xDn_sd3c to deliver I and Q data blocks, on a 
-/// beam by beam basis. The p716xDn_sd3c class handles detection and recovery 
-/// from dropped data and synchronization errors. The consumer simply calls 
-/// nextBeam() for the next beam of I and Q data, and the p716xDn_sd3c will block
-/// until the request can be satisfied.
-///
-/// Synchronization is performed when operating in the pulse tagging and
-/// coherent integration modes. Synchronization is required
-/// because it is possible for data to be dropped somewhere in the path from
-/// the SD3C to the delivery via the read() call. This synchronization
-/// can result in a certain amount of shifting and filling of
-/// buffers. Since any significant synchronization loss rate will not be 
-/// acceptable in the system, we rely on the assumption that the number of 
-/// re-syncs to be small, and these small scale buffer manipulations should not
-/// incur a significant overall processing cost. If re-synchronization occurs 
-/// frequently, there is a hardware or design issue with the system which must 
-/// be corrected.
-///
-/// @todo It appears that the endianness of the pulse tagger sync word may
-/// not be accounted for here. If the sync code is ever changed to a 
-/// non-symmetrical value, the simulation and synchronization code may break.
-///
-/// <h2>Coherent Integrator</h2>
-/// The coherent integrator firmware in SD3C creates a data stream which is
-/// a little more complicated that the free run and pulse tagger modes. Because
-/// the coherent integrator tags cover 16 bytes, four of which contain fixed 
-/// fields, this data stream does not contain separate sync words like the pulse
-/// tagger produces. The coherent integrator data format is documented in the 
-/// SD3C VHDL as follows:
-/// @code
-/// TAG_I_EVEN TAG_Q_EVEN TAG_I_ODD TAG_Q_ODD IQpairs,even pulse IQpairs,odd pulse
-///
-/// The TAG is broken down as:
-/// bits 31:28  Format number   0-15(4 bits)
-/// bits 27:26  Channel number  0-3 (2 bits)
-/// bit     25  0=even, 1=odd   0-1 (1 bit)
-/// bit     24  0=I, 1=Q        0-1 (1 bit)
-/// bits 23:00  Sequence number     (24 bits)
-///
-///
-/// The four tags at the beginning should all have the same sequence number,
-/// verifying that the individual accumulators are working in sequence.
-/// The sequence number increments by one for each output sum from
-/// an accumulator.
-/// @endcode
-class p716xDn_sd3c : public p716xDn {
-public:
+  /// @brief A p716xDn downconverter class for P716x cards running SD3C firmware.
+  ///
+  /// In the firmware, each channel contains a downconverter implemented with csac
+  /// filters. The csac filters have a gaussian and a kaiser filter in series. The
+  /// filter coefficients are configurable.
+  ///
+  /// In the firmware, the downconverter is followed by user selectable processing
+  /// modes. Each option configures the firmware timing differently, and
+  /// delivers the data in a different format.
+  ///
+  /// A beam of data is defined as the I and Q values for one set of range gates.
+  /// Baseband I and Q data may be either 16 bits or 32 bits, depending on the 
+  /// operating mode. Baseband data delivered to the host application via the 
+  /// read() method.
+  ///
+  /// The modes are:
+  /// <ul>
+  /// <li>free running (fr): There is no gating of the received data. The baseband
+  /// signal is output as a free running stream of 16 bit I and Q values.</li>
+  /// <li> pulse tagger (pt): The downconversion is gated at the prt rate, and the
+  /// specified number of gates is processed on each cycle. A synchronization word
+  /// and a pulse count are prepended to the beam of baseband data.</li>
+  /// <li> coherent integration (ci).: The downconversion is gated at the prt 
+  /// rate, and the specified number of gates is processed on each cycle. The prt
+  /// is divided into even and odd pulses. I and values for even and odd pulses 
+  /// are accumulated separately for all gates. When the accumulation is finished,
+  /// an  eight byte tag is prepended, and the I and Q summs for even and odd 
+  /// beams is output. </li>
+  /// </ul>
+  ///
+  /// <h2>p716xDn_sd3c usage</h2>
+  /// A large part of this class is involved with configuring the SD3C firmware on
+  /// the Pentek card. Filter coefficients, timing parameters, and the data 
+  /// processing section must be configured properly.
+  ///
+  /// The other activity is the actual collection of the baseband data stream.
+  /// Consumer applications call p716xDn_sd3c to deliver I and Q data blocks, on a 
+  /// beam by beam basis. The p716xDn_sd3c class handles detection and recovery 
+  /// from dropped data and synchronization errors. The consumer simply calls 
+  /// nextBeam() for the next beam of I and Q data, and the p716xDn_sd3c will block
+  /// until the request can be satisfied.
+  ///
+  /// Synchronization is performed when operating in the pulse tagging and
+  /// coherent integration modes. Synchronization is required
+  /// because it is possible for data to be dropped somewhere in the path from
+  /// the SD3C to the delivery via the read() call. This synchronization
+  /// can result in a certain amount of shifting and filling of
+  /// buffers. Since any significant synchronization loss rate will not be 
+  /// acceptable in the system, we rely on the assumption that the number of 
+  /// re-syncs to be small, and these small scale buffer manipulations should not
+  /// incur a significant overall processing cost. If re-synchronization occurs 
+  /// frequently, there is a hardware or design issue with the system which must 
+  /// be corrected.
+  ///
+  /// @todo It appears that the endianness of the pulse tagger sync word may
+  /// not be accounted for here. If the sync code is ever changed to a 
+  /// non-symmetrical value, the simulation and synchronization code may break.
+  ///
+  /// <h2>Coherent Integrator</h2>
+  /// The coherent integrator firmware in SD3C creates a data stream which is
+  /// a little more complicated that the free run and pulse tagger modes. Because
+  /// the coherent integrator tags cover 16 bytes, four of which contain fixed 
+  /// fields, this data stream does not contain separate sync words like the pulse
+  /// tagger produces. The coherent integrator data format is documented in the 
+  /// SD3C VHDL as follows:
+  /// @code
+  /// TAG_I_EVEN TAG_Q_EVEN TAG_I_ODD TAG_Q_ODD IQpairs,even pulse IQpairs,odd pulse
+  ///
+  /// The TAG is broken down as:
+  /// bits 31:28  Format number   0-15(4 bits)
+  /// bits 27:26  Channel number  0-3 (2 bits)
+  /// bit     25  0=even, 1=odd   0-1 (1 bit)
+  /// bit     24  0=I, 1=Q        0-1 (1 bit)
+  /// bits 23:00  Sequence number     (24 bits)
+  ///
+  ///
+  /// The four tags at the beginning should all have the same sequence number,
+  /// verifying that the individual accumulators are working in sequence.
+  /// The sequence number increments by one for each output sum from
+  /// an accumulator.
+  /// @endcode
+  class p716xDn_sd3c : public p716xDn {
+  public:
     /// Constructor.
     /// All times are expressed in seconds.
     /// @param p716xSd3cPtr Pointer to the p716x_sd3c which owns this 
@@ -118,18 +118,17 @@ public:
     /// @param simWaveLength The wavelength of the simulated data, in sample counts
     /// @param internalClock Set true if the internal clock should be
     ///     used instead of an external clock source.
-    p716xDn_sd3c(
-        p716x_sd3c * p716xSd3cPtr, 
-        int chanId,
-        uint32_t dmaDescSize,
-        bool isBurst,
-        int tsLength,
-        double rx_delay, 
-        double rx_pulsewidth,
-        std::string gaussianFile, 
-        std::string kaiserFile,
-        int simWaveLength = 5000,
-        bool internalClock = false);
+    p716xDn_sd3c(p716x_sd3c * p716xSd3cPtr, 
+                 int chanId,
+                 uint32_t dmaDescSize,
+                 bool isBurst,
+                 int tsLength,
+                 double rx_delay, 
+                 double rx_pulsewidth,
+                 std::string gaussianFile, 
+                 std::string kaiserFile,
+                 int simWaveLength = 5000,
+                 bool internalClock = false);
     
     /// Destructor
     virtual ~p716xDn_sd3c();
@@ -154,15 +153,6 @@ public:
     /// is computed during construction, and will not change thereafter.
     int beamLength();
     
-    /// Get one or two beams of data. For free run and
-    /// pulse tagger mode, one beam is returned. For the coherent integrator
-    /// mode, an even and an odd beam are returned. For multi-frequency
-    /// modes (RIM), all frequencies are returned.
-    /// @param[out] nPulsesSinceStart the number of pulses since the
-    ///   xmitter was started up - allows computation of the time
-    /// @return A pointer to one beam of data.
-    char* getBeam(int64_t& nPulsesSinceStart);
-    
     /// @brief Get a beam of pulse-tagged data and its associated extra
     /// metadata.
     /// @param[out] nPulsesSinceStart the number of pulses since the xmitter
@@ -172,7 +162,7 @@ public:
     /// @param[out] xmitPolHorizontal true if the transmit pulse was
     ///   horizontally polarized, false if vertically polarized.
     char* getBeam(int64_t& nPulsesSinceStart, float& angle1, float& angle2,
-            bool & xmitPolHorizontal);
+                  bool & xmitPolHorizontal);
 
     /// @brief Get a beam of pulse-tagged data and its associated extra
     /// metadata.
@@ -197,16 +187,19 @@ public:
     uint16_t decimation() const { return _decimation; }
     
     /// @return The cumulative number of dropped pulses
-    unsigned long droppedPulses();
+    unsigned long droppedPulses() const { return _droppedPulses; }
     /// @return the number of synchronization errors detected.
-    unsigned long syncErrors();
+    unsigned long syncErrors() const { return _syncErrors; }
     /// Return the name of the DDC type being used.
     std::string ddcTypeName() const;
     /// Return the estimated data interrupt period, which is a good estimate
     /// of the maximum data latency time.
     double dataInterruptPeriod() const { return _dataInterruptPeriod; }
 
-protected:
+    /// number of 32-bit integers in metadata header
+    static const int N_META_32 = 6;
+
+  protected:
     /// Set up Pentek ADC configuration for this channel.
     void _initSd3cAdc();
 
@@ -237,7 +230,7 @@ protected:
     /// Initialize the buffer management. _beamSize will be computed.
     /// _buf will be allocated.
     void initBuffer();
-    /// Return the next synchronized beam of pulse tagger data.
+    /// Return the next synchronized beam of pulse tagged data.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
@@ -249,8 +242,8 @@ protected:
     ///   horizontally polarized, false if vertically polarized.
     /// @returns Pointer to the start of the beam.
     char* ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
-            float & angle2, bool & xmitPolHorizontal);
-    /// Return the next synchronized beam of pulse tagger data, without extra
+                        float & angle2, bool & xmitPolHorizontal);
+    /// Return the next synchronized beam of pulse tagged data, without extra
     /// metadata.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
@@ -259,7 +252,7 @@ protected:
     ///   xmitter was started up - allows computation of the time
     /// @returns Pointer to the start of the beam.
     char* ptBeamDecoded(int64_t & nPulsesSinceStart);
-    /// Return the next synchronized beam of pulse tagger data, without extra
+    /// Return the next synchronized beam of pulse tagged data, without extra
     /// metadata.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
@@ -288,14 +281,14 @@ protected:
     /// is a misnomer, since there aren't really beams in free run mode.
     /// Think of them as blocks. The caller can access beamLength() bytes.
     char* frBeam();
-    /// Return the next synchronized beam of pulse tagger data.
+    /// Return the next synchronized beam of pulse tagged data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
     /// @param pulseTag The pulse tag is returned here
     /// @param extraMetadata extra metadata (of size extraMetadataLen()) will
     /// be returned here.
     /// @returns Pointer to the start of the beam.
-    char* ptBeam(char* pulseTag, char* extraMetadata);
+    char* ptBeam(uint32_t &pulseTag, uint32_t *metadata);
     /// Return the next synchronized beam of coherent integrator data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
@@ -337,7 +330,7 @@ protected:
     /// @param Q   Returns true for a Q beam, false for I data.
     /// @param seq Returns the sequence number;
     static void ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, 
-            bool& Q, uint32_t& seq);
+                            bool& Q, uint32_t& seq);
     /// @brief The _simulatedRead() mimics _read(), but returns simulated
     /// data rather than data actually obtained from the Pentek card.
     /// @see _read()
@@ -356,24 +349,22 @@ protected:
     /// simulated pulse numbers. The data rate throttling
     /// is implmented in nextSimPulseNum().
     void makeSimData(int n);
-    /// Decode the pulse tagger channel/pulse number word.
-    /// @param[in] buf A pointer to the channel/pulse number word.
-    /// @param[out] chan Return argument for the unpacked channel number.
-    /// @param[out] pulseNum Return argument for the unpacked pulse number.
-    static void unpackPtChannelAndPulse(
-            const char* buf,
-            unsigned int & chan,
-            unsigned int & pulseNum);
     /// Decode extra metadata.
     /// @param[in] buf A pointer to the extra metadata.
+    /// @param[out] pulseNum - the number of pulses since start
+    /// @param[out] chanNum - the channel number
     /// @param[out] angle1 the unpacked rotation/azimuth angle, in range
     ///     [-180,180] degrees
     /// @param[out] angle2 the unpacked tilt/elevation angle, in range
     ///     [-180,180] degrees
     /// @param[out] xmitPolHorizontal true if the transmit pulse was
     ///      horizontally polarized, false if vertically polarized.
-    static void unpackPtMetadata(const char* buf, float & angle1,
-            float & angle2, bool & xmitPolHorizontal);
+    void unpackPtMetadata(uint32_t *metadata,
+                          uint32_t &pulseNum,
+                          uint32_t &chanNum,
+                          float &angle1,
+                          float &angle2,
+                          bool &xmitPolHorizontal);
     /// Print the size and the leading data in _simFifo.
     /// @param label A label.
     /// @param n The number of items to print
@@ -383,9 +374,13 @@ protected:
     /// @return the length of per-beam extra metadata for this downconverter,
     /// in bytes.
     int ptMetadataLen() const;
-    
+
+    /// check sync
+    int checkInSync(uint32_t pulseTag);
+
     /// The SD3C synchronization word value.
-    static const uint32_t SD3C_SYNCWORD = 0xAAAAAAAA;
+    static const uint32_t SD3C_SYNCWORD_1 = 0xAAAAAAAA;
+    static const uint32_t SD3C_SYNCWORD_2 = 0xCCDDEEFF;
     
     /// The p716x_sd3c which owns us
     p716x_sd3c & _sd3c;
@@ -442,7 +437,7 @@ protected:
     std::deque<char> _simFifo;
     /// time for last sync error print
     time_t _timeLastSyncErrorPrint;
-};
+  };
 
 } // end namespace Pentek
 #endif /* P716XDN_SD3C_H_ */
