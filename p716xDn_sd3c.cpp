@@ -862,28 +862,48 @@ namespace Pentek {
   }
 
   //////////////////////////////////////////////////////////////////////////////////
+  /// get beam, decode the metadata before returning
+
   char*
     p716xDn_sd3c::getBeam(int64_t & nPulsesSinceStart, float & angle1,
                           float & angle2, bool & xmitPolHorizontal) {
+
     // This method only works for pulse-tagged data
     if (_sd3c._operatingMode() != p716x_sd3c::MODE_PULSETAG) {
       ELOG << __PRETTY_FUNCTION__ << " only works for MODE_PULSETAG";
       raise(SIGINT);
     }
-    return(ptBeamDecoded(nPulsesSinceStart, angle1, angle2, xmitPolHorizontal));
+
+    // get beam with metadata
+
+    uint32_t pulseMetadata[N_META_32];
+    char *buf = ptBeamWithMeta(nPulsesSinceStart, pulseMetadata);
+
+    // decode the metadata
+
+    uint32_t pulseNum;
+    uint32_t chanNum;
+    unpackPtMetadata(pulseMetadata, pulseNum, chanNum,
+                     angle1, angle2, xmitPolHorizontal);
+    
+    // return buffer
+
+    return buf;
+
   }
 
   //////////////////////////////////////////////////////////////////////////////////
+  /// get beam, with metadata
+
   char*
     p716xDn_sd3c::getBeam(int64_t & nPulsesSinceStart,
-                          void *metaDataBuf /* = NULL */,
-                          int bufLen /* = 0 */) {
+                          uint32_t pulseMetadata[N_META_32]) {
     // This method only works for pulse-tagged data
     if (_sd3c._operatingMode() != p716x_sd3c::MODE_PULSETAG) {
       ELOG << __PRETTY_FUNCTION__ << " only works for MODE_PULSETAG";
       raise(SIGINT);
     }
-    return(ptBeamWithMeta(nPulsesSinceStart, metaDataBuf, bufLen));
+    return ptBeamWithMeta(nPulsesSinceStart, pulseMetadata);
   }
 
   //////////////////////////////////////////////////////////////////////////////////
@@ -891,89 +911,6 @@ namespace Pentek {
     p716xDn_sd3c::beamLength() {
     boost::recursive_mutex::scoped_lock guard(_mutex);
     return _beamLength;
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////
-  char*
-    p716xDn_sd3c::ptBeamDecoded(int64_t & nPulsesSinceStart) {
-    float angle1;
-    float angle2;
-    bool xmitPolHorizontal;
-    return(ptBeamDecoded(nPulsesSinceStart, angle1, angle2, xmitPolHorizontal));
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////
-  char*
-    p716xDn_sd3c::ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
-                                float & angle2, bool & xmitPolHorizontal) {
-    boost::recursive_mutex::scoped_lock guard(_mutex);
-
-    // get the beam
-    uint32_t pulseNum = 0;
-    uint32_t pulseMetadata[N_META_32];
-    char* buf = ptBeam(pulseNum, pulseMetadata);
-
-    // unpack the metadata
-
-    uint32_t chanNum;
-    // float angle1, angle2;
-    // bool xmitPolHorizontal;
-    unpackPtMetadata(pulseMetadata, pulseNum, chanNum,
-                     angle1, angle2, xmitPolHorizontal);
-
-    if (chanNum != _chanId) {
-      std::ostringstream msgStream;
-      msgStream << std::setfill('0');
-      msgStream << "On channel " << chanNum << ", got BAD pulse tag 0x" << 
-        std::hex << std::setw(8) << pulseNum << " after pulse tag 0x" <<
-        std::setw(8) << (uint32_t(_chanId) << 30 | _lastPulse) << 
-        std::dec << ". Pulse number will just be incremented.\n";
-      ELOG << msgStream.str();
-      // Just hijack the next pulse number, since we've got garbage for
-      // the pulse anyway...
-      pulseNum = _lastPulse + 1;
-    }
-
-    // Initialize _lastPulse if this is the first pulse we've seen
-    if (_firstBeam) {
-      _lastPulse = pulseNum - 1;
-      _firstBeam = false;
-    }
-
-    // Handle pulse number rollover gracefully
-    if (_lastPulse == MAX_PT_PULSE_NUM) {
-      DLOG << "Pulse number rollover on channel " << chanId();
-      _lastPulse = -1;
-    }
-    
-    // How many pulses since the last one we saw?
-    int delta = pulseNum - _lastPulse;
-    if (delta < (-MAX_PT_PULSE_NUM / 2)) {
-      delta += MAX_PT_PULSE_NUM + 1;
-    }
-    
-    if (delta == 0) {
-      ELOG << "Channel " << _chanId << ": got repeat of pulse " <<
-        pulseNum << "!";
-      // raise(SIGINT);
-    } else if (delta != 1) {
-      ELOG << _lastPulse << "->" << pulseNum << ": ";
-      if (delta < 0) {
-        ELOG << "Channel " << _chanId << " went BACKWARD " <<
-          -delta << " pulses";
-      } else {
-        ELOG << "Channel " << _chanId << " dropped " <<
-          delta - 1 << " pulses";
-      }
-    }
-    
-    _nPulsesSinceStart += delta;
-    nPulsesSinceStart = _nPulsesSinceStart;
-
-    _droppedPulses += (delta - 1);
-    _lastPulse = pulseNum;
-
-    return buf;
   }
 
   //////////////////////////////////////////////////////////////////////////////////
@@ -985,18 +922,17 @@ namespace Pentek {
 
   char*
     p716xDn_sd3c::ptBeamWithMeta(int64_t & nPulsesSinceStart,
-                                 void *metaDataBuf /*= NULL */,
-                                 int bufLen /* = 0 */) {
-
+                                 uint32_t pulseMetadata[N_META_32]) {
+    
     boost::recursive_mutex::scoped_lock guard(_mutex);
 
-    // get the beam
+    // get the beam, and fill the metadata array
+
     uint32_t pulseNum = 0;
-    uint32_t pulseMetadata[N_META_32];
     char* buf = ptBeam(pulseNum, pulseMetadata);
 
     // unpack the metadata
-
+    
     uint32_t chanNum;
     float angle1, angle2;
     bool xmitPolHorizontal;
@@ -1004,25 +940,23 @@ namespace Pentek {
                      angle1, angle2, xmitPolHorizontal);
 
     if (chanNum != _chanId) {
-      std::ostringstream msgStream;
-      msgStream << std::setfill('0');
-      msgStream << "On channel " << chanNum << ", got BAD pulse tag 0x" <<
-        std::hex << std::setw(8) << pulseNum << " after pulse tag 0x" <<
-        std::setw(8) << (uint32_t(_chanId) << 30 | _lastPulse) <<
-        std::dec << ". Pulse number will just be incremented.\n";
-      ELOG << msgStream.str();
-      
+      if (nPulsesSinceStart % 10000 == 0) {
+        ELOG << "==>> Bad chanNum: " << chanNum << ", should be: " << _chanId;
+        ELOG << "====>> metadata[1]: " << std::hex 
+             << "0x" << pulseMetadata[1] << std::dec;
+        ELOG << "====>> pulseNum, HVflag: " << pulseNum << ", " << xmitPolHorizontal;
+        // std::ostringstream msgStream;
+        // msgStream << std::setfill('0');
+        // msgStream << "On channel " << chanNum << ", got BAD pulse tag 0x" <<
+        //   std::hex << std::setw(8) << pulseNum << " after pulse tag 0x" <<
+        //   std::setw(8) << (uint32_t(_chanId) << 30 | _lastPulse) <<
+        //   std::dec << ". Pulse number will just be incremented.\n";
+        // ELOG << msgStream.str();
+      }
       // Just hijack the next pulse number, since we've got garbage for
       // the pulse anyway...
-      pulseNum = _lastPulse + 1;
+      // pulseNum = _lastPulse + 1;
     }
-    
-    // Copy the metadata into the client buffer
-    int ncopy = N_META_32 * sizeof(uint32_t);
-    if (ncopy > bufLen) {
-      ncopy = bufLen;
-    }
-    memcpy(metaDataBuf, pulseMetadata, ncopy);
     
     // Initialize _lastPulse if this is the first pulse we've seen
     if (_firstBeam) {
@@ -1083,40 +1017,41 @@ namespace Pentek {
     
     // read in meta data
     
-    int nread = read((char *) metadata, N_META_32 * sizeof(uint32_t));
-    assert(nread == N_META_32 * sizeof(uint32_t));
+    int nToRead = N_META_32 * sizeof(uint32_t);
+    int nread = read((char *) metadata, nToRead);
+    assert(nread == nToRead);
     
-    ELOG << "====>> metadata words[0],[1]: " 
-         << std::hex << std::setfill('0') << "0x" << std::setw(8)
-         << metadata[0] << ", 0x" << std::setw(8) << metadata[1] << std::dec;
-    ELOG << "====>> metadata words[2],[3]: " 
-         << std::hex << std::setfill('0') << "0x" << std::setw(8)
-         << metadata[2] << ", 0x" << std::setw(8) << metadata[3] << std::dec;
-    ELOG << "====>> metadata words[4],[5]: " 
-         << std::hex << std::setfill('0') << "0x" << std::setw(8)
-         << metadata[4] << ", 0x" << std::setw(8) << metadata[5] << std::dec;
+    // ELOG << "====>> metadata words[0],[1]: " 
+    //      << std::hex << std::setfill('0') << "0x" << std::setw(8)
+    //      << metadata[0] << ", 0x" << std::setw(8) << metadata[1] << std::dec;
+    // ELOG << "====>> metadata words[2],[3]: " 
+    //      << std::hex << std::setfill('0') << "0x" << std::setw(8)
+    //      << metadata[2] << ", 0x" << std::setw(8) << metadata[3] << std::dec;
+    // ELOG << "====>> metadata words[4],[5]: " 
+    //      << std::hex << std::setfill('0') << "0x" << std::setw(8)
+    //      << metadata[4] << ", 0x" << std::setw(8) << metadata[5] << std::dec;
 
     // read in I/Q data
     
     nread = read(_buf, _beamLength);
     assert(nread == _beamLength);
     
-    uint32_t *iq = (uint32_t*) _buf;
-    for (int igate = 0; igate < _gates; igate++) {
-      if (igate < 4 || igate >= (_gates - 4)) {
-        ELOG << igate << ": "
-             << std::hex << std::setfill('0')
-             << "0x" << std::setw(8) << iq[igate*2]
-             << ", 0x" << std::setw(8) << iq[igate*2+1] << std::dec;
-      }
-    }
+    // uint32_t *iq = (uint32_t*) _buf;
+    // for (int igate = 0; igate < _gates; igate++) {
+    //   if (igate < 4 || igate >= (_gates - 4)) {
+    //     ELOG << igate << ": "
+    //          << std::hex << std::setfill('0')
+    //          << "0x" << std::setw(8) << iq[igate*2]
+    //          << ", 0x" << std::setw(8) << iq[igate*2+1] << std::dec;
+    //   }
+    // }
 
-    if (_nPulsesSinceStart > 10) {
-      while (true) {
-        ELOG << "zzzzzzzzzzzzzzzzzzzzzzzzz";
-        usleep(1000000);
-      }
-    }
+    // if (_nPulsesSinceStart > 10) {
+    //   while (true) {
+    //     ELOG << "zzzzzzzzzzzzzzzzzzzzzzzzz";
+    //     usleep(1000000);
+    //   }
+    // }
     
     
     if (_syncErrors != startSyncErrors) {
@@ -1136,8 +1071,8 @@ namespace Pentek {
       }
     }
 
-    ELOG << "ZZZZZZZZZZZZZZZZZZZZZZZZZ";
-    usleep(1000000);
+    // ELOG << "ZZZZZZZZZZZZZZZZZZZZZZZZZ";
+    // usleep(1000000);
 
     return _buf;
   }
@@ -1153,12 +1088,14 @@ namespace Pentek {
     // read in next 2 32-bit words
 
     uint32_t sync[2];
-    int nread = read((char *) sync, 8);
-    assert(nread == 8);
-    ELOG << "=======>> sync words [0],[1]: " 
-         << std::hex << std::setfill('0')
-         << "0x" << std::setw(8) << sync[0] << ", 0x" << std::setw(8) << sync[1]
-         << std::dec;
+    int nToRead = 2 * sizeof(uint32_t);
+    int nread = read((char *) sync, nToRead);
+    assert(nread == nToRead);
+
+    // ELOG << "=======>> sync words [0],[1]: " 
+    //      << std::hex << std::setfill('0')
+    //      << "0x" << std::setw(8) << sync[0] << ", 0x" << std::setw(8) << sync[1]
+    //      << std::dec;
 
     // check for sync
 
@@ -1754,7 +1691,7 @@ namespace Pentek {
     // pulse number
     pulseNum = metadata[0];
     // channel number
-    chanNum = metadata[1] & 0x6;
+    chanNum = (metadata[1] & 0x6) >> 1;
     // hv flag
     xmitPolHorizontal = (metadata[1] & 0x1) == 0;
     // The first 32-bit word is the rotation/azimuth angle

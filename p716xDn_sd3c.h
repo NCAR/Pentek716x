@@ -164,6 +164,9 @@ namespace Pentek {
     char* getBeam(int64_t& nPulsesSinceStart, float& angle1, float& angle2,
                   bool & xmitPolHorizontal);
 
+    /// number of 32-bit integers in metadata header
+    static const int N_META_32 = 6;
+
     /// @brief Get a beam of pulse-tagged data and its associated extra
     /// metadata.
     /// @param[out] nPulsesSinceStart the number of pulses since the xmitter
@@ -174,9 +177,9 @@ namespace Pentek {
     /// to be interpreted by the calling routine.
     /// metaDataBuf must be allocated by the caller, to have the length bufLen,
     /// This should match the len returned by ptMetadataLen().
+
     char* getBeam(int64_t & nPulsesSinceStart,
-                  void *metaDataBuf = NULL,
-                  int bufLen = 0);
+                  uint32_t pulseMetadata[N_META_32]);
 
     /// Return our gate count. For burst sampling channels, this may be
     /// different from the gate count set for our p716x_sd3c object.
@@ -195,9 +198,6 @@ namespace Pentek {
     /// Return the estimated data interrupt period, which is a good estimate
     /// of the maximum data latency time.
     double dataInterruptPeriod() const { return _dataInterruptPeriod; }
-
-    /// number of 32-bit integers in metadata header
-    static const int N_META_32 = 6;
 
   protected:
     /// Set up Pentek ADC configuration for this channel.
@@ -230,28 +230,7 @@ namespace Pentek {
     /// Initialize the buffer management. _beamSize will be computed.
     /// _buf will be allocated.
     void initBuffer();
-    /// Return the next synchronized beam of pulse tagged data.
-    /// The pulse number in the beam is checked for dropped beams.
-    /// Data associated with synchronization errors will be skipped.
-    /// The caller can access beamLength() bytes.
-    /// @param[out] nPulsesSinceStart: the number of pulses since the
-    ///   xmitter was started up - allows computation of the time
-    /// @param[out] angle1 the rotation/azimuth angle for this beam of data
-    /// @param[out] angle2 the tilt/elevation angle for this beam of data
-    /// @param[out] xmitPolHorizontal true if the transmit pulse was
-    ///   horizontally polarized, false if vertically polarized.
-    /// @returns Pointer to the start of the beam.
-    char* ptBeamDecoded(int64_t & nPulsesSinceStart, float & angle1,
-                        float & angle2, bool & xmitPolHorizontal);
-    /// Return the next synchronized beam of pulse tagged data, without extra
-    /// metadata.
-    /// The pulse number in the beam is checked for dropped beams.
-    /// Data associated with synchronization errors will be skipped.
-    /// The caller can access beamLength() bytes.
-    /// @param[out] nPulsesSinceStart: the number of pulses since the
-    ///   xmitter was started up - allows computation of the time
-    /// @returns Pointer to the start of the beam.
-    char* ptBeamDecoded(int64_t & nPulsesSinceStart);
+
     /// Return the next synchronized beam of pulse tagged data, without extra
     /// metadata.
     /// The pulse number in the beam is checked for dropped beams.
@@ -266,8 +245,8 @@ namespace Pentek {
     ///   by ptMetadataLen().
     /// @returns Pointer to the start of the beam.
     char* ptBeamWithMeta(int64_t & nPulsesSinceStart,
-                         void *metaDataBuf = NULL,
-                         int bufLen = 0);
+                         uint32_t pulseMetadata[N_META_32]);
+
     /// Return the next synchronized beam of coherent integrator data.
     /// The pulse number in the beam is checked for dropped beams.
     /// Data associated with synchronization errors will be skipped.
@@ -277,10 +256,12 @@ namespace Pentek {
     /// @param rim Set true if we are operating in range imaging mode.
     /// @returns Pointer to the start of the beam.
     char* ciBeamDecoded(int64_t& nPulsesSinceStart, bool rim);
+
     /// Return the next beam of free run data. This
     /// is a misnomer, since there aren't really beams in free run mode.
     /// Think of them as blocks. The caller can access beamLength() bytes.
     char* frBeam();
+
     /// Return the next synchronized beam of pulse tagged data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
@@ -289,18 +270,21 @@ namespace Pentek {
     /// be returned here.
     /// @returns Pointer to the start of the beam.
     char* ptBeam(uint32_t &pulseTag, uint32_t *metadata);
+
     /// Return the next synchronized beam of coherent integrator data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
     /// @param pulseNum The pulse number is returned here
     /// @returns Pointer to the start of the beam.
     char* ciBeam(unsigned int& pulseNum);
+
     /// Return the next synchronized beam of RIM coherent integrator data.
     /// Data associated with synchronization errors will be skipped.
     /// The caller can access beamLength() bytes.
     /// @param pulseNum The pulse number is returned here
     /// @returns Pointer to the start of the beam.
     char* ciBeamRim(unsigned int& pulseNum);
+
     /// Check that a coherent integrator tag is
     /// valid.
     /// @param p Pointer to the tag.
@@ -308,6 +292,7 @@ namespace Pentek {
     /// if the tag is valid.
     /// @returns True if valid, false otherwise.
     static bool ciCheckTag(char* p, unsigned int& pulseNum);
+
     /// Check that a RIM coherent integrator tag is
     /// valid.
     /// @param p Pointer to the tag.
@@ -315,6 +300,7 @@ namespace Pentek {
     /// if the tag is valid.
     /// @returns True if valid, false otherwise.
     static bool ciCheckTagRim(char* p, unsigned int& pulseNum);
+
     /// Create a coherent integrator tag. Used for simulation.
     /// @param format The format identifier. Must match the format number produced by the firmware.
     /// @param chan The channel number (0-3).
@@ -322,6 +308,7 @@ namespace Pentek {
     /// @param Q   True for a Q beam, false for I data.
     /// @param seq The sequence number, from 0 to 0xffffff;
     static uint32_t ciMakeTag(int format, int chan, bool odd, bool Q, uint32_t seq);
+
     /// Decode a coherent integrator tag.
     /// @param tag The tag to be decoded.
     /// @param format Returns the format identifier.
@@ -331,6 +318,7 @@ namespace Pentek {
     /// @param seq Returns the sequence number;
     static void ciDecodeTag(uint32_t tag, int& format, int& chan, bool& odd, 
                             bool& Q, uint32_t& seq);
+
     /// @brief The _simulatedRead() mimics _read(), but returns simulated
     /// data rather than data actually obtained from the Pentek card.
     /// @see _read()
@@ -339,6 +327,7 @@ namespace Pentek {
     /// @return The number of bytes "read". If an error occurs, minus
     /// one will be returned.
     virtual int _simulatedRead(char* buf, int bytes);
+
     /// Fill _simfifo with simulated data. Make
     /// sure that there are at least the specified number of bytes.
     /// Sync words and tags are added as appropriate. For
@@ -349,6 +338,7 @@ namespace Pentek {
     /// simulated pulse numbers. The data rate throttling
     /// is implmented in nextSimPulseNum().
     void makeSimData(int n);
+
     /// Decode extra metadata.
     /// @param[in] buf A pointer to the extra metadata.
     /// @param[out] pulseNum - the number of pulses since start
@@ -365,10 +355,12 @@ namespace Pentek {
                           float &angle1,
                           float &angle2,
                           bool &xmitPolHorizontal);
+
     /// Print the size and the leading data in _simFifo.
     /// @param label A label.
     /// @param n The number of items to print
     void dumpSimFifo(std::string label, int n);
+
     /// @brief Return the length of per-beam extra metadata for this
     /// downconverter, in bytes.
     /// @return the length of per-beam extra metadata for this downconverter,
