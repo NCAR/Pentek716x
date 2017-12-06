@@ -12,7 +12,7 @@
 
 #include "p716x_sd3c.h"
 #include "p716xDn_sd3c.h"
-LOGGING("p716xDn_sd3c");
+LOGGING("p716xDn_sd3c")
 
 using namespace boost::posix_time;
 
@@ -1720,7 +1720,7 @@ namespace Pentek {
       }
     }
     out << std::dec;
-    DLOG << out;
+    DLOG << out.str();
   }
 
 } // end namespace Pentek
