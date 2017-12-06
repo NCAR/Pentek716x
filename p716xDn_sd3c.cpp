@@ -865,8 +865,9 @@ namespace Pentek {
   /// get beam, decode the metadata before returning
 
   char*
-    p716xDn_sd3c::getBeam(int64_t & nPulsesSinceStart, float & angle1,
-                          float & angle2, bool & xmitPolHorizontal) {
+    p716xDn_sd3c::getBeam(int64_t & nPulsesSinceStart,
+                          double & angle1, double & angle2,
+                          bool & xmitPolHorizontal) {
 
     // This method only works for pulse-tagged data
     if (_sd3c._operatingMode() != p716x_sd3c::MODE_PULSETAG) {
@@ -934,28 +935,18 @@ namespace Pentek {
     // unpack the metadata
     
     uint32_t chanNum;
-    float angle1, angle2;
+    double angle1, angle2;
     bool xmitPolHorizontal;
     unpackPtMetadata(pulseMetadata, pulseNum, chanNum,
                      angle1, angle2, xmitPolHorizontal);
-
+    
     if (chanNum != _chanId) {
       if (nPulsesSinceStart % 10000 == 0) {
         ELOG << "==>> Bad chanNum: " << chanNum << ", should be: " << _chanId;
         ELOG << "====>> metadata[1]: " << std::hex 
              << "0x" << pulseMetadata[1] << std::dec;
         ELOG << "====>> pulseNum, HVflag: " << pulseNum << ", " << xmitPolHorizontal;
-        // std::ostringstream msgStream;
-        // msgStream << std::setfill('0');
-        // msgStream << "On channel " << chanNum << ", got BAD pulse tag 0x" <<
-        //   std::hex << std::setw(8) << pulseNum << " after pulse tag 0x" <<
-        //   std::setw(8) << (uint32_t(_chanId) << 30 | _lastPulse) <<
-        //   std::dec << ". Pulse number will just be incremented.\n";
-        // ELOG << msgStream.str();
       }
-      // Just hijack the next pulse number, since we've got garbage for
-      // the pulse anyway...
-      // pulseNum = _lastPulse + 1;
     }
     
     // Initialize _lastPulse if this is the first pulse we've seen
@@ -1046,14 +1037,6 @@ namespace Pentek {
     //   }
     // }
 
-    // if (_nPulsesSinceStart > 10) {
-    //   while (true) {
-    //     ELOG << "zzzzzzzzzzzzzzzzzzzzzzzzz";
-    //     usleep(1000000);
-    //   }
-    // }
-    
-    
     if (_syncErrors != startSyncErrors) {
       time_t now = time(NULL);
       int secsSinceLastErrorPrint = now - _timeLastSyncErrorPrint;
@@ -1070,9 +1053,6 @@ namespace Pentek {
         _timeLastSyncErrorPrint = now;
       }
     }
-
-    // ELOG << "ZZZZZZZZZZZZZZZZZZZZZZZZZ";
-    // usleep(1000000);
 
     return _buf;
   }
@@ -1685,8 +1665,8 @@ namespace Pentek {
     p716xDn_sd3c::unpackPtMetadata(uint32_t *metadata,
                                    uint32_t &pulseNum,
                                    uint32_t &chanNum,
-                                   float &angle1,
-                                   float &angle2,
+                                   double &angle1,
+                                   double &angle2,
                                    bool &xmitPolHorizontal) {
     // pulse number
     pulseNum = metadata[0];

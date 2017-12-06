@@ -159,7 +159,8 @@ namespace Pentek {
     /// @param[out] angle2 tilt or elevation angle of the beam
     /// @param[out] xmitPolHorizontal true if the transmit pulse was
     ///   horizontally polarized, false if vertically polarized.
-    char* getBeam(int64_t& nPulsesSinceStart, float& angle1, float& angle2,
+    char* getBeam(int64_t& nPulsesSinceStart,
+                  double& angle1, double& angle2,
                   bool & xmitPolHorizontal);
 
     /// number of 32-bit integers in metadata header
@@ -197,6 +198,23 @@ namespace Pentek {
     /// of the maximum data latency time.
     double dataInterruptPeriod() const { return _dataInterruptPeriod; }
 
+    /// Decode extra metadata.
+    /// @param[in] buf A pointer to the extra metadata.
+    /// @param[out] pulseNum - the number of pulses since start
+    /// @param[out] chanNum - the channel number
+    /// @param[out] angle1 the unpacked rotation/azimuth angle, in range
+    ///     [-180,180] degrees
+    /// @param[out] angle2 the unpacked tilt/elevation angle, in range
+    ///     [-180,180] degrees
+    /// @param[out] xmitPolHorizontal true if the transmit pulse was
+    ///      horizontally polarized, false if vertically polarized.
+    static void unpackPtMetadata(uint32_t *metadata,
+                                 uint32_t &pulseNum,
+                                 uint32_t &chanNum,
+                                 double &angle1,
+                                 double &angle2,
+                                 bool &xmitPolHorizontal);
+    
   protected:
     /// Set up Pentek ADC configuration for this channel.
     void _initSd3cAdc();
@@ -336,23 +354,6 @@ namespace Pentek {
     /// simulated pulse numbers. The data rate throttling
     /// is implmented in nextSimPulseNum().
     void makeSimData(int n);
-
-    /// Decode extra metadata.
-    /// @param[in] buf A pointer to the extra metadata.
-    /// @param[out] pulseNum - the number of pulses since start
-    /// @param[out] chanNum - the channel number
-    /// @param[out] angle1 the unpacked rotation/azimuth angle, in range
-    ///     [-180,180] degrees
-    /// @param[out] angle2 the unpacked tilt/elevation angle, in range
-    ///     [-180,180] degrees
-    /// @param[out] xmitPolHorizontal true if the transmit pulse was
-    ///      horizontally polarized, false if vertically polarized.
-    void unpackPtMetadata(uint32_t *metadata,
-                          uint32_t &pulseNum,
-                          uint32_t &chanNum,
-                          float &angle1,
-                          float &angle2,
-                          bool &xmitPolHorizontal);
 
     /// Print the size and the leading data in _simFifo.
     /// @param label A label.
