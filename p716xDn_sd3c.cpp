@@ -269,9 +269,9 @@ namespace Pentek {
     // Enable writing data to the ADC PACK FIFO when the gate signal is high
     _adcParams.gateTrigEnable = P716x_ADC_GATE_TRIG_CTRL_GATE_TRIG_IN_ENABLE;
 
-    // Enable the RAM fifo.
-    _adcParams.ramPathEnable = P716x_ADC_RAM_CTRL_RAM_PATH_ENABLE;
-    _adcParams.ramReadEnable = P716x_ADC_RAM_CTRL_RAM_READ_ENABLE;
+    // Disable the RAM fifo.
+    _adcParams.ramPathEnable = P716x_ADC_RAM_CTRL_RAM_PATH_DISABLE;
+    _adcParams.ramReadEnable = P716x_ADC_RAM_CTRL_RAM_READ_DISABLE;
 
     // Apply the new configuration to the ADC registers
     _applyAdcParams();
