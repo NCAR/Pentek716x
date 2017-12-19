@@ -258,17 +258,7 @@ p716x::_initReadyFlow(bool initOnceOnly) {
       }
     }
 
-    // Reset the board so we start in pristine condition
-    DLOG << "Initializing Pentek";
-    P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_ENABLE);
-    usleep(P716X_IOCTLSLEEPUS);
-    P716xSetGlobalResetState(_regAddr.globalReset, P716x_GLOBAL_RESET_DISABLE);
-    usleep(P716X_IOCTLSLEEPUS);
-
-    // Reset board registers to power-on default states
-    P716xResetRegs(&_regAddr);
-    
-    // Load parameter tables with default values
+    // Load _globalParams with default values
     P716xSetGlobalDefaults(&_boardResource, &_globalParams);
 
     // check if module is a 716x
