@@ -58,7 +58,9 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
         _externalStartTrigger(externalStartTrigger),
         _rim(rim),
         _codeLength(codeLength),
-        _cmdFlags(0) {
+        _cmdFlags(0)
+  
+{
 
 	boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
@@ -160,6 +162,7 @@ p716x_sd3c::p716x_sd3c(double clockFreq,
 
     // Convert prt, prt2, tx_pulsewidth, and tx_delay into our local representation, 
     // which is in units of (ADC clock counts / 2)
+    _clockDivider = 2;
     _prtCounts = timeToCounts(_prt);
     _prt2Counts = timeToCounts(_prt2);
     _prf = 1.0 / _prt;   // Hz
@@ -342,7 +345,7 @@ int
 p716x_sd3c::timeToCounts(double time) const {
     boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
-    return(lround(time * _clockFrequency / 2));
+    return(lround(time * _clockFrequency / (2 * _clockDivider)));
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -350,7 +353,7 @@ double
 p716x_sd3c::countsToTime(int counts) const {
     boost::recursive_mutex::scoped_lock guard(_p716xMutex);
 
-    return((2 * counts) / _clockFrequency);
+    return(((2 * _clockDivider) * counts) / _clockFrequency);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -390,8 +393,19 @@ bool p716x_sd3c::timersStartStop(bool start) {
     	P716x_REG_READ(_sd3cRegAddr(MT_ADDR), check0);
 	
         // Enable/Disable Timer
-        unsigned int command1 =
-        		(start ? TIMER_ON : 0) | (_timerInvert(i) ? TIMER_NEG : 0);
+        unsigned int command1 =	(start ? TIMER_ON : 0);
+        command1 |= (_timerInvert(i) ? TIMER_NEG : 0);
+        if (_clockDivider == 1) {
+          command1 |= CLK_DIV1;
+        } else if (_clockDivider == 2) {
+          command1 |= CLK_DIV2; // divide the standard clock counts by 2
+        } else if (_clockDivider == 4) {
+          command1 |= CLK_DIV4; // divide the standard clock counts by 4
+        } else if (_clockDivider == 8) {
+          command1 |= CLK_DIV8; // divide the standard clock counts by 8
+        }
+        // unsigned int command1 =
+        // 		(start ? TIMER_ON : 0) | (_timerInvert(i) ? TIMER_NEG : 0);
         P716x_REG_WRITE(_sd3cRegAddr(MT_DATA), command1);
         usleep(P716X_IOCTLSLEEPUS);
 

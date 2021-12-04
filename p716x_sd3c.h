@@ -648,7 +648,9 @@ protected:
     /// Pointer to the sd3c transceiver control register in the fpga.
     uint32_t* tcvrCtrlReg;
 
-     /// Vector of delay/width pairs for our 8 SD3C timers
+    /// clock divider to keep counts < 65536
+    int _clockDivider;
+    /// Vector of delay/width pairs for our 8 SD3C timers
     _TimerConfig _timerConfigs[N_SD3C_TIMERS];
     /// radar PRT in _adc_clock/2 counts
     unsigned int _prtCounts;

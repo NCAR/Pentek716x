@@ -83,6 +83,7 @@ namespace Pentek {
     DLOG << "       internalClock: " << internalClock;
     DLOG << "               gates: " << _gates;
     DLOG << "                nsum: " << _nsum;
+    DLOG << "       rxDelayCounts: " << rxDelayCounts;
     DLOG << "  rxPulsewidthCounts: " << rxPulsewidthCounts;
     DLOG << "       ddcDecimation: " << _sd3c.ddcDecimation();
     DLOG << "        adcFrequency: " << _sd3c.adcFrequency();
