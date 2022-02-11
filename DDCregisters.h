@@ -104,10 +104,10 @@ static const uint32_t TIMER_ON = (0x1<<0);
 static const uint32_t TIMER_OFF = (0x0<<0);
 static const uint32_t TIMER_NEG = (0x1<<1);
 static const uint32_t TIMER_POS = (0x0<<1);
-static const uint32_t CLK_DIV1 = (0x0<<2);
-static const uint32_t CLK_DIV2 = (0x1<<2);
-static const uint32_t CLK_DIV4 = (0x2<<2);
-static const uint32_t CLK_DIV8 = (0x3<<2);
+static const uint32_t CLK_DIV1 = (0x0<<3);
+static const uint32_t CLK_DIV2 = (0x1<<3);
+static const uint32_t CLK_DIV4 = (0x2<<3);
+static const uint32_t CLK_DIV8 = (0x3<<3);
 
 static const uint32_t PRT1 = (0x0<<0);
 static const uint32_t PRT2 = (0x0<<4);

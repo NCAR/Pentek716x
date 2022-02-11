@@ -428,6 +428,7 @@ namespace Pentek {
     std::deque<char> _simFifo;
     /// time for last sync error print
     time_t _timeLastSyncErrorPrint;
+    uint32_t _nHuntWords;
   };
 
 } // end namespace Pentek

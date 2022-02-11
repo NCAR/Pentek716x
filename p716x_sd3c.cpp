@@ -356,6 +356,17 @@ p716x_sd3c::countsToTime(int counts) const {
     return(((2 * _clockDivider) * counts) / _clockFrequency);
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+// compute decimation for the data channels, in terms of counts.
+// this does not use the clock divider
+// Downconverter is _clockFrequency / 8.
+
+int
+p716x_sd3c::computeDecimation(double time) const {
+  boost::recursive_mutex::scoped_lock guard(_p716xMutex);
+  return(lround(time * _clockFrequency / 8));
+}
+
 /////////////////////////////////////////////////////////////////////////
 bool p716x_sd3c::timersStartStop(bool start) {
     boost::recursive_mutex::scoped_lock guard(_p716xMutex);

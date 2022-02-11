@@ -50,7 +50,8 @@ namespace Pentek {
     _firstRawBeam(true),
     _firstBeam(true),
     _dataInterruptPeriod(0.0),
-    _timeLastSyncErrorPrint(0)
+    _timeLastSyncErrorPrint(0),
+    _nHuntWords(0)
 
   {
 
@@ -84,6 +85,7 @@ namespace Pentek {
     DLOG << "               gates: " << _gates;
     DLOG << "                nsum: " << _nsum;
     DLOG << "       rxDelayCounts: " << rxDelayCounts;
+    DLOG << "       rx_pulsewidth: " << rx_pulsewidth << " s";
     DLOG << "  rxPulsewidthCounts: " << rxPulsewidthCounts;
     DLOG << "       ddcDecimation: " << _sd3c.ddcDecimation();
     DLOG << "        adcFrequency: " << _sd3c.adcFrequency();
@@ -207,8 +209,12 @@ namespace Pentek {
     // Set the decimation for this receive channel
     // ** This establishes the gate width in the downconverter. **
     // It must be the number of counts of the ADC_CLK10D
-    // _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts/5);
-    _isBurst ? _setDecimation(1) : _setDecimation(rxPulsewidthCounts/4);
+
+    if (_isBurst) {
+      _setDecimation(1);
+    } else {
+      _setDecimation(_sd3c.computeDecimation(rx_pulsewidth));
+    }
     
     // configure DDC in FPGA
     if (!config()) {
@@ -1092,12 +1098,13 @@ namespace Pentek {
                 << ", chan: " << _chanId << " : ";
     syncHuntMsg << std::setfill('0');
 
-    uint32_t nHuntWords = 0;
+    _nHuntWords = 0;
     while (true) {
 
-      if (nHuntWords % 1000000 == 0) {
-        ELOG << "ptBeam() syncing, chanId, nHuntWords: " << _chanId << ", " << nHuntWords;
-      }
+      // if (_nHuntWords % 1000000 == 0) {
+      //   ELOG << "ptBeam() syncing, chanId, _nHuntWords: "
+      //        << _chanId << ", " << _nHuntWords;
+      // }
     
       // move latest word read
     
@@ -1107,7 +1114,7 @@ namespace Pentek {
     
       int nread = read((char *) &sync[1], sizeof(uint32_t));
       assert(nread == sizeof(uint32_t));
-      nHuntWords++;
+      _nHuntWords++;
     
       // Break out when we've found sync
     
@@ -1116,15 +1123,17 @@ namespace Pentek {
       }
     
     } // while (true)
+    // ELOG << "2222222222 ptBeam() syncing, chanId, _nHuntWords: "
+    //      << _chanId << ", " << _nHuntWords;
         
     syncHuntMsg << "<SYNC>";
     time_t now = time(NULL);
     int secsSinceLastErrorPrint = now - _timeLastSyncErrorPrint;
     if (secsSinceLastErrorPrint > 1) {
-      ELOG << "Sync hunt " << nHuntWords 
+      ELOG << "Sync hunt " << _nHuntWords 
            << " words after pulse " << pulseNum
            << " on chan " << _chanId;
-      DLOG << syncHuntMsg.str();
+      // DLOG << syncHuntMsg.str();
       _timeLastSyncErrorPrint = now;
     }
 

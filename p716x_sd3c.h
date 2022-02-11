@@ -165,6 +165,11 @@ public:
     /// (2 / _adc_clock) seconds.
     int timeToCounts(double time) const;
     
+    // compute decimation for the data channels, in terms of counts.
+    // this does not use the clock divider
+    // Downconverter is _clockFrequency / 8.
+    int computeDecimation(double time) const;
+
     /// @brief Convert a time in (2 / _adc_clock) integer timer counts to
     /// a time in seconds.
     /// @ param time the time to be converted, in (2 / _adc_clock) counts.
