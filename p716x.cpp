@@ -1016,16 +1016,5 @@ p716x::fpgaTemp() const {
     if (_simulate) {
         return(50);
     }
-
-    LM83_VALUES     tempMonValues;
-    /* read the LM83 temperature registers */
-    LM83GetValues(_regAddr.twsiPort1ControlStatus, P716x_LM83_MAIN_PCB_ADDR, 
-                  &tempMonValues);
-    // The D2 temperature sensor is on the signal processing FPGA.
-    int temp = tempMonValues.D2Temp;
-    // Pentek's library doesn't do the right thing unpacking temperatures
-    // below 0. Correct that here.
-    if (temp > 127)
-    	temp -= 256;
-    return(temp);
+    return P716xGetSysMonFpgaTemp(_regAddr.systemMonitor.fpgaTempValue);
 }
